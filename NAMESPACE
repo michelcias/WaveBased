@@ -1,0 +1,5 @@
+useDynLib(WaveBased)
+
+export(PHI, PSI, wbasis)
+
+#importFrom("wavethresh", "denproj", "rclaw")

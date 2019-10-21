@@ -1,0 +1,109 @@
+\name{PSI}
+\alias{PSI}
+\title{
+Mother Wavelet Basis
+}
+\description{
+Calculates a matrix of wavelet functions \eqn{\psi_{Jk}}, where the lines are
+related to the elements of the data set \eqn{x} and the columns are related to
+the values of \eqn{k} for which \eqn{\psi_{Jk}} is non-null.
+}
+\usage{
+PSI(x, J, family = "Daublets", taps = 20, prec.wavelet = 30,
+    periodic = TRUE)
+}
+\arguments{
+\item{x}{Vector containing the data. Its length does not need to be power of
+two.}
+\item{J}{The resolution level at which the (mother) wavelet basis must be
+calculated.}
+\item{family}{The family of wavelets to use, can be \emph{Daublets},
+\emph{Symmlets} or \emph{Coiflets}.}
+\item{taps}{The size of the filter. The available values depend on the chosen
+family. See Details for more information.}
+\item{prec.wavelet}{The number of iterations to be performed in the Daubechies-
+Lagarias algorithm, which is used to evaluate the scaling functions of the
+specified wavelet basis at the data points.}
+\item{periodic}{If it is TRUE (default), the periodic (mother) wavelet basis
+will be used. We recommend to use \code{periodic = TRUE}, because it can handle
+boundary conditions.}
+}
+\details{
+The wavelet function \eqn{\psi} is obtained according to a wavelet filter with
+specific number of \code{taps} and specific \code{family}. Such a function
+generates an orthonormal basis \eqn{\{\psi_{Jk}(\cdot)\}_k} of the orthogonal
+complement \eqn{W_J} of the multiresolution space \eqn{V_J} in \eqn{V_{J+1}},
+i.e., \deqn{W_{J} = V_{J+1} \ominus V_{J}} of an associated multiresolution
+analysis.
+The (mother) wavelet basis is defined as
+\deqn{\psi_{Jk}(x) = 2^{J/2} \psi(2^J x - k).}
+
+If \code{periodic = FALSE}, the first column corresponds to the minimum \eqn{k}
+where \eqn{\psi_{Jk}} is non-null for at least one element of \eqn{x}.
+Analogously, the last column is related to the maximum reasonable value of
+\eqn{k}. If \code{periodic = TRUE}, the columns will correspond to the values of
+\eqn{k} from \eqn{0} to \eqn{2^J - 1}.
+
+The wavelets are calculated based on the dilation equation
+(see, e.g., Vidakovic, 1999, Theorem 3.5.5). The scaling functions used are evaluated at the data points efficiently by the Daubechies-Lagarias algorithm (Daubechies & Lagarias (1992)). Coded kindly by Brani Vidakovic. More details
+about scaling functions in \command{\link{PHI}}.
+
+The families considered here are \emph{Daublets}, \emph{Symmlets} and
+\emph{Coiflets}. The two first correspond to the families \code{DaubExPhase} and
+\code{DaubLeAsymm} in the \pkg{wavethresh} package. The argument \code{family}
+here is not case sensitive, and it accepts the first letter of the available
+families. For example, it is allowed to use \code{family = "d"} for the
+\emph{Daublet} family. The filters used here were taken from the function
+\command{\link[wavethresh]{filter.select}} in the \pkg{wavethresh} package.
+
+The number of \code{taps} available depend on the chosen family. For the
+\emph{Daublets}, one can use \code{taps = 2} \code{(Haar),} \code{4, 6,}
+\code{...,} \code{18, 20}. For the \emph{Symmlets},
+\code{taps = 8, 10, 14, 16, 18, 20}. For \emph{Coiflets},
+\code{taps = 6, 12, 18, 24, 30}.
+
+The argument \code{taps} is associated with the number of vanishing moments
+(\eqn{N}) of each wavelet family. For \emph{Daublets} and \emph{Symmlets}, one
+has \eqn{\int x^n \psi(x) dx = 0, n = 0, \ldots, N - 1}, satisfying the relation
+\code{N = taps/2}. In the case of \emph{Coiflets}, both scaling function
+\eqn{\phi} and wavelet \eqn{\psi} have \eqn{N} vanishing moments satisfying the
+relation \code{N = taps/6}.
+
+This function works only for real valued observations. If, for some reason, the data
+set is composed by complex numbers, the function will be applied only to the
+real part of the data and a warning message will be released. Furthermore,
+eventually, some observations of the data may not be finite \code{NA},
+\code{NaN}, \code{Inf} or \code{-Inf}. If this happens, the associated line to
+this observation in the matrix of the wavelet function basis will be composed by
+\code{NA} values, and a warning message will be released.
+}
+\value{
+A matrix in which each line \eqn{i} corresponds to \eqn{\psi_{Jk}(x_i)}, for
+different values of \eqn{k} (associated to the columns of the matrix).
+}
+\references{
+Daubechies, I. & Lagarias, J.C. (1992). Two-Scale Difference Equations II. Local
+Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM Journal on
+Mathematical Analysis}, 24(4), 1031--1079.
+
+Vidakovic, B. (1999). \emph{Statistical Modeling by Wavelets}. John Wiley, New
+York.
+}
+\author{Michel H. Montoril}
+\seealso{\command{\link{PHI}}, \command{\link{wbasis}}}
+\examples{
+#
+# Calculating the non-periodized and the periodized versions
+# of psi
+#
+set.seed(123)
+n <- 10 # setting the size of the vector
+x <- sort(runif(n)) # generating some specific vector of size n
+
+psi <- PSI(x, J = 3, family = "Daublets", taps = 18, prec.wavelet = 30,
+           periodic = FALSE)
+
+psi.per <- PSI(x, J = 3, family = "Daublets", taps = 18, prec.wavelet = 30,
+               periodic = TRUE)
+}
+\keyword{smooth}
