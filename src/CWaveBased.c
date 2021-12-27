@@ -1847,7 +1847,8 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       error("'taps = %d' is not allowed for 'Daublets'. For this family, only 2, 4, 6, ..., 74 and 76 taps are available.", rtaps);
   }
   else if(rfam == 2){
-    if(rtaps == 4){rwfilter[0]  =  0.48296291314469025;
+    if(rtaps == 4){
+      rwfilter[0]  =  0.48296291314469025;
       rwfilter[1]  =  0.83651630373746899;
       rwfilter[2]  =  0.22414386804185735;
       rwfilter[3]  = -0.12940952255092145;
@@ -3491,7 +3492,7 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP taps, SEXP prec, SEXP periodic){
   Range(&x1, &xn, rx, n);
   
   if(ISNA(x1))
-    error("Check your data. The observations should be real valued.");
+    error("Check your data. The observations should be real values.");
   // ----- min(x) and max(x) defined ----- //
   
   SEXP wutils = PROTECT(WavUtilities(family, taps));
@@ -3591,7 +3592,7 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP taps, SEXP prec, SEXP periodic){
   Range(&x1, &xn, rx, n);
   
   if(ISNA(x1))
-    error("Check your data. The observations should be real valued.");
+    error("Check your data. The observations should be real values.");
   // ----- min(x) and max(x) defined ----- //
   
   SEXP wutils = PROTECT(WavUtilities(family, taps));
