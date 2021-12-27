@@ -1844,7 +1844,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[75] = -1.716152451088744188732404281737964277713026087224248235541071e-18;
     }
     else
-      error("'taps = %d' is not allowed for 'Daublets'. For this family, only 2, 4, 6, ..., 18 and 20 taps are available.", rtaps);
+      error("'taps = %d' is not allowed for 'Daublets'. For this family, only 2, 4, 6, ..., 74 and 76 taps are available.", rtaps);
   }
   else if(rfam == 2){
     if(rtaps == 4){rwfilter[0]  =  0.48296291314469025;
