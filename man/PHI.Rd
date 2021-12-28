@@ -61,11 +61,10 @@ PyWavelets (Lee et. al., 2019), which provides extended precision for the famili
 \emph{Daublets} and \emph{Coiflets}. Furhtermore, the PyWavelets provides a wider
 range of filters for the three families.
 
-The number of \code{taps} available depend on the chosen family. For the
-\emph{Daublets}, one can use \code{taps = 2} \code{(Haar),} \code{4, 6,}
-\code{...,} \code{74, 76}. For the \emph{Symmlets},
-\code{taps = 4, 6, 8, ..., 38, 40}. For \emph{Coiflets},
-\code{taps = 6, 12, 18, ..., 96, 102}.
+The number of \code{taps} available depend on the chosen family.\cr
+\emph{Daublets}: \code{taps = 2} \code{(Haar),} \code{4, 6, ..., 74, 76}.\cr
+\emph{Symmlets}: \code{taps = 4, 6, 8, ..., 38, 40}.\cr
+\emph{Coiflets}: \code{taps = 6, 12, 18, ..., 96, 102}.\cr
 
 The argument \code{taps} is associated with the number of vanishing moments
 (\eqn{N}) of each wavelet family. For \emph{Daublets} and \emph{Symmlets}, one
@@ -92,7 +91,9 @@ Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II. Loc
 Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM Journal on
 Mathematical Analysis}, 24(4), 1031--1079.
 
-Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019). PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open Source Software}, 4(36), 1237, https://doi.org/10.21105/joss.01237.
+Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
+PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open Source
+Software}, 4(36), 1237, https://doi.org/10.21105/joss.01237.
 }
 \seealso{\href{http://finzi.psych.upenn.edu/R/library/wavethresh/html/filter.select.html}{\command{wavethresh::filter.select}}, \code{\link{PSI}}, \code{\link{wbasis}}}
 \examples{
