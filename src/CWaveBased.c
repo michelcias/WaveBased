@@ -160,9 +160,13 @@ void PsiVec(double *psi, double px, double *filter, int N, int prec, int kmin, d
  * and the limit points of the support of phi and psi, based on the family
  * ("daublets" [1], "symmlets" [2] or "coiflets" [3]) and the number of taps
  * of the filter. All these filters were taken from the GitHub page of PyWavelets,
- * which provides wavelet filters with extended precision for the Daubelets and 
- * Symmlets families.
+ * which provides wavelet filters with extended precision for Daubelets and
+ * Coiflets families.
  * https://github.com/PyWavelets/pywt/blob/master/pywt/_extensions/c/wavelets_coeffs.template.h
+ * 
+ * The Symmlets family represents the least asymmetric Daubechies family. In order
+ * to maintain the pattern of filters presented in Daubechies (1992), we flipped
+ * the k-tap leas asymmetric filters, k = 8, 10, 12, 14, 20.
  */
 SEXP WavUtilities(SEXP family, SEXP taps){
   
@@ -1853,7 +1857,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[2]  =  0.22414386804185735;
       rwfilter[3]  = -0.12940952255092145;
     }
-    if(rtaps == 6){
+    else if(rtaps == 6){
       rwfilter[0]  =  0.33267055295095688;
       rwfilter[1]  =  0.80689150931333875;
       rwfilter[2]  =  0.45987750211933132;
@@ -1861,15 +1865,15 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[4]  = -0.085441273882241486;
       rwfilter[5]  =  0.035226291882100656;
     }
-    if(rtaps == 8){
-      rwfilter[0]  =  0.032223100604042702;
-      rwfilter[1]  = -0.012603967262037833;
-      rwfilter[2]  = -0.099219543576847216;
-      rwfilter[3]  =  0.29785779560527736;
-      rwfilter[4]  =  0.80373875180591614;
-      rwfilter[5]  =  0.49761866763201545;
-      rwfilter[6]  = -0.02963552764599851;
-      rwfilter[7]  = -0.075765714789273325;
+    else if(rtaps == 8){
+      rwfilter[7]  =  0.032223100604042702;
+      rwfilter[6]  = -0.012603967262037833;
+      rwfilter[5]  = -0.099219543576847216;
+      rwfilter[4]  =  0.29785779560527736;
+      rwfilter[3]  =  0.80373875180591614;
+      rwfilter[2]  =  0.49761866763201545;
+      rwfilter[1]  = -0.02963552764599851;
+      rwfilter[0]  = -0.075765714789273325;
       /*rwfilter[0] = -0.107148901418/sqrt(2);
       rwfilter[1] = -0.041910965125/sqrt(2);
       rwfilter[2] =  0.703739068656/sqrt(2);
@@ -1880,16 +1884,16 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[7] =  0.045570345896/sqrt(2);*/
     }
     else if(rtaps == 10){
-      rwfilter[0]  =  0.019538882735286728;
-      rwfilter[1]  = -0.021101834024758855;
-      rwfilter[2]  = -0.17532808990845047;
-      rwfilter[3]  =  0.016602105764522319;
-      rwfilter[4]  =  0.63397896345821192;
-      rwfilter[5]  =  0.72340769040242059;
-      rwfilter[6]  =  0.1993975339773936;
-      rwfilter[7]  = -0.039134249302383094;
-      rwfilter[8]  =  0.029519490925774643;
-      rwfilter[9]  =  0.027333068345077982;
+      rwfilter[9]  =  0.019538882735286728;
+      rwfilter[8]  = -0.021101834024758855;
+      rwfilter[7]  = -0.17532808990845047;
+      rwfilter[6]  =  0.016602105764522319;
+      rwfilter[5]  =  0.63397896345821192;
+      rwfilter[4]  =  0.72340769040242059;
+      rwfilter[3]  =  0.1993975339773936;
+      rwfilter[2]  = -0.039134249302383094;
+      rwfilter[1]  =  0.029519490925774643;
+      rwfilter[0]  =  0.027333068345077982;
       /*rwfilter[0]  =  0.038654795955/sqrt(2);
       rwfilter[1]  =  0.041746864422/sqrt(2);
       rwfilter[2]  = -0.055344186117/sqrt(2);
@@ -1902,18 +1906,18 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[9]  =  0.027632152958/sqrt(2);*/
     }
     else if(rtaps == 12){
-      rwfilter[0]  = -0.007800708325034148;
-      rwfilter[1]  =  0.0017677118642428036;
-      rwfilter[2]  =  0.044724901770665779;
-      rwfilter[3]  = -0.021060292512300564;
-      rwfilter[4]  = -0.072637522786462516;
-      rwfilter[5]  =  0.3379294217276218;
-      rwfilter[6]  =  0.787641141030194;
-      rwfilter[7]  =  0.49105594192674662;
-      rwfilter[8]  = -0.048311742585632998;
-      rwfilter[9]  = -0.11799011114819057;
-      rwfilter[10] =  0.0034907120842174702;
-      rwfilter[11] =  0.015404109327027373;
+      rwfilter[11]  = -0.007800708325034148;
+      rwfilter[10]  =  0.0017677118642428036;
+      rwfilter[9]  =  0.044724901770665779;
+      rwfilter[8]  = -0.021060292512300564;
+      rwfilter[7]  = -0.072637522786462516;
+      rwfilter[6]  =  0.3379294217276218;
+      rwfilter[5]  =  0.787641141030194;
+      rwfilter[4]  =  0.49105594192674662;
+      rwfilter[3]  = -0.048311742585632998;
+      rwfilter[2]  = -0.11799011114819057;
+      rwfilter[1] =  0.0034907120842174702;
+      rwfilter[0] =  0.015404109327027373;
       /*rwfilter[0]  =  0.021784700327/sqrt(2);
       rwfilter[1]  =  0.004936612372/sqrt(2);
       rwfilter[2]  = -0.166863215412/sqrt(2);
@@ -1928,20 +1932,20 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[11] = -0.011031867509/sqrt(2);*/
     }
     else if(rtaps == 14){
-      rwfilter[0]  =  0.010268176708511255;
-      rwfilter[1]  =  0.0040102448715336634;
-      rwfilter[2]  = -0.10780823770381774;
-      rwfilter[3]  = -0.14004724044296152;
-      rwfilter[4]  =  0.28862963175151463;
-      rwfilter[5]  =  0.76776431700316405;
-      rwfilter[6]  =  0.5361019170917628;
-      rwfilter[7]  =  0.017441255086855827;
-      rwfilter[8]  = -0.049552834937127255;
-      rwfilter[9]  =  0.067892693501372697;
-      rwfilter[10] =  0.03051551316596357;
-      rwfilter[11] = -0.01263630340325193;
-      rwfilter[12] = -0.0010473848886829163;
-      rwfilter[13] =  0.0026818145682578781;
+      rwfilter[13]  =  0.010268176708511255;
+      rwfilter[12]  =  0.0040102448715336634;
+      rwfilter[11]  = -0.10780823770381774;
+      rwfilter[10]  = -0.14004724044296152;
+      rwfilter[9]  =  0.28862963175151463;
+      rwfilter[8]  =  0.76776431700316405;
+      rwfilter[7]  =  0.5361019170917628;
+      rwfilter[6]  =  0.017441255086855827;
+      rwfilter[5]  = -0.049552834937127255;
+      rwfilter[4]  =  0.067892693501372697;
+      rwfilter[3] =  0.03051551316596357;
+      rwfilter[2] = -0.01263630340325193;
+      rwfilter[1] = -0.0010473848886829163;
+      rwfilter[0] =  0.0026818145682578781;
       /*rwfilter[0]  =  0.003792658534/sqrt(2);
       rwfilter[1]  = -0.001481225915/sqrt(2);
       rwfilter[2]  = -0.017870431651/sqrt(2);
@@ -2030,26 +2034,26 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[17] =  0.001981193736/sqrt(2);*/
     }
     else if(rtaps == 20){
-      rwfilter[0]  = -0.00045932942100465878;
-      rwfilter[1]  =  5.7036083618494284e-005;
-      rwfilter[2]  =  0.0045931735853118284;
-      rwfilter[3]  = -0.00080435893201654491;
-      rwfilter[4]  = -0.02035493981231129;
-      rwfilter[5]  =  0.0057649120335819086;
-      rwfilter[6]  =  0.049994972077376687;
-      rwfilter[7]  = -0.0319900568824278;
-      rwfilter[8]  = -0.035536740473817552;
-      rwfilter[9]  =  0.38382676106708546;
-      rwfilter[10] =  0.7695100370211071;
-      rwfilter[11] =  0.47169066693843925;
-      rwfilter[12] = -0.070880535783243853;
-      rwfilter[13] = -0.15949427888491757;
-      rwfilter[14] =  0.011609893903711381;
-      rwfilter[15] =  0.045927239231092203;
-      rwfilter[16] = -0.0014653825813050513;
-      rwfilter[17] = -0.0086412992770224222;
-      rwfilter[18] =  9.5632670722894754e-005;
-      rwfilter[19] =  0.00077015980911449011;
+      rwfilter[19]  = -0.00045932942100465878;
+      rwfilter[18]  =  5.7036083618494284e-005;
+      rwfilter[17]  =  0.0045931735853118284;
+      rwfilter[16]  = -0.00080435893201654491;
+      rwfilter[15]  = -0.02035493981231129;
+      rwfilter[14]  =  0.0057649120335819086;
+      rwfilter[13]  =  0.049994972077376687;
+      rwfilter[12]  = -0.0319900568824278;
+      rwfilter[11]  = -0.035536740473817552;
+      rwfilter[10]  =  0.38382676106708546;
+      rwfilter[9] =  0.7695100370211071;
+      rwfilter[8] =  0.47169066693843925;
+      rwfilter[7] = -0.070880535783243853;
+      rwfilter[6] = -0.15949427888491757;
+      rwfilter[5] =  0.011609893903711381;
+      rwfilter[4] =  0.045927239231092203;
+      rwfilter[3] = -0.0014653825813050513;
+      rwfilter[2] = -0.0086412992770224222;
+      rwfilter[1] =  9.5632670722894754e-005;
+      rwfilter[0] =  0.00077015980911449011;
       /*rwfilter[0]  =  0.001089170447/sqrt(2);
       rwfilter[1]  =  0.00013524502/sqrt(2);
       rwfilter[2]  = -0.01222064263/sqrt(2);
@@ -2071,7 +2075,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[18] =  8.0661204e-05/sqrt(2);
       rwfilter[19] = -0.000649589896/sqrt(2);*/
     }
-    if(rtaps == 22){
+    else if(rtaps == 22){
       rwfilter[0]  =  0.00048926361026192387;
       rwfilter[1]  =  0.00011053509764272153;
       rwfilter[2]  = -0.0063896036664548919;
@@ -2095,7 +2099,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[20] = -3.8795655736158566e-005;
       rwfilter[21] =  0.00017172195069934854;
     }
-    if(rtaps == 24){
+    else if(rtaps == 24){
       rwfilter[0]  = -0.00017906658697508691;
       rwfilter[1]  = -1.8158078862617515e-005;
       rwfilter[2]  =  0.0023502976141834648;
@@ -2121,7 +2125,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[22] = -1.1353928041541452e-005;
       rwfilter[23] =  0.00011196719424656033;
     }
-    if(rtaps == 26){
+    else if(rtaps == 26){
       rwfilter[0]  =  7.0429866906944016e-005;
       rwfilter[1]  =  3.6905373423196241e-005;
       rwfilter[2]  = -0.0007213643851362283;
@@ -2149,7 +2153,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[24] = -3.5738623648689009e-005;
       rwfilter[25] =  6.8203252630753188e-005;
     }
-    if(rtaps == 28){
+    else if(rtaps == 28){
       rwfilter[0]  =  4.4618977991475265e-005;
       rwfilter[1]  =  1.9329016965523917e-005;
       rwfilter[2]  = -0.00060576018246643346;
@@ -2179,7 +2183,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[26] =  1.1210865808890361e-005;
       rwfilter[27] = -2.5879090265397886e-005;
     }
-    if(rtaps == 30){
+    else if(rtaps == 30){
       rwfilter[0]  =  2.8660708525318081e-005;
       rwfilter[1]  =  2.1717890150778919e-005;
       rwfilter[2]  = -0.00040216853760293483;
@@ -2211,7 +2215,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[28] = -7.3596667989194696e-006;
       rwfilter[29] =  9.7124197379633478e-006;
     }
-    if(rtaps == 32){
+    else if(rtaps == 32){
       rwfilter[0]  = -1.0797982104319795e-005;
       rwfilter[1]  = -5.3964831793152419e-006;
       rwfilter[2]  =  0.00016545679579108483;
@@ -2245,7 +2249,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[30] = -3.1135564076219692e-006;
       rwfilter[31] =  6.2300067012207606e-006;
     }
-    if(rtaps == 34){
+    else if(rtaps == 34){
       rwfilter[0]  =  3.7912531943321266e-006;
       rwfilter[1]  = -2.4527163425832999e-006;
       rwfilter[2]  = -7.6071244056051285e-005;
@@ -2281,7 +2285,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[32] =  2.7801266938414138e-006;
       rwfilter[33] =  4.297343327345983e-006;
     }
-    if(rtaps == 36){
+    else if(rtaps == 36){
       rwfilter[0]  = -1.5131530692371587e-006;
       rwfilter[1]  =  7.8472980558317646e-007;
       rwfilter[2]  =  2.9557437620930811e-005;
@@ -2319,7 +2323,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[34] =  1.354915761832114e-006;
       rwfilter[35] =  2.6126125564836423e-006;
     }
-    if(rtaps == 38){
+    else if(rtaps == 38){
       rwfilter[0]  =  1.7509367995348687e-006;
       rwfilter[1]  =  2.0623170632395688e-006;
       rwfilter[2]  = -2.8151138661550245e-005;
@@ -2359,7 +2363,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[36] = -6.4636513033459633e-007;
       rwfilter[37] =  5.4877327682158382e-007;
     }
-    if(rtaps == 40){
+    else if(rtaps == 40){
       rwfilter[0]  = -6.3291290447763946e-007;
       rwfilter[1]  = -3.2567026420174407e-007;
       rwfilter[2]  =  1.22872527779612e-005;
@@ -2402,14 +2406,14 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[39] =  3.695537474835221e-007;
     }
     else
-      error("'taps = %d' is not allowed for 'Symmlets'. For this family, only 10, 12, 14, 16, 18 and 20 taps are available.", rtaps);
+      error("'taps = %d' is not allowed for 'Symmlets'. For this family, only 4, 6, 8, ..., 38 and 40 taps are available.", rtaps);
   }
   else if(rfam == 3){
-    /* I know. Some (many!) indices of the filters below should be negative
-    * here, but this will not affect the final matrix basis of the Coiflets
-    * coefficients. At the end of the day, the translation values of the
-    * current wavelet basis will be shifted, and everything will be alright! ;-)
-    */ 
+    /* I know. Some (many!) indices of the Coiflets filters below should be
+     * negative, but this will not affect the final matrix basis of the
+     * coefficients. At the end of the day, the values of the current wavelet
+     * basis matrix will be shifted, and everything will be alright!
+     */ 
     if(rtaps == 6){
       rwfilter[0]  = -5.142972847076845595317549230122688830344559947132656813651045e-02 * M_SQRT2;
       rwfilter[1]  =  2.389297284707684559531754923012268883034455994713265681365104e-01 * M_SQRT2;
@@ -3453,7 +3457,7 @@ SEXP WavUtilities(SEXP family, SEXP taps){
       rwfilter[101] = -1.055408614665356789775787814731337905514088897800715301399902e-22 * M_SQRT2;
     }
     else
-      error("'taps = %d' is not allowed for 'Coiflets'. For this family, only 12, 18, 24 and 30 taps are available.", rtaps);
+      error("'taps = %d' is not allowed for 'Coiflets'. For this family, only 12, 18, 24, ..., 96 and 102 taps are available.", rtaps);
   }
   else
     error("Unknown family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'.", rfam);
