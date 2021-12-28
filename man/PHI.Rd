@@ -30,13 +30,13 @@ conditions.}
 }
 \details{
 The scaling function \eqn{\phi} is obtained according to a wavelet filter with
-specific number of \code{taps} and specific \code{family}. Such a function has
+specific size (\code{taps}) and \code{family}. Such a function has
 an associated multiresolution analysis
 \deqn{\ldots \subset V_{J-1} \subset V_J \subset V_{J+1} \subset \ldots} and
 generates the orthonormal basis \eqn{\{\phi_{Jk}(\cdot)\}_k} for the multiresolution
 space \eqn{V_J}, where \deqn{\phi_{Jk}(x) = 2^{J/2} \phi(2^J x - k).} This
 function calculates a matrix of values \eqn{\phi_{Jk}(x)}, where the \eqn{i}-th
-lines is related to the \eqn{i}-th element of the data set \eqn{x} and the
+line is related to the \eqn{i}-th element of the data set \eqn{x} and the
 columns are related to the values of \eqn{k} for which \eqn{\phi_{Jk}} is
 non-null.
 
@@ -47,23 +47,25 @@ Analogously, the last column is related to the maximum reasonable value of
 \eqn{k} from \eqn{0} to \eqn{2^J - 1}.
 
 The scaling functions are evaluated at the data points efficiently, using the
-Daubechies-Lagarias algorithm (Daubechies & Lagarias (1992)). Coded kindly by
+Daubechies-Lagarias algorithm (Daubechies and Lagarias, 1992). Coded kindly by
 Brani Vidakovic. Part of the code used here is based on the C-function
 \code{phi}, in the \pkg{wavethresh} package.
 
 The families considered here are \emph{Daublets}, \emph{Symmlets} and
-\emph{Coiflets}. The two first correspond to the families \code{DaubExPhase} and
-\code{DaubLeAsymm} in the \pkg{wavethresh} package. The argument \code{family}
-here is not case sensitive, and it accepts the first letter of the available
-families. For example, it is allowed to use \code{family = "d"} for the
-\emph{Daublet} family. The filters used here were taken from the function
-\command{\link[wavethresh]{filter.select}} in the \pkg{wavethresh} package.
+\emph{Coiflets}. The first and the second correspond to the families
+\code{DaubExPhase} and \code{DaubLeAsymm} in the \pkg{wavethresh} package. The
+argument \code{family} here is not case sensitive, and it accepts the first letter
+of the available families. For example, it is allowed to use \code{family = "d"} for
+the \emph{Daublet} family. The filters used here were taken from the Python package
+PyWavelets (Lee et. al., 2019), which provides extended precision for the families
+\emph{Daublets} and \emph{Coiflets}. Furhtermore, the PyWavelets provides a wider
+range of filters for the three families.
 
 The number of \code{taps} available depend on the chosen family. For the
 \emph{Daublets}, one can use \code{taps = 2} \code{(Haar),} \code{4, 6,}
-\code{...,} \code{18, 20}. For the \emph{Symmlets},
-\code{taps = 8, 10, 14, 16, 18, 20}. For \emph{Coiflets},
-\code{taps = 6, 12, 18, 24, 30}.
+\code{...,} \code{74, 76}. For the \emph{Symmlets},
+\code{taps = 4, 6, 8, ..., 38, 40}. For \emph{Coiflets},
+\code{taps = 6, 12, 18, ..., 96, 102}.
 
 The argument \code{taps} is associated with the number of vanishing moments
 (\eqn{N}) of each wavelet family. For \emph{Daublets} and \emph{Symmlets}, one
@@ -75,8 +77,8 @@ relation \code{N = taps/6}.
 This function works only for real valued observations. If, for some reason, the data
 set is composed by complex numbers, the function will be applied only to the
 real part of the data and a warning message will be released. Furthermore,
-eventually, some observations of the data may not be finite \code{NA},
-\code{NaN}, \code{Inf} or \code{-Inf}. If this happens, the associated line to
+eventually, some observations of the data may not be finite (\code{NA},
+\code{NaN}, \code{Inf} or \code{-Inf}). If this happens, the associated line to
 this observation in the matrix of the scaling function basis will be composed by
 \code{NA} values, and a warning message will be released.
 }
@@ -86,9 +88,11 @@ different values of \eqn{k} (associated to the columns of the matrix).
 }
 \author{Michel H. Montoril}
 \references{
-Daubechies, I. & Lagarias, J.C. (1992). Two-Scale Difference Equations II. Local
+Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II. Local
 Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM Journal on
 Mathematical Analysis}, 24(4), 1031--1079.
+
+Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019). PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open Source Software}, 4(36), 1237, https://doi.org/10.21105/joss.01237.
 }
 \seealso{\href{http://finzi.psych.upenn.edu/R/library/wavethresh/html/filter.select.html}{\command{wavethresh::filter.select}}, \code{\link{PSI}}, \code{\link{wbasis}}}
 \examples{

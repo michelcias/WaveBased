@@ -33,12 +33,17 @@ used. We recommend to use \code{periodic = TRUE}, because it can handle boundary
 conditions.}
 }
 \details{
-For a scaling function \eqn{\phi} and wavelet \eqn{\psi} associated to a
-multiresolution analysis
-\deqn{\ldots \subset V_{J-1} \subset V_J \subset V_{J+1} \subset \ldots,}
-with \deqn{W_{j} = V_{j+1} \ominus V_{j}} for any integer \eqn{j}, one can see
-that \deqn{V_J = V_{j_0} \oplus W_{j_0} \oplus \ldots \oplus W_{J-1},} where
-\eqn{j_0} corresponds to the coarsest level and \eqn{J-1} is known to be the
+The scaling function \eqn{\phi} and the wavelet \eqn{\psi} are obtained according to
+a wavelet filter with specific size (\code{taps}) and \code{family}. Such a function
+has an associated multiresolution analysis
+\deqn{\ldots \subset V_{J-1} \subset V_J \subset V_{J+1} \subset \ldots.}
+The wavelet \eqn{\psi} generates an orthonormal basis \eqn{\{\psi_{jk}(\cdot)\}_k}
+of the orthogonal complement \eqn{W_j} of the multiresolution space \eqn{V_j} in
+\eqn{V_{j+1}}, i.e.,
+\deqn{W_{j} = V_{j+1} \ominus V_{j},} for any integer \eqn{j}.
+Therefore, one can see that
+\deqn{V_J = V_{j_0} \oplus W_{j_0} \oplus \ldots \oplus W_{J-1},}
+where \eqn{j_0} corresponds to the coarsest level and \eqn{J-1} is known as the
 finest level of the wavelet decomposition. Thus, one have that
 \deqn{\{\{\phi_{j_0k}(\cdot); k\} \cup \{\psi_{jk}(\cdot); j_0 \le j \le J-1, k\}\}}
 compose an orthonormal basis for \eqn{V_J}. The basis above is provided by the
@@ -62,35 +67,53 @@ least one observation of \eqn{x}.
 
 The scaling functions \eqn{\phi_{j_0k}} and wavelets \eqn{\psi_{jk}} are
 internally evaluated at the data points efficiently, using the
-Daubechies-Lagarias algorithm (Daubechies & Lagarias (1992)) by the commands
+Daubechies-Lagarias algorithm (Daubechies and Lagarias, 1992) by the commands
 \command{\link{PHI}} and \command{\link{PSI}}, respectively.
 
 With respect to the levels \eqn{j_0} and \eqn{J}, it is important to mention
 that the function only works for integer values satisfying
 \eqn{0 \le j_0 \le J}. In the case where \eqn{j_0 = J}, the function will assume
-the decomposition of the multiresolution space as \eqn{V_J = V_{j_0}}, and thus,
-takaing into account an orthonormal basis only with scaling functions
+the decomposition of the multiresolution space as \eqn{V_J = V_{j_0}}, and thus it
+will take into account an orthonormal basis only with scaling functions
 \eqn{\{\phi_{j_0k}(\cdot)\}_k}.
+
+The families considered here are \emph{Daublets}, \emph{Symmlets} and
+\emph{Coiflets}. The first and the second correspond to the families
+\code{DaubExPhase} and \code{DaubLeAsymm} in the \pkg{wavethresh} package. The
+argument \code{family} here is not case sensitive, and it accepts the first letter
+of the available families. For example, it is allowed to use \code{family = "d"} for
+the \emph{Daublet} family. The filters used here were taken from the Python package
+PyWavelets (Lee et. al., 2019), which provides extended precision for the families
+\emph{Daublets} and \emph{Coiflets}. Furhtermore, the PyWavelets provides a wider
+range of filters for the three families.
+
+The number of \code{taps} available depend on the chosen family. For the
+\emph{Daublets}, one can use \code{taps = 2} \code{(Haar),} \code{4, 6,}
+\code{...,} \code{74, 76}. For the \emph{Symmlets},
+\code{taps = 4, 6, 8, ..., 38, 40}. For \emph{Coiflets},
+\code{taps = 6, 12, 18, ..., 96, 102}.
 
 This function works only for real valued observations. If, for some reason, the data
 set is composed by complex numbers, the function will be applied only to the
 real part of the data and a warning message will be released. Furthermore,
-eventually, some observations of the data may not be finite \code{NA},
-\code{NaN}, \code{Inf} or \code{-Inf}. If this happens, the associated line to
-this observation in the matrix of the decomposed wavelet basis will be formed
-by \code{NA} values, and a warning message will be released.
+eventually, some observations of the data may not be finite (\code{NA},
+\code{NaN}, \code{Inf} or \code{-Inf}). If this happens, the associated line to
+this observation in the matrix of the scaling function basis will be composed by
+\code{NA} values, and a warning message will be released.
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
 \deqn{\{\{\phi_{j_0k}(x_i); k\} \cup \{\psi_{jk}(x_i); j_0 \le j \le J-1, k\}\},}
 for different values of \eqn{k}.
 }
+\author{Michel H. Montoril}
 \references{
-Daubechies, I. & Lagarias, J.C. (1992). Two-Scale Difference Equations II. Local
+Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II. Local
 Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM Journal on
 Mathematical Analysis}, 24(4), 1031--1079.
+
+Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019). PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open Source Software}, 4(36), 1237, https://doi.org/10.21105/joss.01237.
 }
-\author{Michel H. Montoril}
 \seealso{\command{\link{PHI}}, \command{\link{PSI}}}
 \examples{
 #
