@@ -62,7 +62,7 @@ PyWavelets (Lee et. al., 2019), which provides extended precision for the famili
 range of filters for the three families.
 
 The number of \code{taps} available depend on the chosen family.\cr
-\emph{Daublets}: \code{taps = 2} \code{(Haar),} \code{4, 6, ..., 74, 76}.\cr
+\emph{Daublets}: \code{taps = 2} \code{(Haar), 4, 6, ..., 74, 76}.\cr
 \emph{Symmlets}: \code{taps = 4, 6, 8, ..., 38, 40}.\cr
 \emph{Coiflets}: \code{taps = 6, 12, 18, ..., 96, 102}.\cr
 
