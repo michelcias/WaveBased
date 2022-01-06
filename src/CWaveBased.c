@@ -3378,21 +3378,15 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
   return psimat;
 }
 
+/* This function calculates the matrix of PHI[Jk](x[i]) for every k value where
+ * phi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
+ * Used internally in the function 'C_WavBasis'.
+ */
 SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic){
   
   int i, j, kdiff1, lkmin, lkmax;
   double px, *rphimat1, *phi, *rphimat2, *prod, *tmp;
   SEXP phimat;
-  
-  //n = length(x);
-  //N = length(filter);
-  
-  //rfilter = REAL(filter);
-  //rper = INTEGER(periodic)[0];
-  //rphilh = INTEGER(philh)[0];
-  //rphirh = INTEGER(phirh)[0];
-  //rprec = INTEGER(prec)[0];
-  //rx = REAL(x);
   
   kdiff1 = kmax - kmin + 1;
     
@@ -3458,24 +3452,15 @@ SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
   return phimat;
 }
 
+/* This function calculates the matrix of PSI[Jk](x[i]) for every k value where
+ * psi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
+ * Used internally in the function 'C_WavBasis'.
+ */
 SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic){
     
     int i, j, kdiff1, lkmin, lkmax;
     double px, *psi, *rpsimat1, *rpsimat2, *prod, *tmp;
     SEXP psimat;
-    
-    //n = length(x);
-    //N = length(filter);
-    
-    //rfilter = REAL(filter);
-    //rkmax = INTEGER(kmax)[0];
-    //rkmin = INTEGER(kmin)[0];
-    //rp = INTEGER(p)[0];
-    //rper = INTEGER(periodic)[0];
-    //rpsilh = INTEGER(psilh)[0];
-    //rpsirh = INTEGER(psirh)[0];
-    //rprec = INTEGER(prec)[0];
-    //rx = REAL(x);
     
     kdiff1 = kmax - kmin + 1;
     
@@ -3505,7 +3490,7 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
         lkmax = floor(px - psilh);
         lkmin = lkmax - N + 2;
         
-        // ----- Calculating phi[0k](px) ----- //
+        // ----- Calculating psi[0k](px) ----- //
         PsiVec(psi, px, filter, N, prec, lkmin, prod, tmp);
         // ----- psi[0k](px) calculated --> psi ----- //
         
@@ -3539,6 +3524,10 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
     return psimat;
 }
 
+/* This function calculates the matrix with PHI[J0k](x[i]) and PSI[jk](x[i]), where
+ * J0 <= j <= J. The index i corresponds to the (i+1)-th line of the matrix.
+ * Used internally in the function 'C_WavBasis'.
+ */
 SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
   
   double *rx, *rwfilt, x1 = NA_REAL, xn = NA_REAL;
@@ -3612,6 +3601,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
     kmax = floor(p*xn - rphisl);
     kmin = ceil(p*x1 - rphisr + 1e-9);
     
+    // ----- Calculating the PHI matrix to put in rpmat ----- //
     PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
     rpmat = REAL(pmat);
     
@@ -3623,7 +3613,9 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
         rwmat[i + n*j] = rpmat[i + n*(j - nc0)];
     
     UNPROTECT(1);
+    // ----- PHI matrix put ----- //
     
+    // ----- Calculating the PSI matrices to put in rpmat ----- //
     for(k = rJ0; k < rJ; k++){
       p = pow(2, k);
       kmax = floor(p*xn - rpsisl);
@@ -3639,7 +3631,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
           rwmat[i + n*j] = rpmat[i + n*(j - nc0)];
           
       UNPROTECT(1);
-      
+      // ----- PSI matrices put ----- //
     }
     
   }
@@ -3649,6 +3641,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
   
 }
 
+/* This function calculates the wavelet decomposition in one level for the signal x */
 void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtlc){
   
   int i, j;
@@ -3661,18 +3654,26 @@ void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtl
     tmp1[i] = 0.0;
     tmp2[i] = 0.0;
   }
+  
+  // ----- Calculating the convolutions of x with the filters h and g (believe-me!) ----- //
   for(i = 1 - N; i < n; i++){
     for(j = 0; j < N; j++){
       tmp1[i - 1 + N + j] += x[mod(i, n)] * filter[N - 1 - j];
       tmp2[i - 1 + N + j] += x[mod(i, n)] * filter[j] * pow(-1, j - 1);
     }
   }
+  // ----- Convolutions calculated and added to tmp1 and tmp2 ----- //
+  
+  // ----- Decimating {scale coefs --> sclc} {detail coefs --> dtlc} ----- //
   for(i = N; i < n + N - 1; i += 2){
     sclc[(i - N)/2] = tmp1[i];
     dtlc[(i - N)/2] = tmp2[i];
   }
+  // ----- scale and detail coefficients calculated ----- //
 }
 
+/* This function calculates the wavelet reconstruction in one level based on the
+ * scale coefficients sclc and the detail coefficients dtlc */
 void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *recvec){
   int i, j;
   double *tmp1, *tmp2;
@@ -3684,18 +3685,23 @@ void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *
     tmp2[i] = 0.0;
   }
   
+  // ----- Calculating the convolutions of x with the filters h and g (believe-me!) ----- //
   for(i = -n; i < N/2; i++){
     for(j = 0; j < N; j++){
       tmp1[2*(i + n) + j] += sclc[mod(i, n)] * filter[j];
       tmp2[2*(i + n) + j] += dtlc[mod(i, n)] * filter[N - 1 - j] * pow(-1, j);
     }
   }
+  // ----- Convolutions calculated and added to tmp1 and tmp2 ----- //
   
+  // ----- Taking the periodic part {--> recvec} ----- //
   for(i = 0; i < 2*n; i++){
     recvec[i] = tmp1[i + N - 2] + tmp2[i + N - 2];
   }
+  // ----- Periodic part taken and added ----- //
 }
 
+/* This function calculates the wavelet decomposition for the signal x */
 SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   
   int i, j0, j, J, n, N, tmpscl, tmpn;
@@ -3771,6 +3777,8 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   }
 }
 
+/* This function calculates the wavelet reconstruction of the decomposed
+ * signal x */
 SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   
   int i, j, j0, J, n, N, tmpscl;
