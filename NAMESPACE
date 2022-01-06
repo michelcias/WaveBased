@@ -1,5 +1,6 @@
 useDynLib(WaveBased)
 
-export(PHI, PSI, wbasis)
+export(PHI, PSI, wbasis, wdensity, wavedec, waverec)
 
+importFrom("stats", "approx", "density.default", "mad")
 #importFrom("wavethresh", "denproj", "rclaw")
