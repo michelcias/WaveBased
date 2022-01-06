@@ -11,11 +11,12 @@ the coarsest level up to the wavelets at the finest resolution level, i.e.,
 \eqn{\psi_{jk}, j_0 \le j \le J-1}.
 }
 \usage{
-wbasis(x, j0 = 0, J, family = "Daublets", taps = 20,
+wbasis(x, j0 = 0, J, family = "Daublets", filter.size = 20,
        prec.wavelet = 30, periodic = TRUE)
 }
 \arguments{
-\item{x}{Vector containing the data. This can be of any length.}
+\item{x}{Vector containing the data. Its length does not need to be power of
+2.}
 \item{j0}{The coarsest level at which the decomposed wavelet basis must be
 calculated. Default is \code{j0 = 0}.}
 \item{J}{The resolution level at which the wavelet basis is decomposed
@@ -23,7 +24,7 @@ to be calculated. It is associated to the multiresolution space of the
 calculated basis.}
 \item{family}{The family of wavelets to use, can be \emph{Daublets},
 \emph{Symmlets} or \emph{Coiflets}.}
-\item{taps}{The size of the filter. The available values depend on the chosen
+\item{filter.size}{The size of the filter. The available values depend on the chosen
 family. See Details for more information.}
 \item{prec.wavelet}{The number of iterations to be performed in the Daubechies-
 Lagarias algorithm, which is used to evaluate the scaling functions of the
@@ -34,8 +35,8 @@ conditions.}
 }
 \details{
 The scaling function \eqn{\phi} and the wavelet \eqn{\psi} are obtained according to
-a wavelet filter with specific size (\code{taps}) and \code{family}. Such a function
-has an associated multiresolution analysis
+a wavelet filter with specific size (\code{filter.size}) and \code{family}. Such a
+function has an associated multiresolution analysis
 \deqn{\ldots \subset V_{J-1} \subset V_J \subset V_{J+1} \subset \ldots.}
 The wavelet \eqn{\psi} generates an orthonormal basis \eqn{\{\psi_{jk}(\cdot)\}_k}
 of the orthogonal complement \eqn{W_j} of the multiresolution space \eqn{V_j} in
@@ -83,14 +84,16 @@ The families considered here are \emph{Daublets}, \emph{Symmlets} and
 argument \code{family} here is not case sensitive, and it accepts the first letter
 of the available families. For example, it is allowed to use \code{family = "d"} for
 the \emph{Daublet} family. The filters used here were taken from the Python package
-PyWavelets (Lee et. al., 2019), which provides extended precision for the families
-\emph{Daublets} and \emph{Coiflets}. Furhtermore, the PyWavelets provides a wider
-range of filters for the three families.
+\pkg{PyWavelets} (Lee et al., 2019), which provides extended precision for the
+families \emph{Daublets} and \emph{Coiflets}. Furhtermore, the \pkg{PyWavelets}
+provides a wider range of filters for the three families.
 
-The number of \code{taps} available depend on the chosen family.\cr
-\emph{Daublets}: \code{taps = 2} \code{(Haar),} \code{4, 6, ..., 74, 76}.\cr
-\emph{Symmlets}: \code{taps = 4, 6, 8, ..., 38, 40}.\cr
-\emph{Coiflets}: \code{taps = 6, 12, 18, ..., 96, 102}.\cr
+The filter sizes available depend on the chosen family:
+\describe{
+\item{Daublets}{\code{filter.size = 2} \code{(Haar), 4, 6, ..., 74, 76}.}
+\item{Symmlets}{\code{filter.size = 4, 6, 8, ..., 38, 40}.}
+\item{Coiflets}{\code{filter.size = 6, 12, 18, ..., 96, 102}.}
+}
 
 This function works only for real valued observations. If, for some reason, the data
 set is composed by complex numbers, the function will be applied only to the
@@ -105,15 +108,16 @@ A matrix in which each line \eqn{i} corresponds to
 \deqn{\{\{\phi_{j_0k}(x_i); k\} \cup \{\psi_{jk}(x_i); j_0 \le j \le J-1, k\}\},}
 for different values of \eqn{k}.
 }
-\author{Michel H. Montoril}
+\author{Michel H. Montoril \email{michel@ufscar.br}}
 \references{
 Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II. Local
 Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM Journal on
-Mathematical Analysis}, 24(4), 1031--1079.
+Mathematical Analysis}, 24(4), 1031--1079,
+\url{https://epubs.siam.org/doi/10.1137/0523059}.
 
 Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
 PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open Source
-Software}, 4(36), 1237, https://doi.org/10.21105/joss.01237.
+Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
 }
 \seealso{\command{\link{PHI}}, \command{\link{PSI}}}
 \examples{
@@ -128,7 +132,8 @@ f <- function(x) sin(2*pi*x)
 e <- rnorm(n, mean = 0, sd = 0.25)
 y <- f(x) + e
 
-w <- wbasis(x, j0 = 0, J = 3, family = "Daublets", taps = 18, prec.wavelet = 30)
+w <- wbasis(x, j0 = 0, J = 3, family = "Daublets", filter.size = 18,
+            prec.wavelet = 30)
 
 # Estimating the wavelet coefficients
 mod <- lm(y~w-1)
@@ -136,7 +141,7 @@ beta <- coef(mod) # estimates
 
 # Calculating estimates of f(x)
 new.obs <- 0:(n-1)/n
-myw <- wbasis(new.obs, j0 = 0, J = 3, family = "Daublets", taps = 18,
+myw <- wbasis(new.obs, j0 = 0, J = 3, family = "Daublets", filter.size = 18,
              prec.wavelet = 30)
 f.est <- drop(myw \%*\% beta) # estimates of f(new.obs)
 
@@ -162,7 +167,8 @@ f <- function(x) sin(2*pi*x)
 e <- rnorm(n, mean = 0, sd = 0.25)
 y <- f(x) + e
 
-w <- wbasis(x, j0 = 0, J = 5, family = "Daublets", taps = 18, prec.wavelet = 30)
+w <- wbasis(x, j0 = 0, J = 5, family = "Daublets", filter.size = 18,
+            prec.wavelet = 30)
 
 # Estimating the wavelet coefficients
 mod <- lm(y~w-1)
@@ -170,7 +176,7 @@ beta <- coef(mod) # estimates
 
 # Calculating estimates of f(x)
 new.obs <- 0:(n-1)/n
-myw <- wbasis(new.obs, j0 = 0, J = 5, family = "Daublets", taps = 18,
+myw <- wbasis(new.obs, j0 = 0, J = 5, family = "Daublets", filter.size = 18,
              prec.wavelet = 30)
 f.est <- drop(myw \%*\% beta) # estimates of f(new.obs)
 
