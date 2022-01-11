@@ -1,7 +1,7 @@
 #include <R.h>
 #include <Rinternals.h>
 
-# define mod(a, b) (a % b + b) % b
+# define mod(a, b) ((((a) % b) + b) % b)
 
 /* This function calculates the minimum (xmin) and the maximum (xmax)
  * among all the finite observations of the data x
@@ -61,7 +61,7 @@ void Periodize(double *pmat, double *amat, int nrows, int k1, int k2, int p){
   
 }
 
-/* This function is based on the 'phi' fucntion in the file 'WAVDE.c' of the
+/* This function is based on the 'phi' function in the file 'WAVDE.c' of the
  * wavethresh packege. Basically, this 'PhiVec' calculates phi[0k](x) for all
  * k value in which phi is non-null.
  */
@@ -3645,60 +3645,34 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
 void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtlc){
   
   int i, j;
-  double *tmp1, *tmp2;
   
-  tmp1 = (double *) R_alloc((n + 2*N - 2), sizeof(double));
-  tmp2 = (double *) R_alloc((n + 2*N - 2), sizeof(double));
-  
-  for(i = 0; i < n + 2*N - 2; i++){
-    tmp1[i] = 0.0;
-    tmp2[i] = 0.0;
-  }
-  
-  // ----- Calculating the convolutions of x with the filters h and g (believe-me!) ----- //
-  for(i = 1 - N; i < n; i++){
+  // ----- Calculating the scale and detail coefficients ----- //
+  for(i = 0; i < n/2; i++){
+    sclc[i] = 0.0;
+    dtlc[i] = 0.0;
     for(j = 0; j < N; j++){
-      tmp1[i - 1 + N + j] += x[mod(i, n)] * filter[N - 1 - j];
-      tmp2[i - 1 + N + j] += x[mod(i, n)] * filter[j] * pow(-1, j - 1);
+      sclc[i] += x[mod(j + 2*i, n)] * filter[j];
+      dtlc[i] += x[mod(1 - j + 2*i, n)] * filter[j] * pow(-1, j + 1);
     }
-  }
-  // ----- Convolutions calculated and added to tmp1 and tmp2 ----- //
-  
-  // ----- Decimating {scale coefs --> sclc} {detail coefs --> dtlc} ----- //
-  for(i = N; i < n + N - 1; i += 2){
-    sclc[(i - N)/2] = tmp1[i];
-    dtlc[(i - N)/2] = tmp2[i];
   }
   // ----- scale and detail coefficients calculated ----- //
 }
 
 /* This function calculates the wavelet reconstruction in one level based on the
- * scale coefficients sclc and the detail coefficients dtlc */
+ * scale coefficients sclc and the detail coefficients dtlc
+ */
 void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *recvec){
-  int i, j;
-  double *tmp1, *tmp2;
-  tmp1 = (double *) R_alloc((2 * (n + N - 1)), sizeof(double));
-  tmp2 = (double *) R_alloc((2 * (n + N - 1)), sizeof(double));
+  int i, j, k;
   
-  for(i = 0; i < 2*(n + N - 1); i++){
-    tmp1[i] = 0.0;
-    tmp2[i] = 0.0;
-  }
-  
-  // ----- Calculating the convolutions of x with the filters h and g (believe-me!) ----- //
-  for(i = -n; i < N/2; i++){
-    for(j = 0; j < N; j++){
-      tmp1[2*(i + n) + j] += sclc[mod(i, n)] * filter[j];
-      tmp2[2*(i + n) + j] += dtlc[mod(i, n)] * filter[N - 1 - j] * pow(-1, j);
+  // ----- Calculating the reconstructed vector ----- //
+  for(i = 0; i < 2*n; i++){
+    recvec[i] = 0.0;
+    for(j = 0; j < N/2; j ++){
+      k = i%2;
+      recvec[i] += sclc[mod((i - 2*j - k)/2, n)]*filter[2*j + k] + dtlc[mod((i + 2*j - k)/2, n)]*filter[2*j + 1 - k]*pow(-1, 2*j - k);
     }
   }
-  // ----- Convolutions calculated and added to tmp1 and tmp2 ----- //
-  
-  // ----- Taking the periodic part {--> recvec} ----- //
-  for(i = 0; i < 2*n; i++){
-    recvec[i] = tmp1[i + N - 2] + tmp2[i + N - 2];
-  }
-  // ----- Periodic part taken and added ----- //
+  // ----- reconstructed vector calculated ----- //
 }
 
 /* This function calculates the wavelet decomposition for the signal x */
@@ -3737,6 +3711,11 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
     
     PROTECT(wdx = allocVector(REALSXP, n));
     rwdx = REAL(wdx);
+    
+    /*for(i = 0; i < n/2; i++){
+      sclc[i] = 0.0;
+      dtlc[i] = 0.0;
+    }*/
     
     tmpscl = n/2;
     WaveDec1(rx, n, rwfilter, N, sclc, dtlc);
@@ -3778,7 +3757,8 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
 }
 
 /* This function calculates the wavelet reconstruction of the decomposed
- * signal x */
+ * signal x
+ */
 SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   
   int i, j, j0, J, n, N, tmpscl;
@@ -3809,6 +3789,9 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
     
     PROTECT(wrx = allocVector(REALSXP, n));
     rwrx = REAL(wrx);
+    
+    /*for(i = 0; i < n; i++)
+      rwrx[i] = 0.0;*/
     
     tmpscl = pow(2, j0);
     for(i = 0; i < tmpscl; i++){
