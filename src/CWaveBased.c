@@ -1,7 +1,7 @@
 #include <R.h>
 #include <Rinternals.h>
 
-# define mod(a, b) ((((a) % b) + b) % b)
+# define mod(a, b) ((((a) % (b)) + (b)) % (b))
 
 /* This function calculates the minimum (xmin) and the maximum (xmax)
  * among all the finite observations of the data x
