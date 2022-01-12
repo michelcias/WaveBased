@@ -1,7 +1,7 @@
 #include <R.h>
 #include <Rinternals.h>
 
-# define mod(a, b) ((((a) % (b)) + (b)) % (b))
+#define mod(a, b) ((((a) % (b)) + (b)) % (b))
 
 /* This function calculates the minimum (xmin) and the maximum (xmax)
  * among all the finite observations of the data x
@@ -59,6 +59,42 @@ void Periodize(double *pmat, double *amat, int nrows, int k1, int k2, int p){
     }
   }
   
+}
+
+/* This function calculates the wavelet decomposition in one level for the signal
+ * x
+ */
+void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtlc){
+  
+  int i, j;
+  
+  // ----- Calculating the scale and detail coefficients ----- //
+  for(i = 0; i < n/2; i++){
+    sclc[i] = 0.0;
+    dtlc[i] = 0.0;
+    for(j = 0; j < N; j++){
+      sclc[i] += x[mod(j + 2*i, n)] * filter[j];
+      dtlc[i] += x[mod(1 - j + 2*i, n)] * filter[j] * pow(-1, j + 1);
+    }
+  }
+  // ----- scale and detail coefficients calculated ----- //
+}
+
+/* This function calculates the wavelet reconstruction in one level based on the
+ * scale coefficients sclc and the detail coefficients dtlc
+ */
+void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *recvec){
+  int i, j, k;
+  
+  // ----- Calculating the reconstructed vector ----- //
+  for(i = 0; i < 2*n; i++){
+    recvec[i] = 0.0;
+    for(j = 0; j < N/2; j ++){
+      k = i%2;
+      recvec[i] += sclc[mod((i - 2*j - k)/2, n)]*filter[2*j + k] + dtlc[mod((i + 2*j - k)/2, n)]*filter[2*j + 1 - k]*pow(-1, 2*j - k);
+    }
+  }
+  // ----- reconstructed vector calculated ----- //
 }
 
 /* This function is based on the 'phi' function in the file 'WAVDE.c' of the
@@ -3177,6 +3213,146 @@ SEXP WavUtilities(SEXP family, SEXP fs){
   return results;
 }
 
+/* This function calculates the wavelet decomposition for the signal x
+ */
+SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
+  
+  int i, j0, j, J, n, N, tmpscl, tmpn;
+  double *dtlc, *rwdx, *rwfilter, *rx, *sclc, *tmp;
+  SEXP wdx;
+  
+  rx = REAL(x);
+  n = length(x);
+  J = log2(n);
+  N = INTEGER(fs)[0];
+  j0 = INTEGER(J0)[0];
+  
+  if(J != trunc(J))
+    error("This sample size must be a power of two.");
+  
+  if(j0 > J){
+    error("2^j0 must be smaller than the sample size of the data.");
+  }
+  else if(j0 == J){
+    warning("2^j0 is equal to the sample size. Therefore, there will be no decomposition.");
+    return x;
+  }
+  else{
+    
+    SEXP wutils = PROTECT(WavUtilities(family, fs));
+    SEXP wfilter = VECTOR_ELT(wutils, 4);
+    rwfilter = REAL(wfilter);
+    
+    sclc = (double *) R_alloc(n/2, sizeof(double));
+    dtlc = (double *) R_alloc(n/2, sizeof(double));
+    rwdx = (double *) R_alloc(n, sizeof(double));
+    tmp  = (double *) R_alloc(n/2, sizeof(double));
+    
+    PROTECT(wdx = allocVector(REALSXP, n));
+    rwdx = REAL(wdx);
+    
+    /*for(i = 0; i < n/2; i++){
+     sclc[i] = 0.0;
+     dtlc[i] = 0.0;
+    }*/
+    
+    tmpscl = n/2;
+    WaveDec1(rx, n, rwfilter, N, sclc, dtlc);
+    for(i = 0; i < tmpscl; i++){
+      rwdx[i + tmpscl] = dtlc[i];
+      tmp[i] = sclc[i];
+    }
+    
+    if(j0 == J - 1){
+      for(i = 0; i < tmpscl; i++){
+        rwdx[i] = sclc[i];
+      }
+      
+      UNPROTECT(2);
+      return wdx;
+    }
+    
+    for(j = J - 2; j > j0; j--){
+      tmpn = tmpscl;
+      tmpscl /= 2;
+      WaveDec1(tmp, tmpn, rwfilter, N, sclc, dtlc);
+      for(i = 0; i < tmpscl; i++){
+        rwdx[i + tmpscl] = dtlc[i];
+        tmp[i] = sclc[i];
+      }
+    }
+    
+    tmpn = tmpscl;
+    tmpscl /= 2;
+    WaveDec1(tmp, tmpn, rwfilter, N, sclc, dtlc);
+    for(i = 0; i < tmpscl; i++){
+      rwdx[i + tmpscl] = dtlc[i];
+      rwdx[i] = sclc[i];
+    }
+    
+    UNPROTECT(2);
+    return wdx;
+  }
+}
+
+/* This function calculates the wavelet reconstruction of the decomposed
+ * signal x
+ */
+SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
+  
+  int i, j, j0, J, n, N, tmpscl;
+  double *dtlc, *sclc, *rwfilter, *rwrx, *rx;
+  SEXP wrx;
+  
+  rx = REAL(x);
+  n = length(x);
+  J = log2(n);
+  N = INTEGER(fs)[0];
+  j0 = INTEGER(J0)[0];
+  
+  if(j0 > J)
+    error("2^j0 must be smaller than the sample size of the data.");
+  else if(j0 == J){
+    warning("2^j0 is equal to the sample size. Therefore, there will be no decomposition.");
+    return x;
+  }
+  else{
+    
+    SEXP wutils = PROTECT(WavUtilities(family, fs));
+    SEXP wfilter = VECTOR_ELT(wutils, 4);
+    rwfilter = REAL(wfilter);
+    
+    sclc = (double *) R_alloc(n/2, sizeof(double));
+    dtlc = (double *) R_alloc(n/2, sizeof(double));
+    rwrx = (double *) R_alloc(n, sizeof(double));
+    
+    PROTECT(wrx = allocVector(REALSXP, n));
+    rwrx = REAL(wrx);
+    
+    /*for(i = 0; i < n; i++)
+     rwrx[i] = 0.0;*/
+    
+    tmpscl = pow(2, j0);
+    for(i = 0; i < tmpscl; i++){
+      sclc[i] = rx[i];
+      dtlc[i] = rx[i + tmpscl];
+    }
+    WaveRec1(sclc, dtlc, tmpscl, rwfilter, N, rwrx);
+    
+    for(j = j0 + 1; j < J; j++){
+      tmpscl *= 2;
+      for(i = 0; i < tmpscl; i++){
+        sclc[i] = rwrx[i];
+        dtlc[i] = rx[i + tmpscl];
+      }
+      WaveRec1(sclc, dtlc, tmpscl, rwfilter, N, rwrx);
+    }
+    
+    UNPROTECT(2);
+    return wrx;
+  }
+}
+
 /* This function calculates the matrix of PHI[Jk](x[i]) for every k value where
  * phi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
  */
@@ -3639,177 +3815,4 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
   UNPROTECT(2);
   return wmat;
   
-}
-
-/* This function calculates the wavelet decomposition in one level for the signal x */
-void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtlc){
-  
-  int i, j;
-  
-  // ----- Calculating the scale and detail coefficients ----- //
-  for(i = 0; i < n/2; i++){
-    sclc[i] = 0.0;
-    dtlc[i] = 0.0;
-    for(j = 0; j < N; j++){
-      sclc[i] += x[mod(j + 2*i, n)] * filter[j];
-      dtlc[i] += x[mod(1 - j + 2*i, n)] * filter[j] * pow(-1, j + 1);
-    }
-  }
-  // ----- scale and detail coefficients calculated ----- //
-}
-
-/* This function calculates the wavelet reconstruction in one level based on the
- * scale coefficients sclc and the detail coefficients dtlc
- */
-void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *recvec){
-  int i, j, k;
-  
-  // ----- Calculating the reconstructed vector ----- //
-  for(i = 0; i < 2*n; i++){
-    recvec[i] = 0.0;
-    for(j = 0; j < N/2; j ++){
-      k = i%2;
-      recvec[i] += sclc[mod((i - 2*j - k)/2, n)]*filter[2*j + k] + dtlc[mod((i + 2*j - k)/2, n)]*filter[2*j + 1 - k]*pow(-1, 2*j - k);
-    }
-  }
-  // ----- reconstructed vector calculated ----- //
-}
-
-/* This function calculates the wavelet decomposition for the signal x */
-SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
-  
-  int i, j0, j, J, n, N, tmpscl, tmpn;
-  double *dtlc, *rwdx, *rwfilter, *rx, *sclc, *tmp;
-  SEXP wdx;
-  
-  rx = REAL(x);
-  n = length(x);
-  J = log2(n);
-  N = INTEGER(fs)[0];
-  j0 = INTEGER(J0)[0];
-  
-  if(J != trunc(J))
-    error("This sample size must be a power of two.");
-  
-  if(j0 > J){
-    error("2^j0 must be smaller than the sample size of the data.");
-  }
-  else if(j0 == J){
-    warning("2^j0 is equal to the sample size. Therefore, there will be no decomposition.");
-    return x;
-  }
-  else{
-    
-    SEXP wutils = PROTECT(WavUtilities(family, fs));
-    SEXP wfilter = VECTOR_ELT(wutils, 4);
-    rwfilter = REAL(wfilter);
-    
-    sclc = (double *) R_alloc(n/2, sizeof(double));
-    dtlc = (double *) R_alloc(n/2, sizeof(double));
-    rwdx = (double *) R_alloc(n, sizeof(double));
-    tmp  = (double *) R_alloc(n/2, sizeof(double));
-    
-    PROTECT(wdx = allocVector(REALSXP, n));
-    rwdx = REAL(wdx);
-    
-    /*for(i = 0; i < n/2; i++){
-      sclc[i] = 0.0;
-      dtlc[i] = 0.0;
-    }*/
-    
-    tmpscl = n/2;
-    WaveDec1(rx, n, rwfilter, N, sclc, dtlc);
-    for(i = 0; i < tmpscl; i++){
-      rwdx[i + tmpscl] = dtlc[i];
-      tmp[i] = sclc[i];
-    }
-    
-    if(j0 == J - 1){
-      for(i = 0; i < tmpscl; i++){
-        rwdx[i] = sclc[i];
-      }
-      
-      UNPROTECT(2);
-      return wdx;
-    }
-    
-    for(j = J - 2; j > j0; j--){
-      tmpn = tmpscl;
-      tmpscl /= 2;
-      WaveDec1(tmp, tmpn, rwfilter, N, sclc, dtlc);
-      for(i = 0; i < tmpscl; i++){
-        rwdx[i + tmpscl] = dtlc[i];
-        tmp[i] = sclc[i];
-      }
-    }
-    
-    tmpn = tmpscl;
-    tmpscl /= 2;
-    WaveDec1(tmp, tmpn, rwfilter, N, sclc, dtlc);
-    for(i = 0; i < tmpscl; i++){
-      rwdx[i + tmpscl] = dtlc[i];
-      rwdx[i] = sclc[i];
-    }
-    
-    UNPROTECT(2);
-    return wdx;
-  }
-}
-
-/* This function calculates the wavelet reconstruction of the decomposed
- * signal x
- */
-SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
-  
-  int i, j, j0, J, n, N, tmpscl;
-  double *dtlc, *sclc, *rwfilter, *rwrx, *rx;
-  SEXP wrx;
-  
-  rx = REAL(x);
-  n = length(x);
-  J = log2(n);
-  N = INTEGER(fs)[0];
-  j0 = INTEGER(J0)[0];
-  
-  if(j0 > J)
-    error("2^j0 must be smaller than the sample size of the data.");
-  else if(j0 == J){
-    warning("2^j0 is equal to the sample size. Therefore, there will be no decomposition.");
-    return x;
-  }
-  else{
-    
-    SEXP wutils = PROTECT(WavUtilities(family, fs));
-    SEXP wfilter = VECTOR_ELT(wutils, 4);
-    rwfilter = REAL(wfilter);
-    
-    sclc = (double *) R_alloc(n/2, sizeof(double));
-    dtlc = (double *) R_alloc(n/2, sizeof(double));
-    rwrx = (double *) R_alloc(n, sizeof(double));
-    
-    PROTECT(wrx = allocVector(REALSXP, n));
-    rwrx = REAL(wrx);
-    
-    /*for(i = 0; i < n; i++)
-      rwrx[i] = 0.0;*/
-    
-    tmpscl = pow(2, j0);
-    for(i = 0; i < tmpscl; i++){
-      sclc[i] = rx[i];
-      dtlc[i] = rx[i + tmpscl];
-    }
-    WaveRec1(sclc, dtlc, tmpscl, rwfilter, N, rwrx);
-    
-    for(j = j0 + 1; j < J; j++){
-      tmpscl *= 2;
-      for(i = 0; i < tmpscl; i++){
-        sclc[i] = rwrx[i];
-        dtlc[i] = rx[i + tmpscl];
-      }
-      WaveRec1(sclc, dtlc, tmpscl, rwfilter, N, rwrx);
-    }
-    
-    UNPROTECT(2);
-    return wrx;
-  }
 }
