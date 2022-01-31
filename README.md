@@ -13,4 +13,4 @@ the Daubechies-Lagarias algorithm (Daubechies and Lagarias, 1992).
 As soon as possible, other functions aiming to solve statistical problems will be included.
 
 ## Install
-To install the latest development version from GitHub: remotes::install_github("michelcias/WaveBased-R")
+To install the latest development version from GitHub: remotes::install_github("michelcias/WaveBased")
