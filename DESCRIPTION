@@ -1,8 +1,8 @@
 Package: WaveBased
 Type: Package
 Title: Wavelet-Based Estimation
-Version: 2.0-1
-Date: 2019-10-13
+Version: 2.1-1
+Date: 2022-05-05
 Authors@R: c(person("Michel H. Montoril", role = c("aut", "cre"),
 	email = "michel@ufscar.br"))
 Author: Michel H. Montoril [aut, cre]
@@ -11,4 +11,3 @@ Description: Provides functions related to the solution of different
 	statistical problems by methods developed under wavelet approach. 
 NeedsCompilation: yes
 License: GPL (>= 2)
-Packaged: 2018-08-05 07:42:33 UTC; root
