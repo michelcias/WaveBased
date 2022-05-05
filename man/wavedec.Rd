@@ -7,17 +7,21 @@ Wavelet decomposition
 Decomposes a signal using the Mallat's pyramidal algorithm (Mallat, 1989).
 }
 \usage{
-wavedec(x, j0 = 0, family = "Daublets", filter.size = 20)
+wavedec(x, j0 = 0, family = "Daublets", filter.size = 20, wavelet.filter)
 }
 \arguments{
 \item{x}{Vector containing the data to be decomposed. Its length must be
 be power of 2.}
 \item{j0}{The coarsest resolution level where the signal is to be
 decomposed.}
-\item{family}{The family of wavelets to use, can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}.}
+\item{family}{The family of wavelets to use. It can be \emph{Daublets},
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
+provided \code{wavelet.filter}.}
 \item{filter.size}{The size of the filter. The available values depend on
 the chosen family. See Details for more information.}
+\item{wavelet.filter}{Use this to provide your own filter. To use this argument,
+you must specify \code{family = "Own"}. Do not use it, if you are not sure about
+what you are doing.}
 }
 \details{ 
 This function applies the discrete wavelet transform to the data
@@ -31,8 +35,9 @@ For the moment, the function deal with boundary conditions by applying
 periodic extensions to the data. In the future, a reflective extesion may
 be taken into account.
 
-For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size}
-and \code{prec.wavelet}, see the \command{\link{wbasis}}.
+For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size},
+\code{prec.wavelet} and \code{wavelet.filter}, see the help of
+\command{\link{wbasis}}.
 
 }
 \value{

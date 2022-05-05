@@ -7,15 +7,15 @@ Wavelet-based density estimation for univariate size-biased data
 The \code{wdensity} function calculates wavelet-based density estimates for
 univariate size-biased data. The method is based on the estimation of the
 power of the density of interest. It uses the Daubechies-Lagarias algorithm
-to calculate the periodized verstion of a compactly supported orthonormal
+to calculate the periodized version of a compactly supported orthonormal
 wavelet basis.
 }
 \usage{
-wdensity(data, from, to, length.obs = 250, wf = NULL, power.dens,
-         J0 = 0, J1, family = "Daublets", filter.size = 10, prec.wavelet = 30,
-         dens.biased, warped = TRUE, warp.fun, dwarp.fun, rescale = TRUE,
-         eps = 1.9^(-J1), thresh = "hard", plot = TRUE, main, xlab, ylab,
-         type, ...)
+wdensity(data, from, to, length.obs = 250, wf = NULL, power.dens, J0 = 0, J1,
+         family = "Daublets", filter.size = 10, prec.wavelet = 30,
+         wavelet.filter, dens.biased, warped = TRUE, warp.fun, dwarp.fun,
+         rescale = TRUE, eps = 1.9^(-J1), thresh = "hard", plot = TRUE, main,
+         xlab, ylab, type, ...)
 }
 \arguments{
 \item{data}{Vector containing the data from which the density estimate is to be
@@ -28,7 +28,24 @@ estimated. The default is \code{length.obs = 250}.}
 \item{wf}{Weighting function. It must be a function.}
 \item{power.dens}{Power of the density to be estimated. It must be a value
 greater than or equal to 0.5. The Default is \code{power.dens = 0.5}.}
-\item{dens.biased}{Density estimates of the size-biased data. These estimates of the (ordered) \code{data} must be provided. By default, a kernel density estime is calculated.}
+\item{J0}{The coarsest resolution level for the wavelet basis. Default is
+\code{J0 = 0}.}
+\item{J1}{The resolution level at which the wavelet basis is decomposed to be
+calculated. It is associated to the multiresolution space where the function is
+projected.}
+\item{family}{The family of wavelets to use. It can be \emph{Daublets},
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
+provided \code{wavelet.filter}.}
+\item{filter.size}{The size of the wavelet filter. The available values depend
+on the chosen wavelet family.}
+\item{prec.wavelet}{The number of iterations to be performed in the Daubechies-
+Lagarias algorithm.}
+\item{wavelet.filter}{Use this to provide your own filter. To use this argument,
+you must specify \code{family = "Own"}. Do not use it, if you are not sure about
+what you are doing.}
+\item{dens.biased}{Density estimates of the size-biased data. These estimates of
+the (ordered) \code{data} must be provided. By default, a kernel density
+estimate is calculated.}
 \item{warped}{Logical. It indicates if the wavelet basis must be warped.}
 \item{warp.fun}{A (cumulative distribution) function. By default, it
 provides the empirical distribution function of \code{data}. Only used if
@@ -42,18 +59,7 @@ used if \code{warped = FALSE}.}
 \item{eps}{A value in the unit interval. It is used to rescale the \code{data}
 in the interval \eqn{[}\code{eps}\eqn{, 1-}\code{eps}\eqn{]}. By default,
 \code{eps} \eqn{= 1.9^{-J1}}. Only used if \code{warped = FALSE}.}
-\item{J0}{The coarsest resolution level for the wavelet basis. Default is
-\code{J0 = 0}.}
-\item{J1}{The resolution level at which the wavelet basis is decomposed to be
-calculated. It is associated to the multiresolution space where the function is
-projected.}
-\item{family}{The family of wavelet basis to be used. It can be
-\emph{Daublets}, \emph{Symmlets} or \emph{Coiflets}.}
-\item{filter.size}{The size of the wavelet filter. The available values depend
-on the chosen wavelet family.}
-\item{prec.wavelet}{The number of iterations to be performed in the Daubechies-
-Lagarias algorithm.}
-\item{thresh}{Idicates if the wavelet-density estimate should be regularized
+\item{thresh}{Indicates if the wavelet-density estimate should be regularized
 and how. If \code{thresh = "linear"}, the density estimate will not be
 regularized; if \code{thresh = "hard"}, the hard-thresholding regularizer is
 applied to the detail coefficient estimates; and if \code{thresh = "soft"}, the
@@ -65,11 +71,13 @@ plotted.}
 }
 \details{
 This function provides density estimates of size-biased data according to
-Montoril et al. (2021). It estimate the power of the density of interest by
+Montoril et al. (2021). It estimates the power of the density of interest by
 wavelet basis, i.e., \eqn{\hat{f^a}, a \ge 0.5}. After that, the density is
 finally estimated by \eqn{[\hat{f^a}]^{1/a}}. Periodized version of ordinary
 orthonormal wavelet bases of families \emph{Daublets}, \emph{Symmlets} and
-\emph{Coiflets} are allowed, as well as warped bases of these families.
+\emph{Coiflets} are allowed, as well as warped bases of these families. It also
+accepts wavelet filters provided in \code{wavelet.filter} (see the help of
+\command{\link{wbasis}}).
 
 The elements of the \code{data} must all be finite numbers. Otherwise, they
 will be removed before the density estimation procedure. In this case, a
@@ -84,8 +92,9 @@ estimates of the \code{data}. It is computed by
 Gaussian and the bandwidth selection used is the "\code{SJ}" proposed by
 Sheather and Jones, (1991).
 
-For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size}
-and \code{prec.wavelet}, see the \command{\link{wbasis}}.
+For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size},
+\code{prec.wavelet} and \code{wavelet.filter}, see the help of
+\command{\link{wbasis}}.
 
 The arguments \code{warp.fun} and \code{dwarp.fun} are used only when
 \code{warped = TRUE}. They must be functions representing a cumulative
