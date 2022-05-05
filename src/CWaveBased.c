@@ -3,10 +3,12 @@
 
 #define mod(a, b) ((((a) % (b)) + (b)) % (b))
 
-/* This function calculates the minimum (xmin) and the maximum (xmax)
- * among all the finite observations of the data x
- */
 void Range(double *xmin, double *xmax, double *x, int n){
+
+  /* This function calculates the minimum (xmin) and the maximum (xmax)
+   * among all the finite observations of the data x.
+   */
+  
    int i, k = 0;
    // Initializing xmin as the first finite observation
    for(i = 0; i < n; i++){
@@ -37,10 +39,11 @@ void Range(double *xmin, double *xmax, double *x, int n){
    
  }
 
-/* This function is useful to periodize the auxiliary matrix 'amat' and set the
- * periodized matrix as 'pmat'
- */
 void Periodize(double *pmat, double *amat, int nrows, int k1, int k2, int p){
+
+  /* This function is useful to periodize the auxiliary matrix 'amat' and set
+   * the periodized matrix as 'pmat'.
+   */
   
   int i, j, k, l;
   
@@ -61,10 +64,11 @@ void Periodize(double *pmat, double *amat, int nrows, int k1, int k2, int p){
   
 }
 
-/* This function calculates the wavelet decomposition in one level for the signal
- * x
- */
 void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtlc){
+   
+   /* This function calculates the wavelet decomposition in one level for the
+    * signal x.
+    */
   
   int i, j;
   
@@ -80,10 +84,12 @@ void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtl
   // ----- scale and detail coefficients calculated ----- //
 }
 
-/* This function calculates the wavelet reconstruction in one level based on the
- * scale coefficients sclc and the detail coefficients dtlc
- */
 void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *recvec){
+    
+    /* This function calculates the wavelet reconstruction in one level based on
+     * the scale coefficients sclc and the detail coefficients dtlc.
+     */
+
   int i, j, k;
   
   // ----- Calculating the reconstructed vector ----- //
@@ -97,11 +103,13 @@ void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *
   // ----- reconstructed vector calculated ----- //
 }
 
-/* This function is based on the 'phi' function in the file 'WAVDE.c' of the
- * wavethresh packege. Basically, this 'PhiVec' calculates phi[0k](x) for all
- * k value in which phi is non-null.
- */
 void PhiVec(double *phi, double px, double *filter, int N, int prec, double *prod, double *tmp){
+  
+  /* This function is based on the 'phi' function in the file 'WAVDE.c' of the
+   * wavethresh packege. Basically, this 'PhiVec' calculates phi[0k](x) for all
+   * k value in which phi is non-null.
+   */
+  
   double tval, w;
   int d, i, ind, j, k, l;
   
@@ -159,10 +167,11 @@ void PhiVec(double *phi, double px, double *filter, int N, int prec, double *pro
   // ----- phi[0k](px) calculated  ----- //
 }
 
-/* 'PsiVec' calculates psi[0k](x) for all k value in which psi is non-null.
- * Here we consider the result in Theorem 3.5.5 of Vidakovic (2002, p. 90).
- */
 void PsiVec(double *psi, double px, double *filter, int N, int prec, int kmin, double *prod, double *tmp){
+  
+  /* 'PsiVec' calculates psi[0k](x) for all k value in which psi is non-null.
+   * Here we consider the result in Theorem 3.5.5 of Vidakovic (2002, p. 90).
+   */
   
   double px2 = 2*px, uval, *phi;
   int i, j, fpx2;
@@ -194,29 +203,32 @@ void PsiVec(double *psi, double px, double *filter, int N, int prec, int kmin, d
   // ----- psi[0k](px) calculated  ----- //
 }
 
-/* For the sake of computational efficiency, this function provides the filter
- * and the limit points of the supports of phi and psi, based on their family
- * ("daublets" [1], "symmlets" [2] or "coiflets" [3]) and the filter size
- * All these filters were taken from the GitHub page of PyWavelets, which
- * provides wavelet filters with extended precision for Daubelets and Coiflets
- * families.
- * https://github.com/PyWavelets/pywt/blob/master/pywt/_extensions/c/wavelets_coeffs.template.h
- * 
- * The Symmlets family represents the least asymmetric Daubechies family. In order
- * to maintain the pattern of filters presented in Daubechies (1992), we flipped
- * the k-tap least asymmetric filters, k = 8, 10, 12, 14, 20.
- */
-SEXP WavUtilities(SEXP family, SEXP fs){
+SEXP WavUtilities(SEXP family, SEXP fs, SEXP waveletfilter){
+  
+  /* For the sake of computational efficiency, this function provides the filter
+   * and the limit points of the supports of phi and psi, based on their family
+   * ("daublets" [1], "symmlets" [2] or "coiflets" [3]) and the filter size.
+   * All these filters were taken from the GitHub page of PyWavelets, which
+   * provides wavelet filters with extended precision for Daubelets and Coiflets
+   * families.
+   * https://github.com/PyWavelets/pywt/blob/master/pywt/_extensions/c/wavelets_coeffs.template.h
+   * 
+   * The Symmlets family represents the least asymmetric Daubechies family. In
+   * order to maintain the pattern of filters presented in Daubechies (1992), we
+   * flipped the k-tap least asymmetric filters, k = 8, 10, 12, 14, 20.
+   */
   
   double *rwfilter;
   int rfam, rfs;
   rfam = INTEGER(family)[0];
-  rfs = INTEGER(fs)[0];
   
-  SEXP wfilter = PROTECT(allocVector(REALSXP, rfs));
-  rwfilter = REAL(wfilter);
+  SEXP wfilter;
   
   if(rfam == 1){
+    rfs = INTEGER(fs)[0];
+    PROTECT(wfilter = allocVector(REALSXP, rfs));
+    rwfilter = REAL(wfilter);
+    
     if(rfs == 2){
       rwfilter[0]  =  7.071067811865475244008443621048490392848359376884740365883398e-01;
       rwfilter[1]  =  7.071067811865475244008443621048490392848359376884740365883398e-01;
@@ -1779,6 +1791,10 @@ SEXP WavUtilities(SEXP family, SEXP fs){
       error("'fs = %d' is not allowed for 'Daublets'. For this family, the only filter sizes available are 2, 4, 6, ..., 74 and 76.", rfs);
   }
   else if(rfam == 2){
+    rfs = INTEGER(fs)[0];
+    PROTECT(wfilter = allocVector(REALSXP, rfs));
+    rwfilter = REAL(wfilter);
+    
     if(rfs == 4){
       rwfilter[0]  =  0.48296291314469025;
       rwfilter[1]  =  0.83651630373746899;
@@ -2244,6 +2260,11 @@ SEXP WavUtilities(SEXP family, SEXP fs){
      * coefficients. At the end of the day, the values of the current wavelet
      * basis matrix will be shifted, and everything will be alright!
      */ 
+    
+    rfs = INTEGER(fs)[0];
+    PROTECT(wfilter = allocVector(REALSXP, rfs));
+    rwfilter = REAL(wfilter);
+    
     if(rfs == 6){
       rwfilter[0]  = -5.142972847076845595317549230122688830344559947132656813651045e-02 * M_SQRT2;
       rwfilter[1]  =  2.389297284707684559531754923012268883034455994713265681365104e-01 * M_SQRT2;
@@ -3199,23 +3220,33 @@ SEXP WavUtilities(SEXP family, SEXP fs){
     else
       error("'fs = %d' is not allowed for 'Coiflets'. For this family, the only filter sizes available are 12, 18, 24, ..., 96 and 102.", rfs);
   }
+  else if(rfam == 4){
+    rfs = LENGTH(waveletfilter);
+    wfilter = waveletfilter;
+  }
   else
-    error("Unknown family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'.", rfam);
+    error("Unknofsize family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'.", rfam);
   
-  SEXP results = PROTECT(allocVector(VECSXP, 5));
+  SEXP results = PROTECT(allocVector(VECSXP, 6));
   SET_VECTOR_ELT(results, 0, ScalarInteger(0));
   SET_VECTOR_ELT(results, 1, ScalarInteger(rfs - 1));
   SET_VECTOR_ELT(results, 2, ScalarInteger(-(rfs/2 - 1)));
   SET_VECTOR_ELT(results, 3, ScalarInteger(rfs/2));
   SET_VECTOR_ELT(results, 4, wfilter);
+  SET_VECTOR_ELT(results, 5, ScalarInteger(rfs));
   
-  UNPROTECT(2);
+  if(rfam == 4)
+    UNPROTECT(1);
+  else
+    UNPROTECT(2);
+  
   return results;
 }
 
-/* This function calculates the wavelet decomposition for the signal x
- */
-SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
+SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
+  
+  /* This function calculates the wavelet decomposition for the signal x.
+   */
   
   int i, j0, j, J, n, N, tmpscl, tmpn;
   double *dtlc, *rwdx, *rwfilter, *rx, *sclc, *tmp;
@@ -3224,7 +3255,6 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   rx = REAL(x);
   n = length(x);
   J = log2(n);
-  N = INTEGER(fs)[0];
   j0 = INTEGER(J0)[0];
   
   if(J != trunc(J))
@@ -3239,22 +3269,18 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   }
   else{
     
-    SEXP wutils = PROTECT(WavUtilities(family, fs));
+    SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
     SEXP wfilter = VECTOR_ELT(wutils, 4);
+    SEXP fsize = VECTOR_ELT(wutils, 5);
     rwfilter = REAL(wfilter);
+    N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
     
     sclc = (double *) R_alloc(n/2, sizeof(double));
     dtlc = (double *) R_alloc(n/2, sizeof(double));
-    rwdx = (double *) R_alloc(n, sizeof(double));
     tmp  = (double *) R_alloc(n/2, sizeof(double));
     
     PROTECT(wdx = allocVector(REALSXP, n));
     rwdx = REAL(wdx);
-    
-    /*for(i = 0; i < n/2; i++){
-     sclc[i] = 0.0;
-     dtlc[i] = 0.0;
-    }*/
     
     tmpscl = n/2;
     WaveDec1(rx, n, rwfilter, N, sclc, dtlc);
@@ -3295,10 +3321,11 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   }
 }
 
-/* This function calculates the wavelet reconstruction of the decomposed
- * signal x
- */
-SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
+SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
+  
+  /* This function calculates the wavelet reconstruction of the decomposed
+   * signal x.
+   */
   
   int i, j, j0, J, n, N, tmpscl;
   double *dtlc, *sclc, *rwfilter, *rwrx, *rx;
@@ -3307,7 +3334,6 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   rx = REAL(x);
   n = length(x);
   J = log2(n);
-  N = INTEGER(fs)[0];
   j0 = INTEGER(J0)[0];
   
   if(j0 > J)
@@ -3318,19 +3344,17 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   }
   else{
     
-    SEXP wutils = PROTECT(WavUtilities(family, fs));
+    SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
     SEXP wfilter = VECTOR_ELT(wutils, 4);
+    SEXP fsize = VECTOR_ELT(wutils, 5);
     rwfilter = REAL(wfilter);
+    N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
     
     sclc = (double *) R_alloc(n/2, sizeof(double));
     dtlc = (double *) R_alloc(n/2, sizeof(double));
-    rwrx = (double *) R_alloc(n, sizeof(double));
-    
+
     PROTECT(wrx = allocVector(REALSXP, n));
     rwrx = REAL(wrx);
-    
-    /*for(i = 0; i < n; i++)
-     rwrx[i] = 0.0;*/
     
     tmpscl = pow(2, j0);
     for(i = 0; i < tmpscl; i++){
@@ -3353,10 +3377,12 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0){
   }
 }
 
-/* This function calculates the matrix of PHI[Jk](x[i]) for every k value where
- * phi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
- */
-SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
+SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+  
+  /* This function calculates the matrix of PHI[Jk](x[i]) for every k value
+   * where phi[Jk] is non-null. The index i corresponds to the (i+1)-th line of
+   * the matrix.
+   */
   
   int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;
   double rphisl, rphisr, px, x1 = NA_REAL, xn = NA_REAL;
@@ -3364,7 +3390,6 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
   SEXP phimat;
   
   n = length(x);
-  N = INTEGER(fs)[0];
   
   rJ = INTEGER(J)[0];
   rper = INTEGER(periodic)[0];
@@ -3379,13 +3404,15 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
     error("Check your data. The observations should be real values.");
   // ----- min(x) and max(x) defined ----- //
   
-  SEXP wutils = PROTECT(WavUtilities(family, fs));
+  SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
   SEXP phisl = VECTOR_ELT(wutils, 0);
   SEXP phisr = VECTOR_ELT(wutils, 1);
   SEXP wfilter = VECTOR_ELT(wutils, 4);
+  SEXP fsize = VECTOR_ELT(wutils, 5);
   rphisl = INTEGER(phisl)[0];
   rphisr = INTEGER(phisr)[0];
   rwfilter = REAL(wfilter);
+  N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
   
   kmax = floor(p*xn - rphisl);
   kmin = ceil(p*x1 - rphisr + 1e-9);
@@ -3454,10 +3481,12 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
   return phimat;
 }
 
-/* This function calculates the matrix of PSI[Jk](x[i]) for every k value where
- * psi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
- */
-SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
+SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+  
+  /* This function calculates the matrix of PSI[Jk](x[i]) for every k value
+   * where psi[Jk] is non-null. The index i corresponds to the (i+1)-th line of
+   * the matrix.
+   */
   
   int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;
   double rpsisl, rpsisr, px, x1 = NA_REAL, xn = NA_REAL;
@@ -3465,7 +3494,7 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
   SEXP psimat;
   
   n = length(x);
-  N = INTEGER(fs)[0];
+  //N = INTEGER(fs)[0];
   
   rJ = INTEGER(J)[0];
   rper = INTEGER(periodic)[0];
@@ -3479,13 +3508,15 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
     error("Check your data. The observations should be real values.");
   // ----- min(x) and max(x) defined ----- //
   
-  SEXP wutils = PROTECT(WavUtilities(family, fs));
+  SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
   SEXP psisl = VECTOR_ELT(wutils, 2);
   SEXP psisr = VECTOR_ELT(wutils, 3);
   SEXP wfilter = VECTOR_ELT(wutils, 4);
+  SEXP fsize = VECTOR_ELT(wutils, 5);
   rpsisl = INTEGER(psisl)[0];
   rpsisr = INTEGER(psisr)[0];
   rwfilter = REAL(wfilter);
+  N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
   
   p = pow(2, rJ);
   kmax = floor(p*xn - rpsisl);
@@ -3554,11 +3585,14 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
   return psimat;
 }
 
-/* This function calculates the matrix of PHI[Jk](x[i]) for every k value where
- * phi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
- * Used internally in the function 'C_WavBasis'.
- */
 SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic){
+  
+  /* This function calculates the matrix of PHI[Jk](x[i]) for every k value
+   * where phi[Jk] is non-null. The index i corresponds to the (i+1)-th line of
+   * the matrix.
+   * 
+   * Used internally in the function 'C_WavBasis'.
+   */
   
   int i, j, kdiff1, lkmin, lkmax;
   double px, *rphimat1, *phi, *rphimat2, *prod, *tmp;
@@ -3628,11 +3662,14 @@ SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
   return phimat;
 }
 
-/* This function calculates the matrix of PSI[Jk](x[i]) for every k value where
- * psi[Jk] is non-null. The index i corresponds to the (i+1)-th line of the matrix.
- * Used internally in the function 'C_WavBasis'.
- */
 SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic){
+    
+    /* This function calculates the matrix of PSI[Jk](x[i]) for every k value
+     * where psi[Jk] is non-null. The index i corresponds to the (i+1)-th line
+     * of the matrix.
+     * 
+     * Used internally in the function 'C_WavBasis'.
+     */
     
     int i, j, kdiff1, lkmin, lkmax;
     double px, *psi, *rpsimat1, *rpsimat2, *prod, *tmp;
@@ -3700,11 +3737,12 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
     return psimat;
 }
 
-/* This function calculates the matrix with PHI[J0k](x[i]) and PSI[jk](x[i]), where
- * J0 <= j <= J. The index i corresponds to the (i+1)-th line of the matrix.
- * Used internally in the function 'C_WavBasis'.
- */
-SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic){
+SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+  
+  /* This function calculates the matrix with PHI[J0k](x[i]) and PSI[jk](x[i]),
+   * where J0 <= j <= J. The index i corresponds to the (i+1)-th line of the
+   * matrix.
+   */
   
   double *rx, *rwfilt, x1 = NA_REAL, xn = NA_REAL;
   int i, n, N, rJ0, rJ, kmax, kmin, p, rper, rphisl, rphisr, rpsisl, rpsisr, rprec;
@@ -3717,11 +3755,8 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
   if(rJ0 > rJ)
     error("The coarsest level can't be greater than the finest level.");
   
-  p = pow(2, rJ0);
-  
   rx = REAL(x);
   n = LENGTH(x);
-  N = INTEGER(fs)[0];
   
   // ----- Defining {min(x) --> x1} and {max(x) --> xn} ----- //
   Range(&x1, &xn, rx, n);
@@ -3730,44 +3765,121 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
     error("Check your data. The observations should be real valued.");
   // ----- min(x) and max(x) defined ----- //
   
-  SEXP wutils = PROTECT(WavUtilities(family, fs));
+  SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
   SEXP phisl = VECTOR_ELT(wutils, 0);
   SEXP phisr = VECTOR_ELT(wutils, 1);
   SEXP psisl = VECTOR_ELT(wutils, 2);
   SEXP psisr = VECTOR_ELT(wutils, 3);
   SEXP wfilt = VECTOR_ELT(wutils, 4);
+  SEXP fsize = VECTOR_ELT(wutils, 5);
   rphisl = INTEGER(phisl)[0];
   rphisr = INTEGER(phisr)[0];
   rpsisl = INTEGER(psisl)[0];
   rpsisr = INTEGER(psisr)[0];
   rwfilt = REAL(wfilt);
-  
-  kmax = floor(p*xn - rphisl);
-  kmin = ceil(p*x1 - rphisr + 1e-9);
+  N = INTEGER(fsize)[0];//LENGTH(wfilt);//INTEGER(fs)[0];
   
   SEXP wmat, pmat;
   
   if(rJ0 == rJ){
     
+    p = pow(2, rJ);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
     PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
     wmat = pmat;
     
+    UNPROTECT(2);
+    return wmat;
+  }
+  else if(rper){
+    
+    double *dtlc, *rpmat, *rwmat, *sclc, *tmp;
+    int i, j, k, tmpn, tmpscl;
+    
+    p = pow(2, rJ);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
+    PROTECT(wmat = allocMatrix(REALSXP, n, p));
+    rwmat = REAL(wmat);
+    
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+    rpmat = REAL(pmat);
+    
+    sclc = (double *) R_alloc(p/2, sizeof(double));
+    dtlc = (double *) R_alloc(p/2, sizeof(double));
+    tmp  = (double *) R_alloc(p, sizeof(double));
+    
+    if(rJ0 == rJ - 1){
+      for(i = 0; i < n; i++){
+        for(j = 0; j < p; j++)
+          tmp[j] = rpmat[i + n*j];
+
+        tmpscl = p/2;
+        WaveDec1(tmp, p, rwfilt, N, sclc, dtlc);
+        
+        for(j = 0; j < tmpscl; j++){
+          rwmat[i + n*(j + tmpscl)] = dtlc[j];
+          rwmat[i + n*j] = sclc[j];
+        }
+      }
+      
+      UNPROTECT(3);
+      return wmat;
+    }
+    else{
+      for(i = 0; i < n; i++){
+        for(j = 0; j < p; j++)
+          tmp[j] = rpmat[i + n*j];
+        
+        tmpscl = p/2;
+        WaveDec1(tmp, p, rwfilt, N, sclc, dtlc);
+        
+        for(j = 0; j < tmpscl; j++){
+          rwmat[i + n*(j + tmpscl)] = dtlc[j];
+          tmp[j] = sclc[j];
+        }
+        
+        for(j = rJ - 2; j > rJ0; j--){
+          tmpn = tmpscl;
+          tmpscl /= 2;
+          WaveDec1(tmp, tmpn, rwfilt, N, sclc, dtlc);
+          for(k = 0; k < tmpscl; k++){
+            rwmat[i + n*(k + tmpscl)] = dtlc[k];
+            tmp[k] = sclc[k];
+          }
+        }
+        
+        tmpn = tmpscl;
+        tmpscl /= 2;
+        WaveDec1(tmp, tmpn, rwfilt, N, sclc, dtlc);
+        for(k = 0; k < tmpscl; k++){
+          rwmat[i + n*(k + tmpscl)] = dtlc[k];
+          rwmat[i + n*k] = sclc[k];
+        }
+      }
+      
+      UNPROTECT(3);
+      return wmat;
+    }
   }
   else{
     
     double *rpmat, *rwmat;
     int j, k, nc0, nc1, ncw;
     
-    if(rper)
-      ncw = pow(2, rJ);
-    else{
-      ncw = (kmax - kmin + 1);
-      for(k = rJ0; k < rJ; k++){
-        p = pow(2, k);
-        kmax = floor(p*xn - rpsisl);
-        kmin = ceil(p*x1 - rpsisr + 1e-9);
-        ncw += (kmax - kmin + 1);
-      }
+    p = pow(2, rJ0);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
+    ncw = (kmax - kmin + 1);
+    for(k = rJ0; k < rJ; k++){
+      p = pow(2, k);
+      kmax = floor(p*xn - rpsisl);
+      kmin = ceil(p*x1 - rpsisr + 1e-9);
+      ncw += (kmax - kmin + 1);
     }
     
     PROTECT(wmat = allocMatrix(REALSXP, n, ncw));
@@ -3805,7 +3917,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
       for(i = 0; i < n; i++)
         for(j = nc0; j < nc1; j++)
           rwmat[i + n*j] = rpmat[i + n*(j - nc0)];
-          
+      
       UNPROTECT(1);
       // ----- PSI matrices put ----- //
     }
@@ -3816,3 +3928,4 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
   return wmat;
   
 }
+ 
