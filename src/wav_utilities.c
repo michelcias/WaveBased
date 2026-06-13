@@ -41,7 +41,7 @@ SEXP WavUtilities(SEXP family, SEXP fs, SEXP waveletfilter){
     wfilter = waveletfilter;
   }
   else
-    error("Unknofsize family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'.", rfam);
+    error("Unknown family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'.", rfam);
   
   SEXP results = PROTECT(allocVector(VECSXP, 6));
   SET_VECTOR_ELT(results, 0, ScalarInteger(0));
