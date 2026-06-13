@@ -1,0 +1,10 @@
+OBJECTS = init.o \
+          utils.o \
+          wav_decomp1.o \
+          phi_psi_vec.o \
+          wav_filters_daublets.o \
+          wav_filters_symmlets.o \
+          wav_filters_coiflets.o \
+          wav_utilities.o \
+          wav_transform.o \
+          wav_basis.o

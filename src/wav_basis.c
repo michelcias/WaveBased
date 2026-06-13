@@ -1,0 +1,538 @@
+/**
+ * @file wav_basis.c
+ * @brief PHI/PSI matrix computation and full wavelet basis for the R interface.
+ * @author Michel Cias
+ * @date 2026
+ */
+
+#include <math.h>
+#include <R.h>
+#include <Rinternals.h>
+#include "wav_basis.h"
+#include "wav_utilities.h"
+#include "wav_decomp1.h"
+#include "phi_psi_vec.h"
+#include "utils.h"
+
+SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+  
+  int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;
+  double rphisl, rphisr, px, x1 = NA_REAL, xn = NA_REAL;
+  double *rphimat1, *phi, *rwfilter, *rphimat2, *rx, *prod, *tmp;
+  SEXP phimat;
+  
+  n = length(x);
+  
+  rJ = INTEGER(J)[0];
+  rper = INTEGER(periodic)[0];
+  rprec = INTEGER(prec)[0];
+  rx = REAL(x);
+  p = pow(2, rJ);
+  
+  /* --- Defining {min(x) --> x1} and {max(x) --> xn} --- */
+  Range(&x1, &xn, rx, n);
+  
+  if(ISNA(x1))
+    error("Check your data. The observations should be real values.");
+  /* --- min(x) and max(x) defined --- */
+  
+  SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
+  SEXP phisl = VECTOR_ELT(wutils, 0);
+  SEXP phisr = VECTOR_ELT(wutils, 1);
+  SEXP wfilter = VECTOR_ELT(wutils, 4);
+  SEXP fsize = VECTOR_ELT(wutils, 5);
+  rphisl = INTEGER(phisl)[0];
+  rphisr = INTEGER(phisr)[0];
+  rwfilter = REAL(wfilter);
+  N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
+  
+  kmax = floor(p*xn - rphisl);
+  kmin = ceil(p*x1 - rphisr + 1e-9);
+  kdiff1 = kmax - kmin + 1;
+  
+  if(rper){
+    rphimat1 = (double *) R_alloc(n*kdiff1, sizeof(double));
+    PROTECT(phimat = allocMatrix(REALSXP, n, p));
+    rphimat2 = REAL(phimat);
+  }
+  else{
+    PROTECT(phimat = allocMatrix(REALSXP, n, kdiff1));
+    rphimat1 = REAL(phimat);
+  }
+  
+  phi = (double *) R_alloc((N - 1), sizeof(double));
+  prod = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+  tmp = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+  
+  // Let's fill the matrix PHI[Jk](x[i])!
+  for(i = 0; i < n; i++){
+    
+    if(!R_FINITE(rx[i])){
+      warning("At least one observation is not finite and its associated line in the PHI matrix will be set as NA.");
+      for(j = 0; j < kdiff1; j++)
+        rphimat1[i + n*j] = NA_REAL;
+      continue;
+    }
+    
+    px = p*rx[i];
+    /* --- Calculating phi[0k](px) --- */
+    PhiVec(phi, px, rwfilter, N, rprec, prod, tmp);
+    /* --- phi[0k](px) calculated --> phi --- */
+    
+    lkmax = floor(px - rphisl);
+    lkmin = lkmax - N + 2;
+    
+    /* --- Putting the phi[Jk](x[i]) in the i-th row of the matrix rphimat1 --- */
+    if(kmin == lkmin){
+      for(j = 0; j < (N - 1); j++){
+        rphimat1[i + n*j] = sqrt(p) * phi[j];
+      }
+      for(j = (N - 1); j < kdiff1; j++){
+        rphimat1[i + n*j] = 0.0;
+      }
+    }
+    else{
+      for(j = 0; j < (lkmin - kmin); j++)
+        rphimat1[i + n*j] = 0.0;
+      
+      for(j = (lkmin - kmin); j < (lkmin - kmin + (N - 1)); j++)
+        rphimat1[i + n*j] = sqrt(p) * phi[j + kmin - lkmin];
+      
+      if(kmax > lkmax){
+        for(j = (lkmin - kmin + (N - 1)); j < kdiff1; j++)
+          rphimat1[i + n*j] = 0.0;
+      }
+    }
+    /* --- phi[Jk](x[i]) put in the i-th row of the matrix rphimat1 --- */
+  }
+  
+  if(rper)
+    Periodize(rphimat2, rphimat1, n, kmin, kmax, p);
+  
+  UNPROTECT(2);
+  return phimat;
+}
+
+SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+  
+  int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;
+  double rpsisl, rpsisr, px, x1 = NA_REAL, xn = NA_REAL;
+  double *psi, *rpsimat1, *rpsimat2, *rwfilter, *rx, *prod, *tmp;
+  SEXP psimat;
+  
+  n = length(x);
+  //N = INTEGER(fs)[0];
+  
+  rJ = INTEGER(J)[0];
+  rper = INTEGER(periodic)[0];
+  rprec = INTEGER(prec)[0];
+  rx = REAL(x);
+  
+  /* --- Defining {min(x) --> x1} and {max(x) --> xn} --- */
+  Range(&x1, &xn, rx, n);
+  
+  if(ISNA(x1))
+    error("Check your data. The observations should be real values.");
+  /* --- min(x) and max(x) defined --- */
+  
+  SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
+  SEXP psisl = VECTOR_ELT(wutils, 2);
+  SEXP psisr = VECTOR_ELT(wutils, 3);
+  SEXP wfilter = VECTOR_ELT(wutils, 4);
+  SEXP fsize = VECTOR_ELT(wutils, 5);
+  rpsisl = INTEGER(psisl)[0];
+  rpsisr = INTEGER(psisr)[0];
+  rwfilter = REAL(wfilter);
+  N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
+  
+  p = pow(2, rJ);
+  kmax = floor(p*xn - rpsisl);
+  kmin = ceil(p*x1 - rpsisr + 1e-9);
+  kdiff1 = kmax - kmin + 1;
+  
+  psi = (double *) R_alloc((N - 1), sizeof(double));
+  prod = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+  tmp = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+  
+  if(rper){
+    rpsimat1 = (double *) R_alloc((n*kdiff1), sizeof(double));
+    PROTECT(psimat = allocMatrix(REALSXP, n, p));
+    rpsimat2 = REAL(psimat);
+  }
+  else{
+    PROTECT(psimat = allocMatrix(REALSXP, n, kdiff1));
+    rpsimat1 = REAL(psimat);
+  }
+  
+  // Let's fill the matrix PSI[Jk](x[i])!
+  for(i = 0; i < n; i++){
+    
+    if(!R_FINITE(rx[i])){
+      warning("At least one observation is not finite and its associated line in the PSI matrix will be set as NA.");
+      for(j = 0; j < kdiff1; j++)
+        rpsimat1[i + n*j] = NA_REAL;
+      continue;
+    }
+    
+    px = p * rx[i];
+    lkmax = floor(px - rpsisl);
+    lkmin = lkmax - N + 2;
+    
+    /* --- Calculating phi[0k](px) --- */
+    PsiVec(psi, px, rwfilter, N, rprec, lkmin, prod, tmp);
+    /* --- psi[0k](px) calculated --> psi --- */
+    
+    /* --- Putting the psi[Jk](x[i]) in the i-th row of the matrix rpsimat1 --- */
+    if(kmin == lkmin){
+      for(j = 0; j < (N - 1); j++)
+        rpsimat1[i + n*j] = sqrt(p) * psi[j];
+      
+      for(j = (N - 1); j < kdiff1; j++)
+        rpsimat1[i + n*j] = 0.0;
+    }
+    else{
+      for(j = 0; j < (lkmin - kmin); j++)
+        rpsimat1[i + n*j] = 0.0;
+      
+      for(j = (lkmin - kmin); j < (lkmin - kmin + (N - 1)); j++)
+        rpsimat1[i + n*j] = sqrt(p) * psi[j + kmin - lkmin];
+      
+      if(kmax > lkmax){
+        for(j = (lkmin - kmin + (N - 1)); j < kdiff1; j++)
+          rpsimat1[i + n*j] = 0.0;
+      }
+    }
+    /* --- psi[Jk](x[i]) put in the i-th row of the matrix rpsimat1 --- */
+  }
+  
+  if(rper)
+    Periodize(rpsimat2, rpsimat1, n, kmin, kmax, p);
+  
+  UNPROTECT(2);
+  return psimat;
+}
+
+SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic){
+  
+  int i, j, kdiff1, lkmin, lkmax;
+  double px, *rphimat1, *phi, *rphimat2, *prod, *tmp;
+  SEXP phimat;
+  
+  kdiff1 = kmax - kmin + 1;
+    
+  if(periodic){
+    rphimat1 = (double *) R_alloc(n*kdiff1, sizeof(double));
+    PROTECT(phimat = allocMatrix(REALSXP, n, p));
+    rphimat2 = REAL(phimat);
+  }
+  else{
+    PROTECT(phimat = allocMatrix(REALSXP, n, kdiff1));
+    rphimat1 = REAL(phimat);
+  }
+  
+  phi = (double *) R_alloc((N - 1), sizeof(double));
+  prod = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+  tmp = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+  
+  // Let's fill the matrix PHI[Jk](x[i])!
+  for(i = 0; i < n; i++){
+    
+    if(!R_FINITE(x[i])){
+      for(j = 0; j < kdiff1; j++)
+        rphimat1[i + n*j] = NA_REAL;
+      continue;
+    }
+    
+    px = p*x[i];
+    /* --- Calculating phi[0k](px) --- */
+    PhiVec(phi, px, filter, N, prec, prod, tmp);
+    /* --- phi[0k](px) calculated --> phi --- */
+    
+    lkmax = floor(px - phisl);
+    lkmin = lkmax - N + 2;
+    
+    /* --- Putting the phi[Jk](x[i]) in the i-th row of the matrix rphimat1 --- */
+    if(kmin == lkmin){
+      for(j = 0; j < (N - 1); j++){
+        rphimat1[i + n*j] = sqrt(p) * phi[j];
+      }
+      for(j = (N - 1); j < kdiff1; j++){
+        rphimat1[i + n*j] = 0.0;
+      }
+    }
+    else{
+      for(j = 0; j < (lkmin - kmin); j++)
+        rphimat1[i + n*j] = 0.0;
+      
+      for(j = (lkmin - kmin); j < (lkmin - kmin + (N - 1)); j++)
+        rphimat1[i + n*j] = sqrt(p) * phi[j + kmin - lkmin];
+      
+      if(kmax > lkmax){
+        for(j = (lkmin - kmin + (N - 1)); j < kdiff1; j++)
+          rphimat1[i + n*j] = 0.0;
+      }
+    }
+    /* --- phi[Jk](x[i]) put in the i-th row of the matrix rphimat1 --- */
+  }
+  
+  if(periodic)
+    Periodize(rphimat2, rphimat1, n, kmin, kmax, p);
+  
+  UNPROTECT(1);
+  return phimat;
+}
+
+SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic){
+    
+    int i, j, kdiff1, lkmin, lkmax;
+    double px, *psi, *rpsimat1, *rpsimat2, *prod, *tmp;
+    SEXP psimat;
+    
+    kdiff1 = kmax - kmin + 1;
+    
+    psi = (double *) R_alloc((N - 1), sizeof(double));
+    prod = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+    tmp = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
+    
+    if(periodic){
+        rpsimat1 = (double *) R_alloc(n*kdiff1, sizeof(double));
+        PROTECT(psimat = allocMatrix(REALSXP, n, p));
+        rpsimat2 = REAL(psimat);
+    }
+    else{
+        PROTECT(psimat = allocMatrix(REALSXP, n, kdiff1));
+        rpsimat1 = REAL(psimat);
+    }
+    
+    for(i = 0; i < n; i++){
+        
+        if(!R_FINITE(x[i])){
+            for(j = 0; j < kdiff1; j++)
+                rpsimat1[i + n*j] = NA_REAL;
+            continue;
+        }
+        
+        px = p * x[i];
+        lkmax = floor(px - psilh);
+        lkmin = lkmax - N + 2;
+        
+        /* --- Calculating psi[0k](px) --- */
+        PsiVec(psi, px, filter, N, prec, lkmin, prod, tmp);
+        /* --- psi[0k](px) calculated --> psi --- */
+        
+        /* --- Putting the psi[Jk](x[i]) in the i-th row of the matrix rpsimat1 --- */
+        if(kmin == lkmin){
+            for(j = 0; j < (N - 1); j++)
+                rpsimat1[i + n*j] = sqrt(p) * psi[j];
+            
+            for(j = (N - 1); j < kdiff1; j++)
+                rpsimat1[i + n*j] = 0.0;
+        }
+        else{
+            for(j = 0; j < (lkmin - kmin); j++)
+                rpsimat1[i + n*j] = 0.0;
+            
+            for(j = (lkmin - kmin); j < (lkmin - kmin + (N - 1)); j++)
+                rpsimat1[i + n*j] = sqrt(p) * psi[j + kmin - lkmin];
+            
+            if(kmax > lkmax){
+                for(j = (lkmin - kmin + (N - 1)); j < kdiff1; j++)
+                    rpsimat1[i + n*j] = 0.0;
+            }
+        }
+        /* --- psi[Jk](x[i]) put in the i-th row of the matrix rpsimat1 --- */
+    }
+    
+    if(periodic)
+        Periodize(rpsimat2, rpsimat1, n, kmin, kmax, p);
+    
+    UNPROTECT(1);
+    return psimat;
+}
+
+SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+  
+  double *rx, *rwfilt, x1 = NA_REAL, xn = NA_REAL;
+  int i, n, N, rJ0, rJ, kmax, kmin, p, rper, rphisl, rphisr, rpsisl, rpsisr, rprec;
+  
+  rJ0 = INTEGER(J0)[0];
+  rJ = INTEGER(J)[0];
+  rprec = INTEGER(prec)[0];
+  rper = INTEGER(periodic)[0];
+  
+  if(rJ0 > rJ)
+    error("The coarsest level can't be greater than the finest level.");
+  
+  rx = REAL(x);
+  n = LENGTH(x);
+  
+  /* --- Defining {min(x) --> x1} and {max(x) --> xn} --- */
+  Range(&x1, &xn, rx, n);
+  
+  if(ISNA(x1))
+    error("Check your data. The observations should be real valued.");
+  /* --- min(x) and max(x) defined --- */
+  
+  SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
+  SEXP phisl = VECTOR_ELT(wutils, 0);
+  SEXP phisr = VECTOR_ELT(wutils, 1);
+  SEXP psisl = VECTOR_ELT(wutils, 2);
+  SEXP psisr = VECTOR_ELT(wutils, 3);
+  SEXP wfilt = VECTOR_ELT(wutils, 4);
+  SEXP fsize = VECTOR_ELT(wutils, 5);
+  rphisl = INTEGER(phisl)[0];
+  rphisr = INTEGER(phisr)[0];
+  rpsisl = INTEGER(psisl)[0];
+  rpsisr = INTEGER(psisr)[0];
+  rwfilt = REAL(wfilt);
+  N = INTEGER(fsize)[0];//LENGTH(wfilt);//INTEGER(fs)[0];
+  
+  SEXP wmat, pmat;
+  
+  if(rJ0 == rJ){
+    
+    p = pow(2, rJ);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+    wmat = pmat;
+    
+    UNPROTECT(2);
+    return wmat;
+  }
+  else if(rper){
+    
+    double *dtlc, *rpmat, *rwmat, *sclc, *tmp;
+    int i, j, k, tmpn, tmpscl;
+    
+    p = pow(2, rJ);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
+    PROTECT(wmat = allocMatrix(REALSXP, n, p));
+    rwmat = REAL(wmat);
+    
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+    rpmat = REAL(pmat);
+    
+    sclc = (double *) R_alloc(p/2, sizeof(double));
+    dtlc = (double *) R_alloc(p/2, sizeof(double));
+    tmp  = (double *) R_alloc(p, sizeof(double));
+    
+    if(rJ0 == rJ - 1){
+      for(i = 0; i < n; i++){
+        for(j = 0; j < p; j++)
+          tmp[j] = rpmat[i + n*j];
+
+        tmpscl = p/2;
+        WaveDec1(tmp, p, rwfilt, N, sclc, dtlc);
+        
+        for(j = 0; j < tmpscl; j++){
+          rwmat[i + n*(j + tmpscl)] = dtlc[j];
+          rwmat[i + n*j] = sclc[j];
+        }
+      }
+      
+      UNPROTECT(3);
+      return wmat;
+    }
+    else{
+      for(i = 0; i < n; i++){
+        for(j = 0; j < p; j++)
+          tmp[j] = rpmat[i + n*j];
+        
+        tmpscl = p/2;
+        WaveDec1(tmp, p, rwfilt, N, sclc, dtlc);
+        
+        for(j = 0; j < tmpscl; j++){
+          rwmat[i + n*(j + tmpscl)] = dtlc[j];
+          tmp[j] = sclc[j];
+        }
+        
+        for(j = rJ - 2; j > rJ0; j--){
+          tmpn = tmpscl;
+          tmpscl /= 2;
+          WaveDec1(tmp, tmpn, rwfilt, N, sclc, dtlc);
+          for(k = 0; k < tmpscl; k++){
+            rwmat[i + n*(k + tmpscl)] = dtlc[k];
+            tmp[k] = sclc[k];
+          }
+        }
+        
+        tmpn = tmpscl;
+        tmpscl /= 2;
+        WaveDec1(tmp, tmpn, rwfilt, N, sclc, dtlc);
+        for(k = 0; k < tmpscl; k++){
+          rwmat[i + n*(k + tmpscl)] = dtlc[k];
+          rwmat[i + n*k] = sclc[k];
+        }
+      }
+      
+      UNPROTECT(3);
+      return wmat;
+    }
+  }
+  else{
+    
+    double *rpmat, *rwmat;
+    int j, k, nc0, nc1, ncw;
+    
+    p = pow(2, rJ0);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
+    ncw = (kmax - kmin + 1);
+    for(k = rJ0; k < rJ; k++){
+      p = pow(2, k);
+      kmax = floor(p*xn - rpsisl);
+      kmin = ceil(p*x1 - rpsisr + 1e-9);
+      ncw += (kmax - kmin + 1);
+    }
+    
+    PROTECT(wmat = allocMatrix(REALSXP, n, ncw));
+    rwmat = REAL(wmat);
+    
+    p = pow(2, rJ0);
+    kmax = floor(p*xn - rphisl);
+    kmin = ceil(p*x1 - rphisr + 1e-9);
+    
+    /* --- Calculating the PHI matrix to put in rpmat --- */
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+    rpmat = REAL(pmat);
+    
+    nc0 = 0;
+    nc1 = rper ? p : (kmax - kmin + 1);
+    
+    for(i = 0; i < n; i++)
+      for(j = nc0; j < nc1; j++)
+        rwmat[i + n*j] = rpmat[i + n*(j - nc0)];
+    
+    UNPROTECT(1);
+    /* --- PHI matrix put --- */
+    
+    /* --- Calculating the PSI matrices to put in rpmat --- */
+    for(k = rJ0; k < rJ; k++){
+      p = pow(2, k);
+      kmax = floor(p*xn - rpsisl);
+      kmin = ceil(p*x1 - rpsisr + 1e-9);
+      PROTECT(pmat = PSImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rpsisl, rpsisr, rper));
+      rpmat = REAL(pmat);
+      
+      nc0 = nc1;
+      nc1 += (rper ? p : (kmax - kmin + 1));
+      
+      for(i = 0; i < n; i++)
+        for(j = nc0; j < nc1; j++)
+          rwmat[i + n*j] = rpmat[i + n*(j - nc0)];
+      
+      UNPROTECT(1);
+      /* --- PSI matrices put --- */
+    }
+    
+  }
+  
+  UNPROTECT(2);
+  return wmat;
+  
+}
