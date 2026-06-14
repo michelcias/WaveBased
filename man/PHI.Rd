@@ -4,8 +4,15 @@
 \alias{PHI}
 \title{Scaling Function Basis}
 \usage{
-PHI(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
-  periodic = TRUE, wavelet.filter)
+PHI(
+  x,
+  J,
+  family = "Daublets",
+  filter.size = 20,
+  prec.wavelet = 30,
+  periodic = TRUE,
+  wavelet.filter
+)
 }
 \arguments{
 \item{x}{Vector containing the data. Its length does not need to be power of 2.}
@@ -14,8 +21,8 @@ PHI(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
 calculated.}
 
 \item{family}{The family of wavelets to use. It can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
-provided. See Details for more information.}
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
+is provided. See Details for more information.}
 
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
@@ -34,8 +41,8 @@ not sure about what you are doing.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
-\eqn{\phi_{Jk}(x_i)}, for different values of \eqn{k} (associated to the
-columns of the matrix).
+  \eqn{\phi_{Jk}(x_i)}, for different values of \eqn{k} (associated to the
+  columns of the matrix).
 }
 \description{
 Calculates a matrix of scaling functions \eqn{\phi_{Jk}}, where
@@ -134,7 +141,7 @@ alpha <- coef(mod) # estimates
 new.obs <- 0:(n-1)/n
 myphi <- PHI(new.obs, J = 3, family = "daublets", filter.size = 18,
              prec.wavelet = 30, periodic = TRUE)
-f.est <- drop(myphi \%*\% coef(mod)) # estimates of f(x)
+f.est <- drop(myphi \\%*\\% coef(mod)) # estimates of f(x)
 
 # Let's see the result
 plot(x, y, main = "Regression model")
@@ -163,6 +170,7 @@ coefPHI <- round(apply(matPHI, 2, mean), 8)
 identical(coefdenproj, coefPHI) # Are the coefficient estimates exact?
 sum(abs(coefdenproj-coefPHI)) # Are they close with a good precision?
 }
+
 }
 \references{
 Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II.

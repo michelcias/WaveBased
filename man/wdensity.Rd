@@ -4,11 +4,33 @@
 \alias{wdensity}
 \title{Wavelet-based density estimation for univariate size-biased data}
 \usage{
-wdensity(data, from, to, length.obs = 250, wf = NULL, power.dens, J0 = 0, J1,
-  family = "Daublets", filter.size = 10, prec.wavelet = 30,
-  wavelet.filter, dens.biased, warped = TRUE, warp.fun, dwarp.fun,
-  rescale = TRUE, eps = 1.9^(-J1), thresh = "hard", plot = TRUE, main,
-  xlab, ylab, type, ...)
+wdensity(
+  data,
+  from,
+  to,
+  length.obs = 250,
+  wf = NULL,
+  power.dens,
+  J0 = 0,
+  J1,
+  family = "Daublets",
+  filter.size = 10,
+  prec.wavelet = 30,
+  wavelet.filter,
+  dens.biased,
+  warped = TRUE,
+  warp.fun,
+  dwarp.fun,
+  rescale = TRUE,
+  eps = 1.9^(-J1),
+  thresh = "hard",
+  plot = TRUE,
+  main,
+  xlab,
+  ylab,
+  type,
+  ...
+)
 }
 \arguments{
 \item{data}{Vector containing the data from which the density estimate is to
@@ -34,8 +56,8 @@ calculated. It is associated to the multiresolution space where the function
 is projected.}
 
 \item{family}{The family of wavelets to use. It can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
-provided \code{wavelet.filter}.}
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
+is provided \code{wavelet.filter}.}
 
 \item{filter.size}{The size of the wavelet filter. The available values depend
 on the chosen wavelet family.}
@@ -53,8 +75,8 @@ estimate is calculated.}
 
 \item{warped}{Logical. It indicates if the wavelet basis must be warped.}
 
-\item{warp.fun}{A (cumulative distribution) function. By default, it
-provides the empirical distribution function of \code{data}. Only used if
+\item{warp.fun}{A (cumulative distribution) function. By default, it provides
+the empirical distribution function of \code{data}. Only used if
 \code{warped = TRUE}.}
 
 \item{dwarp.fun}{A function. Derivative of the \code{warp.fun}. By default, it
@@ -85,9 +107,9 @@ plotted.}
 }
 \value{
 A list containing the following components.
-\item{y}{The grid of \code{length.obs} observations at which the densities
-are estimated.}
-\item{dens}{The estimated density values.}
+  \item{y}{The grid of \code{length.obs} observations at which the densities
+  are estimated.}
+  \item{dens}{The estimated density values.}
 }
 \description{
 The \code{wdensity} function calculates wavelet-based density
@@ -183,6 +205,7 @@ m4 = wdensity(data = bac, wf = function(x) 0.1+0.9*x, power.dens = 1,
               filter.size = 20, warped = TRUE, rescale = FALSE,
               thresh = "hard", ylim = c(0.00000, 16.37781), lwd = 2,
               col = 1, lty = 1, main = expression(m[4]))
+
 }
 \references{
 Montoril, M. H., Chang, W. and Vidakovic, B. (2019). Wavelet-Based Estimation

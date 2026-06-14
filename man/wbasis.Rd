@@ -4,8 +4,16 @@
 \alias{wbasis}
 \title{Decomposed Wavelet Basis}
 \usage{
-wbasis(x, j0 = 0, J, family = "Daublets", filter.size = 20,
-  prec.wavelet = 30, periodic = TRUE, wavelet.filter)
+wbasis(
+  x,
+  j0 = 0,
+  J,
+  family = "Daublets",
+  filter.size = 20,
+  prec.wavelet = 30,
+  periodic = TRUE,
+  wavelet.filter
+)
 }
 \arguments{
 \item{x}{Vector containing the data. Its length does not need to be power of 2.}
@@ -18,8 +26,8 @@ calculated. It is associated to the multiresolution space of the calculated
 basis.}
 
 \item{family}{The family of wavelets to use. It can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
-provided. See Details for more information.}
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
+is provided. See Details for more information.}
 
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
@@ -38,8 +46,8 @@ not sure about what you are doing.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
-\deqn{\{\{\phi_{j_0k}(x_i); k\} \cup \{\psi_{jk}(x_i); j_0 \le j \le J-1, k\}\},}
-for different values of \eqn{k}.
+  \deqn{\{\{\phi_{j_0k}(x_i); k\} \cup \{\psi_{jk}(x_i); j_0 \le j \le J-1, k\}\},}
+  for different values of \eqn{k}.
 }
 \description{
 This function calculates, for each observation of the data, a
@@ -153,7 +161,7 @@ beta <- coef(mod) # estimates
 new.obs <- 0:(n-1)/n
 myw <- wbasis(new.obs, j0 = 0, J = 3, family = "Daublets", filter.size = 18,
              prec.wavelet = 30)
-f.est <- drop(myw \%*\% beta) # estimates of f(new.obs)
+f.est <- drop(myw \\%*\\% beta) # estimates of f(new.obs)
 
 # Let's see the result
 plot(x, y, main = "Regression model")
@@ -188,12 +196,12 @@ beta <- coef(mod) # estimates
 new.obs <- 0:(n-1)/n
 myw <- wbasis(new.obs, j0 = 0, J = 5, family = "Daublets", filter.size = 18,
              prec.wavelet = 30)
-f.est <- drop(myw \%*\% beta) # estimates of f(new.obs)
+f.est <- drop(myw \\%*\\% beta) # estimates of f(new.obs)
 
 # Regularizing beta
 lambda <- 0.1 # threshold
 beta.thr <- beta*(abs(beta)>lambda)
-f.est.thr <- drop(myw \%*\% beta.thr) # regularized estimates of f(new.obs)
+f.est.thr <- drop(myw \\%*\\% beta.thr) # regularized estimates of f(new.obs)
 
 # Let's see the result
 plot(x, y, main = "Regression model")
@@ -202,6 +210,7 @@ points(new.obs, f.est, col = 2, lwd = 2, type = 'l')
 points(new.obs, f.est.thr, col = 3, lwd = 2, type = 'l')
 legend("topright", legend = c("Real function", "Raw Estimate", "Reg. Estimate"),
        col = 1:3, lty = 1)
+
 }
 \references{
 Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II.

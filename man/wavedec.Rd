@@ -13,8 +13,8 @@ power of 2.}
 \item{j0}{The coarsest resolution level where the signal is to be decomposed.}
 
 \item{family}{The family of wavelets to use. It can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
-provided \code{wavelet.filter}.}
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
+is provided \code{wavelet.filter}.}
 
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
@@ -25,7 +25,7 @@ not sure about what you are doing.}
 }
 \value{
 A vector of wavelet coefficients decomposed from \code{x}, where the
-coarsest resolution level is \code{j0}.
+  coarsest resolution level is \code{j0}.
 }
 \description{
 Decomposes a signal using the Mallat's pyramidal algorithm
@@ -60,6 +60,7 @@ x <- sort(runif(n))
 # filter of a Daulet.
 # Consider j0 = 3 as the coarsest resolution level:
 wdx <- wavedec(x, j0 = 3, family = "daublets", filter.size = 18)
+
 }
 \references{
 Mallat, S.G. (1989). A theory for multiresolution signal decomposition:

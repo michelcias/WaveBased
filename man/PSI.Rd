@@ -4,8 +4,15 @@
 \alias{PSI}
 \title{Mother Wavelet Basis}
 \usage{
-PSI(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
-  periodic = TRUE, wavelet.filter)
+PSI(
+  x,
+  J,
+  family = "Daublets",
+  filter.size = 20,
+  prec.wavelet = 30,
+  periodic = TRUE,
+  wavelet.filter
+)
 }
 \arguments{
 \item{x}{Vector containing the data. Its length does not need to be power of 2.}
@@ -14,8 +21,8 @@ PSI(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
 calculated.}
 
 \item{family}{The family of wavelets to use. It can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
-provided. See Details for more information.}
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
+is provided. See Details for more information.}
 
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
@@ -34,8 +41,8 @@ not sure about what you are doing.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
-\eqn{\psi_{Jk}(x_i)}, for different values of \eqn{k} (associated to the
-columns of the matrix).
+  \eqn{\psi_{Jk}(x_i)}, for different values of \eqn{k} (associated to the
+  columns of the matrix).
 }
 \description{
 Calculates a matrix of wavelet functions \eqn{\psi_{Jk}}, where
@@ -115,6 +122,7 @@ psi <- PSI(x, J = 3, family = "Daublets", filter.size = 18, prec.wavelet = 30,
 
 psi.per <- PSI(x, J = 3, family = "Daublets", filter.size = 18,
                prec.wavelet = 30, periodic = TRUE)
+
 }
 \references{
 Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II.

@@ -48,6 +48,7 @@ accidents that occurred in the USA, during the year of 2019.
 \examples{
 data(bac)
 hist(bac)
+
 }
 \references{
 Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2021). Wavelet-based

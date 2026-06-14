@@ -12,8 +12,8 @@ waverec(x, j0 = 0, family = "Daublets", filter.size = 20, wavelet.filter)
 \item{j0}{The coarsest resolution level where the signal is decomposed.}
 
 \item{family}{The family of wavelets to use. It can be \emph{Daublets},
-\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter is
-provided \code{wavelet.filter}.}
+\emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
+is provided \code{wavelet.filter}.}
 
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
@@ -24,7 +24,7 @@ not sure about what you are doing.}
 }
 \value{
 A vector containing a reconstruction of the decomposed data \code{x},
-whose coarsest resolution level is \code{j0}.
+  whose coarsest resolution level is \code{j0}.
 }
 \description{
 Reconstructs a signal using the Mallat's pyramidal algorithm in
@@ -62,6 +62,7 @@ wrx <- waverec(wdx, j0 = 3, family = "daublets", filter.size = 18)
 # The reconstructed vector should be equal to x (or, at least,
 # as close as possible)
 sum(abs(wrx-x))
+
 }
 \references{
 Mallat, S.G. (1989). A theory for multiresolution signal decomposition:
