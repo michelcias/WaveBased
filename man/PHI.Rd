@@ -141,7 +141,7 @@ alpha <- coef(mod) # estimates
 new.obs <- 0:(n-1)/n
 myphi <- PHI(new.obs, J = 3, family = "daublets", filter.size = 18,
              prec.wavelet = 30, periodic = TRUE)
-f.est <- drop(myphi \\%*\\% coef(mod)) # estimates of f(x)
+f.est <- drop(myphi \%*\% coef(mod)) # estimates of f(x)
 
 # Let's see the result
 plot(x, y, main = "Regression model")

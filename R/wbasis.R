@@ -150,7 +150,7 @@
 #' new.obs <- 0:(n-1)/n
 #' myw <- wbasis(new.obs, j0 = 0, J = 3, family = "Daublets", filter.size = 18,
 #'              prec.wavelet = 30)
-#' f.est <- drop(myw \%*\% beta) # estimates of f(new.obs)
+#' f.est <- drop(myw %*% beta) # estimates of f(new.obs)
 #'
 #' # Let's see the result
 #' plot(x, y, main = "Regression model")
@@ -185,12 +185,12 @@
 #' new.obs <- 0:(n-1)/n
 #' myw <- wbasis(new.obs, j0 = 0, J = 5, family = "Daublets", filter.size = 18,
 #'              prec.wavelet = 30)
-#' f.est <- drop(myw \%*\% beta) # estimates of f(new.obs)
+#' f.est <- drop(myw %*% beta) # estimates of f(new.obs)
 #'
 #' # Regularizing beta
 #' lambda <- 0.1 # threshold
 #' beta.thr <- beta*(abs(beta)>lambda)
-#' f.est.thr <- drop(myw \%*\% beta.thr) # regularized estimates of f(new.obs)
+#' f.est.thr <- drop(myw %*% beta.thr) # regularized estimates of f(new.obs)
 #'
 #' # Let's see the result
 #' plot(x, y, main = "Regression model")
