@@ -24,7 +24,7 @@
 #' The \command{bac} data are expressed in grams/100 ml, with three decimal
 #' places (or significant digits). The 2019 FARS/CRSS Coding and Validation
 #' Manual (available
-#' \href{https://static.nhtsa.gov/nhtsa/downloads/FARS/FARS-DOC/Coding%20and%20Validation%20Manual/2019%20FARS%20CRSS%20Coding%20and%20Validation%20Manual%20-%20DOT%20HS%20813%20010.pdf}{here})
+#' \href{https://static.nhtsa.gov/nhtsa/downloads/FARS/FARS-DOC/Coding\%20and\%20Validation\%20Manual/2019\%20FARS\%20CRSS\%20Coding\%20and\%20Validation\%20Manual\%20-\%20DOT\%20HS\%20813\%20010.pdf}{here})
 #' contains details of the variables collected. The \command{bac} data
 #' available in this package consider only fatal accidents where alcohol is
 #' involved (according to the police report); and vehicles classified as
