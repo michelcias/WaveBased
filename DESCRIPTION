@@ -11,3 +11,6 @@ Description: Provides functions related to the solution of different
 	statistical problems by methods developed under wavelet approach. 
 NeedsCompilation: yes
 License: GPL (>= 2)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.3

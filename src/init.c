@@ -1,0 +1,88 @@
+/**
+ * @file init.c
+ * @brief R package initialization and routine registration for WaveBased.
+ * @details Handles dynamic loading and registration of the compiled C routines
+ *          of the WaveBased package. Registers the .Call entry points used by
+ *          the wavelet-based estimation functions (scaling-function and wavelet
+ *          basis evaluation, wavelet decomposition and reconstruction), ensuring
+ *          a proper and safe interface between R and C code. Dynamic symbol
+ *          lookup is disabled to enforce encapsulation.
+ * @author Michel H. Montoril
+ */
+
+#include <R.h>
+#include <Rinternals.h>
+#include <R_ext/Rdynload.h>
+
+/* Forward declarations of the C routines implemented in CWaveBased.c */
+extern SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec,
+                     SEXP periodic, SEXP waveletfilter);
+extern SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec,
+                     SEXP periodic, SEXP waveletfilter);
+extern SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec,
+                       SEXP periodic, SEXP waveletfilter);
+extern SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
+extern SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
+
+//==============================================================================
+// METHOD REGISTRATION TABLE
+//==============================================================================
+
+/**
+ * @brief Static table defining .Call method entries for the R-C interface.
+ *
+ * @details Maps R-visible names to their corresponding C implementations with
+ *          argument counts. R's dynamic loading system uses this table to route
+ *          .Call() invocations to the correct C routines.
+ *
+ *          **Registered routines:**
+ *          - C_PHImat:   scaling-function basis matrix (7 args)
+ *          - C_PSImat:   mother-wavelet basis matrix (7 args)
+ *          - C_WavBasis: decomposed wavelet basis matrix (8 args)
+ *          - C_WaveDec:  wavelet decomposition (5 args)
+ *          - C_WaveRec:  wavelet reconstruction (5 args)
+ *
+ * @note Names must match exactly those used in the R wrapper .Call() calls.
+ * @note Argument counts are enforced by R's .Call() mechanism at runtime.
+ * @note The NULL terminator is required for proper array traversal by R.
+ *
+ * @see R_registerRoutines
+ * @see R_CallMethodDef
+ */
+static const R_CallMethodDef CallEntries[] = {
+  {"_WaveBased_C_PHImat",   (DL_FUNC) &C_PHImat,   7},
+  {"_WaveBased_C_PSImat",   (DL_FUNC) &C_PSImat,   7},
+  {"_WaveBased_C_WavBasis", (DL_FUNC) &C_WavBasis, 8},
+  {"_WaveBased_C_WaveDec",  (DL_FUNC) &C_WaveDec,  5},
+  {"_WaveBased_C_WaveRec",  (DL_FUNC) &C_WaveRec,  5},
+  {NULL, NULL, 0}
+};
+
+//==============================================================================
+// PACKAGE INITIALIZATION FUNCTION
+//==============================================================================
+
+/**
+ * @brief Register compiled routines for the WaveBased package.
+ *
+ * @details The initialization routine registers every compiled entry point with
+ *          R's dynamic loader and disables runtime symbol lookup to enforce
+ *          encapsulation, so that R's .Call interface can safely dispatch to the
+ *          corresponding C implementations.
+ *
+ * @param dll Pointer to the DllInfo structure supplied automatically by R during
+ *            library loading.
+ *
+ * @return Nothing. Registration occurs for its side effects on R's loader state.
+ *
+ * @note The function name must follow the "R_init_<package>" convention so that
+ *       R invokes it during library() calls.
+ *
+ * @see R_registerRoutines
+ * @see R_useDynamicSymbols
+ */
+void R_init_WaveBased(DllInfo *dll)
+{
+  R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+  R_useDynamicSymbols(dll, FALSE);
+}
