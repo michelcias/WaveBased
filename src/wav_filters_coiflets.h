@@ -4,7 +4,7 @@
 /**
  * @file wav_filters_coiflets.h
  * @brief Coiflets wavelet filter coefficients.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

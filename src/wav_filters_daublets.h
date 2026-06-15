@@ -4,7 +4,7 @@
 /**
  * @file wav_filters_daublets.h
  * @brief Daublets (Daubechies) wavelet filter coefficients.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

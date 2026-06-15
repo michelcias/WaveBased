@@ -4,7 +4,7 @@
 /**
  * @file wav_basis.h
  * @brief PHI/PSI matrix computation and full wavelet basis for the R interface.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

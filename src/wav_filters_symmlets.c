@@ -1,7 +1,7 @@
 /**
  * @file wav_filters_symmlets.c
  * @brief Symmlets (least asymmetric Daubechies) wavelet filter coefficients.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

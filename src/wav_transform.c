@@ -1,7 +1,7 @@
 /**
  * @file wav_transform.c
  * @brief Full wavelet decomposition and reconstruction for the R interface.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

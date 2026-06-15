@@ -1,7 +1,7 @@
 /**
  * @file wav_decomp1.c
  * @brief Single-level wavelet decomposition and reconstruction.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

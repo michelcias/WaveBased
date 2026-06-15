@@ -4,7 +4,7 @@
 /**
  * @file utils.h
  * @brief General-purpose mathematical utility functions.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 

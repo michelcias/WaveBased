@@ -4,7 +4,7 @@
 /**
  * @file phi_psi_vec.h
  * @brief Computation of scaling function and wavelet vectors at a given point.
- * @author Michel Cias
+ * @author Michel H. Montoril
  * @date 2026
  */
 
