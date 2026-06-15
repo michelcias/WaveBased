@@ -1,0 +1,30 @@
+# Citation information for the WaveBased package.
+# The article entry below points to the arXiv preprint; update it with the
+# journal reference once the size-biased density paper is published.
+
+if (!exists("meta") || is.null(meta)) meta <- packageDescription("WaveBased")
+
+year <- if (!is.null(meta$Date)) sub("-.*", "", meta$Date) else format(Sys.Date(), "%Y")
+note <- sprintf("R package version %s", meta$Version)
+
+citHeader("To cite WaveBased in publications, please use:")
+
+bibentry(
+  bibtype = "Manual",
+  title   = "WaveBased: Wavelet-Based Estimation",
+  author  = person("Michel H.", "Montoril"),
+  year    = year,
+  note    = note,
+  url     = "https://github.com/michelcias/WaveBased"
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "Wavelet-based estimation of power densities of size-biased data",
+  author  = c(person("Michel H.", "Montoril"),
+              person("Aluisio", "Pinheiro"),
+              person("Brani", "Vidakovic")),
+  year    = "2021",
+  journal = "arXiv preprint arXiv:2112.12895",
+  url     = "https://arxiv.org/abs/2112.12895"
+)
