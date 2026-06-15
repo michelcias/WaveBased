@@ -1,6 +1,7 @@
 # WaveBased
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/michelcias/WaveBased/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/michelcias/WaveBased/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 **Wavelet-Based Estimation** — an R package with tools to tackle different
