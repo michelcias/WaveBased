@@ -14,15 +14,9 @@
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
 
-/* Forward declarations of the C routines implemented in CWaveBased.c */
-extern SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec,
-                     SEXP periodic, SEXP waveletfilter);
-extern SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec,
-                     SEXP periodic, SEXP waveletfilter);
-extern SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec,
-                       SEXP periodic, SEXP waveletfilter);
-extern SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
-extern SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
+/* Declarations of the C entry points, now implemented in dedicated files. */
+#include "wav_basis.h"
+#include "wav_transform.h"
 
 //==============================================================================
 // METHOD REGISTRATION TABLE
