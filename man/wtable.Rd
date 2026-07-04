@@ -2,6 +2,7 @@
 % Please edit documentation in R/wtable.R
 \name{wtable}
 \alias{wtable}
+\alias{wtable_cache}
 \alias{print.wavelet_table}
 \alias{plot.wavelet_table}
 \title{Interpolation Tables for the Scaling and Wavelet Functions}
@@ -14,8 +15,11 @@ wtable(
   wavelet.filter,
   check = TRUE,
   check.points = 1000,
-  check.tol = 1e-05
+  check.tol = 1e-05,
+  cache = FALSE
 )
+
+wtable_cache(clear = FALSE)
 
 \method{print}{wavelet_table}(x, ...)
 
@@ -37,9 +41,9 @@ algorithm used to compute the exact values stored in the table.}
 \code{1/ngrid}. The default, \code{2^13}, keeps the interpolation error of
 smooth wavelets (e.g. \code{filter.size >= 8}) below \code{1e-5}.}
 
-\item{wavelet.filter}{Use this to provide your own filter. To use this
-argument, you must specify \code{family = "Own"}. Do not use it, if you
-are not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter (with even
+length). To use this argument, you must specify \code{family = "Own"}.
+Do not use it, if you are not sure about what you are doing.}
 
 \item{check}{Logical. If \code{TRUE} (default), the interpolation error is
 measured against the exact Daubechies-Lagarias values at off-grid points
@@ -49,6 +53,13 @@ and stored in the returned object.}
 
 \item{check.tol}{Tolerance for the measured error. A warning is released
 when the measured error exceeds it.}
+
+\item{cache}{Logical. If \code{TRUE}, the table is stored on disk after
+being generated and read back instantly in future calls (including in
+future R sessions), instead of being recomputed. See Details for the
+cache location. Default is \code{FALSE}.}
+
+\item{clear}{Logical. If \code{TRUE}, all cached tables are removed.}
 
 \item{x}{An object of class \code{"wavelet_table"}.}
 
@@ -68,13 +79,19 @@ An object of class \code{"wavelet_table"}: a list with components
   \item{wavelet.filter}{The custom filter, when \code{family = "Own"}.}
   \item{max.error}{Measured interpolation error (\code{NA} when
   \code{check = FALSE}).}
+
+  \code{wtable_cache()} returns (invisibly for an empty cache) a data frame
+  describing the cached files, or, with \code{clear = TRUE}, the number of
+  files removed (invisibly).
 }
 \description{
 Precomputes the scaling function \eqn{\phi} and the mother
 wavelet \eqn{\psi} on a fine regular grid, so that \code{\link{PHI}},
 \code{\link{PSI}}, \code{\link{wbasis}} and \code{\link{wdensity}} can
 replace the Daubechies-Lagarias algorithm by a fast table lookup with
-linear interpolation.
+linear interpolation. Tables can be cached on disk (\code{cache = TRUE}),
+so they are generated only once across R sessions; \code{wtable_cache()}
+lists or clears the cached tables.
 }
 \details{
 The Daubechies-Lagarias algorithm evaluates \eqn{\phi} and \eqn{\psi} at a
@@ -87,10 +104,20 @@ This function tabulates the exact values on the regular grid
 the resolution level} \eqn{J}: a single table serves \code{\link{PHI}},
 \code{\link{PSI}} and \code{\link{wbasis}} at any level.
 
-The table for a 20-tap filter with the default grid occupies about 2.5 MB
-and is generated in a fraction of a second, so it can be created once per
-session and reused. If desired, it can be stored on disk with
-\code{\link{saveRDS}} and restored with \code{\link{readRDS}}.
+\strong{Disk cache.} With \code{cache = TRUE}, the generated table is saved
+with \code{\link{saveRDS}} in the user cache directory returned by
+\code{tools::R_user_dir("WaveBased", "cache")} (this location can be
+overridden with \code{options(WaveBased.cache.dir = "...")}). The file name
+encodes the family, filter, precision and grid, so each configuration has
+its own file and subsequent calls with the same arguments load the table
+from disk instead of recomputing it. Cached objects are validated when
+read; a corrupted or incompatible file is silently regenerated. Use
+\code{wtable_cache()} to inspect the cache and
+\code{wtable_cache(clear = TRUE)} to empty it.
+
+The table for a 20-tap filter with the default grid occupies about 2.5 MB.
+Tables can also be stored manually with \code{\link{saveRDS}} and restored
+with \code{\link{readRDS}}.
 
 The accuracy of the linear interpolation depends on the regularity of the
 wavelet, which increases with the filter size. For \code{filter.size >= 8}
@@ -120,6 +147,22 @@ w8 <- wbasis(x, j0 = 0, J = 8, family = "symmlets", filter.size = 20,
 # Agreement with the exact Daubechies-Lagarias evaluation
 w5.exact <- wbasis(x, j0 = 0, J = 5, family = "symmlets", filter.size = 20)
 max(abs(w5 - w5.exact))
+
+# A user-supplied filter (here, the 8-tap Daublet coefficients)
+d8 <- c( 0.23037781330889650,  0.71484657055291564,
+         0.63088076792985891, -0.02798376941685985,
+        -0.18703481171909308,  0.03084138183556076,
+         0.03288301166688520, -0.01059740178506903)
+tab.own <- wtable(family = "Own", wavelet.filter = d8)
+
+\dontrun{
+# Cache the table on disk: the first call generates and saves it, and
+# later calls (even in new R sessions) load it instantly
+tab <- wtable(family = "symmlets", filter.size = 20, cache = TRUE)
+
+wtable_cache()             # inspect the cached tables
+wtable_cache(clear = TRUE) # remove them
+}
 
 }
 \seealso{

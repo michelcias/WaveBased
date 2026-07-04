@@ -93,7 +93,19 @@ w <- PHI(x, J = 9, family = "symmlets", filter.size = 20,
 ```
 
 The same `wavelet.table` argument is accepted by `PSI()`, `wbasis()` and
-`wdensity()`.
+`wdensity()`, and `wtable()` also accepts user-supplied filters via
+`family = "Own"` with `wavelet.filter`.
+
+With `cache = TRUE` the table is additionally saved to the user cache
+directory, so it is generated only once *across R sessions* — later calls
+load it from disk in milliseconds:
+
+```r
+tab <- wtable(family = "symmlets", filter.size = 20, cache = TRUE)
+
+wtable_cache()             # inspect the cached tables
+wtable_cache(clear = TRUE) # remove them
+```
 
 ## Citation
 

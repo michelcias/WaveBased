@@ -4,7 +4,9 @@
 #' wavelet \eqn{\psi} on a fine regular grid, so that \code{\link{PHI}},
 #' \code{\link{PSI}}, \code{\link{wbasis}} and \code{\link{wdensity}} can
 #' replace the Daubechies-Lagarias algorithm by a fast table lookup with
-#' linear interpolation.
+#' linear interpolation. Tables can be cached on disk (\code{cache = TRUE}),
+#' so they are generated only once across R sessions; \code{wtable_cache()}
+#' lists or clears the cached tables.
 #'
 #' @param family The family of wavelets to use. It can be \emph{Daublets},
 #'   \emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
@@ -17,15 +19,19 @@
 #' @param ngrid Number of grid intervals in the unit interval. The grid step is
 #'   \code{1/ngrid}. The default, \code{2^13}, keeps the interpolation error of
 #'   smooth wavelets (e.g. \code{filter.size >= 8}) below \code{1e-5}.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you
-#'   are not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter (with even
+#'   length). To use this argument, you must specify \code{family = "Own"}.
+#'   Do not use it, if you are not sure about what you are doing.
 #' @param check Logical. If \code{TRUE} (default), the interpolation error is
 #'   measured against the exact Daubechies-Lagarias values at off-grid points
 #'   and stored in the returned object.
 #' @param check.points Number of off-grid points used when \code{check = TRUE}.
 #' @param check.tol Tolerance for the measured error. A warning is released
 #'   when the measured error exceeds it.
+#' @param cache Logical. If \code{TRUE}, the table is stored on disk after
+#'   being generated and read back instantly in future calls (including in
+#'   future R sessions), instead of being recomputed. See Details for the
+#'   cache location. Default is \code{FALSE}.
 #'
 #' @details
 #' The Daubechies-Lagarias algorithm evaluates \eqn{\phi} and \eqn{\psi} at a
@@ -38,10 +44,20 @@
 #' the resolution level} \eqn{J}: a single table serves \code{\link{PHI}},
 #' \code{\link{PSI}} and \code{\link{wbasis}} at any level.
 #'
-#' The table for a 20-tap filter with the default grid occupies about 2.5 MB
-#' and is generated in a fraction of a second, so it can be created once per
-#' session and reused. If desired, it can be stored on disk with
-#' \code{\link{saveRDS}} and restored with \code{\link{readRDS}}.
+#' \strong{Disk cache.} With \code{cache = TRUE}, the generated table is saved
+#' with \code{\link{saveRDS}} in the user cache directory returned by
+#' \code{tools::R_user_dir("WaveBased", "cache")} (this location can be
+#' overridden with \code{options(WaveBased.cache.dir = "...")}). The file name
+#' encodes the family, filter, precision and grid, so each configuration has
+#' its own file and subsequent calls with the same arguments load the table
+#' from disk instead of recomputing it. Cached objects are validated when
+#' read; a corrupted or incompatible file is silently regenerated. Use
+#' \code{wtable_cache()} to inspect the cache and
+#' \code{wtable_cache(clear = TRUE)} to empty it.
+#'
+#' The table for a 20-tap filter with the default grid occupies about 2.5 MB.
+#' Tables can also be stored manually with \code{\link{saveRDS}} and restored
+#' with \code{\link{readRDS}}.
 #'
 #' The accuracy of the linear interpolation depends on the regularity of the
 #' wavelet, which increases with the filter size. For \code{filter.size >= 8}
@@ -68,6 +84,10 @@
 #'   \item{max.error}{Measured interpolation error (\code{NA} when
 #'   \code{check = FALSE}).}
 #'
+#'   \code{wtable_cache()} returns (invisibly for an empty cache) a data frame
+#'   describing the cached files, or, with \code{clear = TRUE}, the number of
+#'   files removed (invisibly).
+#'
 #' @seealso \command{\link{PHI}}, \command{\link{PSI}},
 #'   \command{\link{wbasis}}, \command{\link{wdensity}}
 #'
@@ -91,11 +111,28 @@
 #' w5.exact <- wbasis(x, j0 = 0, J = 5, family = "symmlets", filter.size = 20)
 #' max(abs(w5 - w5.exact))
 #'
+#' # A user-supplied filter (here, the 8-tap Daublet coefficients)
+#' d8 <- c( 0.23037781330889650,  0.71484657055291564,
+#'          0.63088076792985891, -0.02798376941685985,
+#'         -0.18703481171909308,  0.03084138183556076,
+#'          0.03288301166688520, -0.01059740178506903)
+#' tab.own <- wtable(family = "Own", wavelet.filter = d8)
+#'
+#' \dontrun{
+#' # Cache the table on disk: the first call generates and saves it, and
+#' # later calls (even in new R sessions) load it instantly
+#' tab <- wtable(family = "symmlets", filter.size = 20, cache = TRUE)
+#'
+#' wtable_cache()             # inspect the cached tables
+#' wtable_cache(clear = TRUE) # remove them
+#' }
+#'
 #' @keywords smooth
+#' @importFrom tools R_user_dir md5sum
 #' @export
 wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
                    ngrid = 2^13, wavelet.filter, check = TRUE,
-                   check.points = 1000, check.tol = 1e-5){
+                   check.points = 1000, check.tol = 1e-5, cache = FALSE){
 
   fam <- which(tolower(substring(family, 1, 1)) == c("d", "s", "c", "o"))
 
@@ -117,9 +154,38 @@ wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
   if(ngrid < 2)
     stop("'ngrid' must be an integer greater than or equal to 2.")
 
+  if(fam == 4 && (length(wavelet.filter) < 2 || length(wavelet.filter) %% 2 != 0))
+    stop("'wavelet.filter' must be a numeric vector of even length.")
+
   N <- if(fam == 4) length(wavelet.filter) else filter.size
   if(N < 6)
     warning("Interpolation tables are not recommended for very short filters (low regularity). Consider the exact evaluation instead.")
+
+  cache.file <- NULL
+  if(cache){
+    cache.file <- file.path(.wtable_cache_dir(),
+                            .wtable_cache_key(fam, N, prec.wavelet, ngrid,
+                                              wavelet.filter))
+    if(file.exists(cache.file)){
+      cached <- tryCatch(readRDS(cache.file), error = function(e) NULL)
+      if(.wtable_cache_valid(cached, fam, N, prec.wavelet, ngrid,
+                             wavelet.filter)){
+        if(check && is.na(cached$max.error)){
+          cached$max.error <- .wtable_measure_error(cached, fam, filter.size,
+                                                    prec.wavelet,
+                                                    wavelet.filter,
+                                                    check.points)
+          if(cached$max.error > check.tol)
+            warning("The measured interpolation error (",
+                    format(cached$max.error, digits = 3), ") exceeds ",
+                    format(check.tol, digits = 3),
+                    ". Increase 'ngrid' or use the exact evaluation.")
+          saveRDS(cached, cache.file)
+        }
+        return(cached)
+      }
+    }
+  }
 
   tabs <- .Call("_WaveBased_C_WavTable", as.integer(fam),
                 as.integer(filter.size), as.integer(prec.wavelet),
@@ -130,7 +196,7 @@ wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
          psi = tabs[[2]],
          family = c("Daublets", "Symmlets", "Coiflets", "Own")[fam],
          fam = fam,
-         filter.size = if(fam == 4) length(wavelet.filter) else filter.size,
+         filter.size = N,
          prec.wavelet = prec.wavelet,
          ngrid = ngrid,
          wavelet.filter = if(fam == 4) wavelet.filter else NULL,
@@ -138,39 +204,48 @@ wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
     class = "wavelet_table")
 
   if(check){
-    # Deterministic off-grid points, so the user's RNG state is not touched.
-    # The comparison uses J = 0 and periodic = FALSE, so the measured error
-    # refers to the function values themselves (no sqrt(2^J) scaling).
-    xs <- ((seq_len(check.points) - 0.5)/check.points + pi/10^4) %% 1
-    payload <- list(out$phi, out$psi)
-
-    exact.phi <- .Call("_WaveBased_C_PHImat", as.double(xs), 0L,
-                       as.integer(fam), as.integer(filter.size),
-                       as.integer(prec.wavelet), 0L,
-                       as.double(wavelet.filter), NULL)
-    apx.phi <- .Call("_WaveBased_C_PHImat", as.double(xs), 0L,
-                     as.integer(fam), as.integer(filter.size),
-                     as.integer(prec.wavelet), 0L,
-                     as.double(wavelet.filter), payload)
-
-    exact.psi <- .Call("_WaveBased_C_PSImat", as.double(xs), 0L,
-                       as.integer(fam), as.integer(filter.size),
-                       as.integer(prec.wavelet), 0L,
-                       as.double(wavelet.filter), NULL)
-    apx.psi <- .Call("_WaveBased_C_PSImat", as.double(xs), 0L,
-                     as.integer(fam), as.integer(filter.size),
-                     as.integer(prec.wavelet), 0L,
-                     as.double(wavelet.filter), payload)
-
-    out$max.error <- max(abs(exact.phi - apx.phi), abs(exact.psi - apx.psi))
-
+    out$max.error <- .wtable_measure_error(out, fam, filter.size,
+                                           prec.wavelet, wavelet.filter,
+                                           check.points)
     if(out$max.error > check.tol)
-      warning("The measured interpolation error (", format(out$max.error, digits = 3),
-              ") exceeds ", format(check.tol, digits = 3),
+      warning("The measured interpolation error (",
+              format(out$max.error, digits = 3), ") exceeds ",
+              format(check.tol, digits = 3),
               ". Increase 'ngrid' or use the exact evaluation.")
   }
 
+  if(cache){
+    dir.create(dirname(cache.file), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(out, cache.file)
+  }
+
   out
+}
+
+#' @rdname wtable
+#' @param clear Logical. If \code{TRUE}, all cached tables are removed.
+#' @export
+wtable_cache <- function(clear = FALSE){
+
+  dir <- .wtable_cache_dir()
+  files <- list.files(dir, pattern = "^wtable_.*\\.rds$", full.names = TRUE)
+
+  if(clear){
+    unlink(files)
+    message("Removed ", length(files), " cached table(s) from ", dir)
+    return(invisible(length(files)))
+  }
+
+  if(length(files) == 0){
+    message("No cached wavelet tables in ", dir)
+    return(invisible(data.frame(file = character(0), size.MB = numeric(0))))
+  }
+
+  info <- file.info(files)
+  data.frame(file = basename(files),
+             size.MB = round(info$size/2^20, 2),
+             created = info$mtime,
+             row.names = NULL)
 }
 
 #' @rdname wtable
@@ -229,6 +304,79 @@ plot.wavelet_table <- function(x, ...){
   abline(h = 0, lty = 3)
 
   invisible(x)
+}
+
+# Measures the interpolation error of a table against the exact
+# Daubechies-Lagarias evaluation at deterministic off-grid points. The
+# comparison uses J = 0 and periodic = FALSE, so the error refers to the
+# function values themselves (no sqrt(2^J) scaling).
+.wtable_measure_error <- function(tab, fam, filter.size, prec.wavelet,
+                                  wavelet.filter, check.points){
+
+  xs <- ((seq_len(check.points) - 0.5)/check.points + pi/10^4) %% 1
+  payload <- list(tab$phi, tab$psi)
+
+  exact.phi <- .Call("_WaveBased_C_PHImat", as.double(xs), 0L,
+                     as.integer(fam), as.integer(filter.size),
+                     as.integer(prec.wavelet), 0L,
+                     as.double(wavelet.filter), NULL)
+  apx.phi <- .Call("_WaveBased_C_PHImat", as.double(xs), 0L,
+                   as.integer(fam), as.integer(filter.size),
+                   as.integer(prec.wavelet), 0L,
+                   as.double(wavelet.filter), payload)
+
+  exact.psi <- .Call("_WaveBased_C_PSImat", as.double(xs), 0L,
+                     as.integer(fam), as.integer(filter.size),
+                     as.integer(prec.wavelet), 0L,
+                     as.double(wavelet.filter), NULL)
+  apx.psi <- .Call("_WaveBased_C_PSImat", as.double(xs), 0L,
+                   as.integer(fam), as.integer(filter.size),
+                   as.integer(prec.wavelet), 0L,
+                   as.double(wavelet.filter), payload)
+
+  max(abs(exact.phi - apx.phi), abs(exact.psi - apx.psi))
+}
+
+# Cache directory: user override via options(WaveBased.cache.dir = ...) or
+# the standard per-user cache location.
+.wtable_cache_dir <- function(){
+  getOption("WaveBased.cache.dir",
+            tools::R_user_dir("WaveBased", which = "cache"))
+}
+
+# File name encoding the table configuration. For user-supplied filters the
+# name carries a hash of the coefficients, so different filters of the same
+# length do not collide.
+.wtable_cache_key <- function(fam, N, prec.wavelet, ngrid, wavelet.filter){
+  base <- sprintf("wtable_%s_fs%d_prec%d_g%d",
+                  tolower(c("daublets", "symmlets", "coiflets",
+                            "own")[fam]),
+                  N, prec.wavelet, ngrid)
+  if(fam == 4)
+    base <- paste0(base, "_", .wtable_filter_hash(wavelet.filter))
+  paste0(base, ".rds")
+}
+
+# Short md5 fingerprint of a filter, computed with base R tools only.
+.wtable_filter_hash <- function(wavelet.filter){
+  f <- tempfile()
+  on.exit(unlink(f))
+  writeBin(serialize(as.double(wavelet.filter), NULL), f)
+  substr(unname(tools::md5sum(f)), 1, 10)
+}
+
+# Structural and parameter validation of an object read from the cache.
+.wtable_cache_valid <- function(tab, fam, N, prec.wavelet, ngrid,
+                                wavelet.filter){
+  inherits(tab, "wavelet_table") &&
+    is.matrix(tab$phi) && is.matrix(tab$psi) &&
+    all(dim(tab$phi) == c(N - 1, ngrid + 1)) &&
+    all(dim(tab$psi) == c(N - 1, ngrid + 1)) &&
+    isTRUE(tab$fam == fam) &&
+    isTRUE(tab$filter.size == N) &&
+    isTRUE(tab$prec.wavelet == prec.wavelet) &&
+    isTRUE(tab$ngrid == ngrid) &&
+    (fam != 4 || isTRUE(all.equal(tab$wavelet.filter, wavelet.filter)))
 }
 
 # Validates a user-supplied wavelet table against the family/filter requested

@@ -7,8 +7,9 @@ Authors@R: c(person("Michel H. Montoril", role = c("aut", "cre"),
 	email = "michel@ufscar.br"))
 Author: Michel H. Montoril [aut, cre]
 Maintainer: Michel H. Montoril <michel@ufscar.br>
-Description: Provides functions related to the solution of different 
-	statistical problems by methods developed under wavelet approach. 
+Description: Provides functions related to the solution of different
+	statistical problems by methods developed under wavelet approach.
+Depends: R (>= 4.0.0)
 NeedsCompilation: yes
 License: GPL (>= 2)
 Encoding: UTF-8
