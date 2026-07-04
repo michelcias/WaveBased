@@ -12,9 +12,42 @@
 #include "wav_utilities.h"
 #include "wav_decomp1.h"
 #include "phi_psi_vec.h"
+#include "phi_psi_interp.h"
 #include "utils.h"
 
-SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+/**
+ * @brief Extracts one interpolation table from the list built by wtable().
+ *
+ * @details Returns NULL when wtab is R_NilValue (exact evaluation requested).
+ *          Otherwise validates that the table rows match the filter in use and
+ *          returns a pointer to its values, storing the number of grid
+ *          intervals in G.
+ *
+ * @param[in]  wtab List SEXP with the phi and psi tables, or R_NilValue.
+ * @param[in]  slot Position of the desired table (0 = phi, 1 = psi).
+ * @param[in]  N    Filter size expected by the caller.
+ * @param[out] G    Number of grid intervals of the table.
+ * @return Pointer to the table values, or NULL for exact evaluation.
+ */
+static const double *TableGet(SEXP wtab, int slot, int N, int *G){
+
+  int *dims;
+  SEXP tab;
+
+  if(isNull(wtab))
+    return NULL;
+
+  tab = VECTOR_ELT(wtab, slot);
+  dims = INTEGER(getAttrib(tab, R_DimSymbol));
+
+  if(dims[0] != N - 1)
+    error("'wavelet.table' does not match the selected wavelet filter.");
+
+  *G = dims[1] - 1;
+  return REAL(tab);
+}
+
+SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab){
   
   int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;
   double rphisl, rphisr, px, x1 = NA_REAL, xn = NA_REAL;
@@ -45,7 +78,10 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
   rphisr = INTEGER(phisr)[0];
   rwfilter = REAL(wfilter);
   N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
-  
+
+  int G = 0;
+  const double *phitab = TableGet(wtab, 0, N, &G);
+
   kmax = floor(p*xn - rphisl);
   kmin = ceil(p*x1 - rphisr + 1e-9);
   kdiff1 = kmax - kmin + 1;
@@ -76,12 +112,15 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
     
     px = p*rx[i];
     /* --- Calculating phi[0k](px) --- */
-    PhiVec(phi, px, rwfilter, N, rprec, prod, tmp);
+    if(phitab)
+      PhiVecInterp(phi, px, phitab, N, G);
+    else
+      PhiVec(phi, px, rwfilter, N, rprec, prod, tmp);
     /* --- phi[0k](px) calculated --> phi --- */
-    
+
     lkmax = floor(px - rphisl);
     lkmin = lkmax - N + 2;
-    
+
     /* --- Putting the phi[Jk](x[i]) in the i-th row of the matrix rphimat1 --- */
     if(kmin == lkmin){
       for(j = 0; j < (N - 1); j++){
@@ -94,10 +133,10 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
     else{
       for(j = 0; j < (lkmin - kmin); j++)
         rphimat1[i + n*j] = 0.0;
-      
+
       for(j = (lkmin - kmin); j < (lkmin - kmin + (N - 1)); j++)
         rphimat1[i + n*j] = sqrt(p) * phi[j + kmin - lkmin];
-      
+
       if(kmax > lkmax){
         for(j = (lkmin - kmin + (N - 1)); j < kdiff1; j++)
           rphimat1[i + n*j] = 0.0;
@@ -105,15 +144,15 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
     }
     /* --- phi[Jk](x[i]) put in the i-th row of the matrix rphimat1 --- */
   }
-  
+
   if(rper)
     Periodize(rphimat2, rphimat1, n, kmin, kmax, p);
-  
+
   UNPROTECT(2);
   return phimat;
 }
 
-SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab){
   
   int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;
   double rpsisl, rpsisr, px, x1 = NA_REAL, xn = NA_REAL;
@@ -144,7 +183,10 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
   rpsisr = INTEGER(psisr)[0];
   rwfilter = REAL(wfilter);
   N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
-  
+
+  int G = 0;
+  const double *psitab = TableGet(wtab, 1, N, &G);
+
   p = pow(2, rJ);
   kmax = floor(p*xn - rpsisl);
   kmin = ceil(p*x1 - rpsisr + 1e-9);
@@ -177,9 +219,12 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
     px = p * rx[i];
     lkmax = floor(px - rpsisl);
     lkmin = lkmax - N + 2;
-    
-    /* --- Calculating phi[0k](px) --- */
-    PsiVec(psi, px, rwfilter, N, rprec, lkmin, prod, tmp);
+
+    /* --- Calculating psi[0k](px) --- */
+    if(psitab)
+      PsiVecInterp(psi, px, psitab, N, G);
+    else
+      PsiVec(psi, px, rwfilter, N, rprec, lkmin, prod, tmp);
     /* --- psi[0k](px) calculated --> psi --- */
     
     /* --- Putting the psi[Jk](x[i]) in the i-th row of the matrix rpsimat1 --- */
@@ -212,7 +257,7 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
   return psimat;
 }
 
-SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic){
+SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic, const double *phitab, int G){
   
   int i, j, kdiff1, lkmin, lkmax;
   double px, *rphimat1, *phi, *rphimat2, *prod, *tmp;
@@ -245,7 +290,10 @@ SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
     
     px = p*x[i];
     /* --- Calculating phi[0k](px) --- */
-    PhiVec(phi, px, filter, N, prec, prod, tmp);
+    if(phitab)
+      PhiVecInterp(phi, px, phitab, N, G);
+    else
+      PhiVec(phi, px, filter, N, prec, prod, tmp);
     /* --- phi[0k](px) calculated --> phi --- */
     
     lkmax = floor(px - phisl);
@@ -282,7 +330,7 @@ SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
   return phimat;
 }
 
-SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic){
+SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic, const double *psitab, int G){
     
     int i, j, kdiff1, lkmin, lkmax;
     double px, *psi, *rpsimat1, *rpsimat2, *prod, *tmp;
@@ -315,9 +363,12 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
         px = p * x[i];
         lkmax = floor(px - psilh);
         lkmin = lkmax - N + 2;
-        
+
         /* --- Calculating psi[0k](px) --- */
-        PsiVec(psi, px, filter, N, prec, lkmin, prod, tmp);
+        if(psitab)
+          PsiVecInterp(psi, px, psitab, N, G);
+        else
+          PsiVec(psi, px, filter, N, prec, lkmin, prod, tmp);
         /* --- psi[0k](px) calculated --> psi --- */
         
         /* --- Putting the psi[Jk](x[i]) in the i-th row of the matrix rpsimat1 --- */
@@ -350,7 +401,7 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
     return psimat;
 }
 
-SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter){
+SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab){
   
   double *rx, *rwfilt, x1 = NA_REAL, xn = NA_REAL;
   int i, n, N, rJ0, rJ, kmax, kmin, p, rper, rphisl, rphisr, rpsisl, rpsisr, rprec;
@@ -386,16 +437,20 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
   rpsisr = INTEGER(psisr)[0];
   rwfilt = REAL(wfilt);
   N = INTEGER(fsize)[0];//LENGTH(wfilt);//INTEGER(fs)[0];
-  
+
+  int G = 0;
+  const double *phitab = TableGet(wtab, 0, N, &G);
+  const double *psitab = TableGet(wtab, 1, N, &G);
+
   SEXP wmat, pmat;
-  
+
   if(rJ0 == rJ){
-    
+
     p = pow(2, rJ);
     kmax = floor(p*xn - rphisl);
     kmin = ceil(p*x1 - rphisr + 1e-9);
-    
-    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper, phitab, G));
     wmat = pmat;
     
     UNPROTECT(2);
@@ -412,8 +467,8 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
     
     PROTECT(wmat = allocMatrix(REALSXP, n, p));
     rwmat = REAL(wmat);
-    
-    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper, phitab, G));
     rpmat = REAL(pmat);
     
     sclc = (double *) R_alloc(p/2, sizeof(double));
@@ -498,7 +553,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
     kmin = ceil(p*x1 - rphisr + 1e-9);
     
     /* --- Calculating the PHI matrix to put in rpmat --- */
-    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper));
+    PROTECT(pmat = PHImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rphisl, rphisr, rper, phitab, G));
     rpmat = REAL(pmat);
     
     nc0 = 0;
@@ -516,7 +571,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
       p = pow(2, k);
       kmax = floor(p*xn - rpsisl);
       kmin = ceil(p*x1 - rpsisr + 1e-9);
-      PROTECT(pmat = PSImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rpsisl, rpsisr, rper));
+      PROTECT(pmat = PSImat(rx, n, p, rwfilt, N, rprec, kmin, kmax, rpsisl, rpsisr, rper, psitab, G));
       rpmat = REAL(pmat);
       
       nc0 = nc1;

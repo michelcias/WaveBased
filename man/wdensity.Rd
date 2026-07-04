@@ -17,6 +17,7 @@ wdensity(
   filter.size = 10,
   prec.wavelet = 30,
   wavelet.filter,
+  wavelet.table = NULL,
   dens.biased,
   warped = TRUE,
   warp.fun,
@@ -68,6 +69,13 @@ Daubechies-Lagarias algorithm.}
 \item{wavelet.filter}{Use this to provide your own filter. To use this
 argument, you must specify \code{family = "Own"}. Do not use it, if you are
 not sure about what you are doing.}
+
+\item{wavelet.table}{An optional object created by \command{\link{wtable}}.
+When provided, the wavelet basis is evaluated by table lookup with linear
+interpolation instead of the Daubechies-Lagarias algorithm, which is
+considerably faster for large data sets. The table must have been built
+for the same \code{family} and \code{filter.size} requested here. See
+\command{\link{wtable}} for accuracy considerations.}
 
 \item{dens.biased}{Density estimates of the size-biased data. These estimates
 of the (ordered) \code{data} must be provided. By default, a kernel density
@@ -222,7 +230,7 @@ Statistical Society series B}, 53, 683-690.
 \url{http://www.jstor.org/stable/2345597}.
 }
 \seealso{
-\command{\link{PHI}}, \command{\link{bac}}
+\command{\link{PHI}}, \command{\link{bac}}, \command{\link{wtable}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}

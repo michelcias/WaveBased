@@ -21,6 +21,13 @@
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
+#' @param wavelet.table An optional object created by \command{\link{wtable}}.
+#'   When provided, the wavelets are evaluated by table lookup with linear
+#'   interpolation instead of the Daubechies-Lagarias algorithm, which is
+#'   considerably faster for large data sets. The table must have been built
+#'   for the same \code{family} and \code{filter.size} requested here; the
+#'   argument \code{prec.wavelet} is then ignored. See \command{\link{wtable}}
+#'   for accuracy considerations.
 #'
 #' @details
 #' The wavelet function \eqn{\psi} is obtained according to a wavelet filter with
@@ -98,7 +105,7 @@
 #' Vidakovic, B. (1999). \emph{Statistical Modeling by Wavelets}. John Wiley, New
 #' York.
 #'
-#' @seealso \command{\link{PHI}}, \command{\link{wbasis}}
+#' @seealso \command{\link{PHI}}, \command{\link{wbasis}}, \command{\link{wtable}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -120,7 +127,7 @@
 #' @keywords smooth
 #' @export
 PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
-                 periodic = TRUE, wavelet.filter){
+                 periodic = TRUE, wavelet.filter, wavelet.table = NULL){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -144,9 +151,12 @@ PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     fam <- 4
   }
 
+  wtab <- if(is.null(wavelet.table)) NULL
+          else .match_wavelet_table(wavelet.table, fam, filter.size, wavelet.filter)
+
   PSI <- .Call("_WaveBased_C_PSImat", as.double(x), as.integer(J), as.integer(fam),
                as.integer(filter.size), as.integer(prec.wavelet),
-               as.integer(periodic), as.double(wavelet.filter))
+               as.integer(periodic), as.double(wavelet.filter), wtab)
 
   return(PSI)
 

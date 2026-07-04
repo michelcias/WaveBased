@@ -5,7 +5,6 @@
  * @file wav_basis.h
  * @brief PHI/PSI matrix computation and full wavelet basis for the R interface.
  * @author Michel H. Montoril
- * @date 2026
  */
 
 #include <R.h>
@@ -21,9 +20,12 @@
  * @param[in] prec          Integer SEXP: dyadic refinement precision.
  * @param[in] periodic      Integer SEXP: 1 for periodic, 0 otherwise.
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] wtab          List SEXP with the phi and psi interpolation tables
+ *                          built by C_WavTable(), or R_NilValue for the exact
+ *                          Daubechies-Lagarias evaluation.
  * @return SEXP matrix of PHI values.
  */
-SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter);
+SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab);
 
 /**
  * @brief Computes the matrix of PSI[Jk](x[i]) for all non-null k values (R interface).
@@ -35,9 +37,12 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
  * @param[in] prec          Integer SEXP: dyadic refinement precision.
  * @param[in] periodic      Integer SEXP: 1 for periodic, 0 otherwise.
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] wtab          List SEXP with the phi and psi interpolation tables
+ *                          built by C_WavTable(), or R_NilValue for the exact
+ *                          Daubechies-Lagarias evaluation.
  * @return SEXP matrix of PSI values.
  */
-SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter);
+SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab);
 
 /**
  * @brief Computes the matrix of PHI[Jk](x[i]) for all non-null k values (internal).
@@ -55,9 +60,13 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
  * @param[in]  phisl    Left support of phi.
  * @param[in]  phisr    Right support of phi.
  * @param[in]  periodic 1 for periodic, 0 otherwise.
+ * @param[in]  phitab   Interpolation table for phi ((N - 1) x (G + 1),
+ *                      column-major) or NULL for the exact evaluation.
+ * @param[in]  G        Number of grid intervals of the table (ignored when
+ *                      phitab is NULL).
  * @return SEXP matrix of PHI values.
  */
-SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic);
+SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int phisl, int phisr, int periodic, const double *phitab, int G);
 
 /**
  * @brief Computes the matrix of PSI[Jk](x[i]) for all non-null k values (internal).
@@ -75,9 +84,13 @@ SEXP PHImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
  * @param[in]  psilh    Left support of psi.
  * @param[in]  psirh    Right support of psi.
  * @param[in]  periodic 1 for periodic, 0 otherwise.
+ * @param[in]  psitab   Interpolation table for psi ((N - 1) x (G + 1),
+ *                      column-major) or NULL for the exact evaluation.
+ * @param[in]  G        Number of grid intervals of the table (ignored when
+ *                      psitab is NULL).
  * @return SEXP matrix of PSI values.
  */
-SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic);
+SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, int kmax, int psilh, int psirh, int periodic, const double *psitab, int G);
 
 /**
  * @brief Computes the full wavelet basis matrix combining PHI and PSI blocks.
@@ -92,8 +105,11 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
  * @param[in] prec          Integer SEXP: dyadic refinement precision.
  * @param[in] periodic      Integer SEXP: 1 for periodic, 0 otherwise.
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] wtab          List SEXP with the phi and psi interpolation tables
+ *                          built by C_WavTable(), or R_NilValue for the exact
+ *                          Daubechies-Lagarias evaluation.
  * @return SEXP matrix with PHI and PSI columns.
  */
-SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter);
+SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab);
 
 #endif /* WAVEBASED_WAV_BASIS_H */

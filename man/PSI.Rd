@@ -11,7 +11,8 @@ PSI(
   filter.size = 20,
   prec.wavelet = 30,
   periodic = TRUE,
-  wavelet.filter
+  wavelet.filter,
+  wavelet.table = NULL
 )
 }
 \arguments{
@@ -38,6 +39,14 @@ handle boundary conditions.}
 \item{wavelet.filter}{Use this to provide your own filter. To use this
 argument, you must specify \code{family = "Own"}. Do not use it, if you are
 not sure about what you are doing.}
+
+\item{wavelet.table}{An optional object created by \command{\link{wtable}}.
+When provided, the wavelets are evaluated by table lookup with linear
+interpolation instead of the Daubechies-Lagarias algorithm, which is
+considerably faster for large data sets. The table must have been built
+for the same \code{family} and \code{filter.size} requested here; the
+argument \code{prec.wavelet} is then ignored. See \command{\link{wtable}}
+for accuracy considerations.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
@@ -138,7 +147,7 @@ Vidakovic, B. (1999). \emph{Statistical Modeling by Wavelets}. John Wiley, New
 York.
 }
 \seealso{
-\command{\link{PHI}}, \command{\link{wbasis}}
+\command{\link{PHI}}, \command{\link{wbasis}}, \command{\link{wtable}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}

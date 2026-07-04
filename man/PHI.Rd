@@ -11,7 +11,8 @@ PHI(
   filter.size = 20,
   prec.wavelet = 30,
   periodic = TRUE,
-  wavelet.filter
+  wavelet.filter,
+  wavelet.table = NULL
 )
 }
 \arguments{
@@ -38,6 +39,14 @@ boundary conditions.}
 \item{wavelet.filter}{Use this to provide your own filter. To use this
 argument, you must specify \code{family = "Own"}. Do not use it, if you are
 not sure about what you are doing.}
+
+\item{wavelet.table}{An optional object created by \command{\link{wtable}}.
+When provided, the scaling functions are evaluated by table lookup with
+linear interpolation instead of the Daubechies-Lagarias algorithm, which
+is considerably faster for large data sets. The table must have been built
+for the same \code{family} and \code{filter.size} requested here; the
+argument \code{prec.wavelet} is then ignored. See \command{\link{wtable}}
+for accuracy considerations.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
@@ -183,7 +192,7 @@ PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
 Source Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
 }
 \seealso{
-\code{\link{PSI}}, \code{\link{wbasis}}
+\code{\link{PSI}}, \code{\link{wbasis}}, \code{\link{wtable}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}

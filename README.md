@@ -34,6 +34,7 @@ remotes::install_github("michelcias/WaveBased")
 | `wavedec()`  | Discrete wavelet decomposition (Mallat's pyramidal algorithm)            |
 | `waverec()`  | Inverse wavelet reconstruction                                           |
 | `wdensity()` | Wavelet-based density estimation for univariate size-biased data         |
+| `wtable()`   | Precomputed interpolation tables for fast basis evaluation               |
 
 The package also includes the `bac` dataset (blood alcohol concentrations of
 drivers in fatal US accidents, 2019), used in Montoril et al. (2021).
@@ -73,6 +74,26 @@ est <- wdensity(data = bac, wf = function(x) 0.1 + 0.9 * x,
                 power.dens = 0.5, J1 = ceiling(0.95 * log2(length(bac))),
                 family = "s", filter.size = 20, warped = TRUE)
 ```
+
+### Fast evaluation with precomputed tables
+
+The Daubechies–Lagarias evaluation is exact but costly for large samples.
+`wtable()` tabulates the scaling function and the wavelet once (a ~2.5 MB
+object, independent of the resolution level `J`), and the basis functions are
+then evaluated by table lookup with linear interpolation — typically **30 to
+500 times faster**, with errors below `1e-5` for filters of size 8 or larger:
+
+```r
+tab <- wtable(family = "symmlets", filter.size = 20)   # once per session
+tab   # prints the measured interpolation error
+
+x <- sort(runif(1e5))
+w <- PHI(x, J = 9, family = "symmlets", filter.size = 20,
+         wavelet.table = tab)                          # ~30x faster
+```
+
+The same `wavelet.table` argument is accepted by `PSI()`, `wbasis()` and
+`wdensity()`.
 
 ## Citation
 

@@ -26,6 +26,14 @@
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
+#' @param wavelet.table An optional object created by \command{\link{wtable}}.
+#'   When provided, the scaling functions and wavelets are evaluated by table
+#'   lookup with linear interpolation instead of the Daubechies-Lagarias
+#'   algorithm, which is considerably faster for large data sets. The same
+#'   table serves any pair of levels \code{j0} and \code{J}. It must have been
+#'   built for the same \code{family} and \code{filter.size} requested here;
+#'   the argument \code{prec.wavelet} is then ignored. See
+#'   \command{\link{wtable}} for accuracy considerations.
 #'
 #' @details
 #' The scaling function \eqn{\phi} and the wavelet \eqn{\psi} are obtained
@@ -123,7 +131,7 @@
 #' PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
 #' Source Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
 #'
-#' @seealso \command{\link{PHI}}, \command{\link{PSI}}
+#' @seealso \command{\link{PHI}}, \command{\link{PSI}}, \command{\link{wtable}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -203,7 +211,8 @@
 #' @keywords smooth
 #' @export
 wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
-                   prec.wavelet = 30, periodic = TRUE, wavelet.filter){
+                   prec.wavelet = 30, periodic = TRUE, wavelet.filter,
+                   wavelet.table = NULL){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -230,10 +239,13 @@ wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
     fam <- 4
   }
 
+  wtab <- if(is.null(wavelet.table)) NULL
+          else .match_wavelet_table(wavelet.table, fam, filter.size, wavelet.filter)
+
   wmat <- .Call("_WaveBased_C_WavBasis", as.double(x), as.integer(j0), as.integer(J),
                 as.integer(fam), as.integer(filter.size),
                 as.integer(prec.wavelet), as.integer(periodic),
-                as.double(wavelet.filter))
+                as.double(wavelet.filter), wtab)
 
   return(wmat)
 
