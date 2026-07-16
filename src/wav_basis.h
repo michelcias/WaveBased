@@ -19,11 +19,12 @@
  * @param[in] family        Integer SEXP: wavelet family.
  * @param[in] fs            Integer SEXP: filter size.
  * @param[in] prec          Integer SEXP: dyadic refinement precision.
- * @param[in] periodic      Integer SEXP: 1 for periodic, 0 otherwise.
+ * @param[in] periodic      Integer SEXP: 0 for raw, 1 for periodic, 2 for interval (CDV).
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when periodic == 2).
  * @return SEXP matrix of PHI values.
  */
-SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter);
+SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP cdvblocks);
 
 /**
  * @brief Computes the matrix of PSI[Jk](x[i]) for all non-null k values (R interface).
@@ -33,11 +34,12 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
  * @param[in] family        Integer SEXP: wavelet family.
  * @param[in] fs            Integer SEXP: filter size.
  * @param[in] prec          Integer SEXP: dyadic refinement precision.
- * @param[in] periodic      Integer SEXP: 1 for periodic, 0 otherwise.
+ * @param[in] periodic      Integer SEXP: 0 for raw, 1 for periodic, 2 for interval (CDV).
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when periodic == 2).
  * @return SEXP matrix of PSI values.
  */
-SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter);
+SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP cdvblocks);
 
 /**
  * @brief Computes the matrix of PHI[Jk](x[i]) for all non-null k values (internal).
@@ -90,10 +92,11 @@ SEXP PSImat(double *x, int n, int p, double *filter, int N, int prec, int kmin, 
  * @param[in] family        Integer SEXP: wavelet family.
  * @param[in] fs            Integer SEXP: filter size.
  * @param[in] prec          Integer SEXP: dyadic refinement precision.
- * @param[in] periodic      Integer SEXP: 1 for periodic, 0 otherwise.
+ * @param[in] periodic      Integer SEXP: 0 for raw, 1 for periodic, 2 for interval (CDV).
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when periodic == 2).
  * @return SEXP matrix with PHI and PSI columns.
  */
-SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter);
+SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP cdvblocks);
 
 #endif /* WAVEBASED_WAV_BASIS_H */

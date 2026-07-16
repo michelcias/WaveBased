@@ -21,11 +21,19 @@
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
 #' @param periodic If it is TRUE (default), the periodic wavelet basis will be
-#'   used. We recommend to use \code{periodic = TRUE}, because it can handle
-#'   boundary conditions.
+#'   used. This argument is kept for backward compatibility and is equivalent
+#'   to \code{boundary = "periodic"} (TRUE) or \code{boundary = "none"}
+#'   (FALSE). It is ignored when \code{boundary} is provided.
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
+#' @param boundary The boundary treatment of the basis. One of
+#'   \code{"periodic"} (the periodized basis, the same as
+#'   \code{periodic = TRUE}), \code{"none"} (the raw translates, the same as
+#'   \code{periodic = FALSE}) or \code{"interval"} (the boundary-corrected
+#'   orthonormal basis of Cohen, Daubechies and Vial, 1993). The default,
+#'   \code{NULL}, falls back to the value implied by \code{periodic}. See
+#'   Details for the requirements of \code{boundary = "interval"}.
 #'
 #' @details
 #' The scaling function \eqn{\phi} and the wavelet \eqn{\psi} are obtained
@@ -55,6 +63,34 @@
 #' and \eqn{k_{\max}} will be all the integers where their corresponding
 #' function, \eqn{\phi_{j_0k}} or \eqn{\psi_{jk}, j_0 \le j \le J - 1}, is
 #' non-null for at least one observation of \eqn{x}.
+#'
+#' With \code{boundary = "interval"}, the basis used is the orthonormal
+#' wavelet basis of \eqn{L^2[0,1]} of Cohen, Daubechies and Vial (1993),
+#' often called \emph{wavelets on the interval}. At each level \eqn{j}, the
+#' basis keeps the \eqn{2^j - L} interior translates (\eqn{L} denotes the
+#' filter size) that are entirely supported inside \eqn{[0,1]} and completes
+#' them with \eqn{L/2} boundary functions at each endpoint, constructed so
+#' that polynomials up to degree \eqn{L/2 - 1} are exactly reproduced on the
+#' whole interval -- in particular, no artificial wrap-around discontinuity is
+#' introduced at the boundaries, in contrast with the periodized basis. The
+#' columns of each level block are organized as left boundary functions,
+#' interior translates and right boundary functions, and the resulting matrix
+#' has \eqn{2^J} columns, exactly as in the periodic case. The boundary
+#' blocks are derived numerically from the filter (no coefficient tables are
+#' involved) and the construction validates itself; the boundary functions
+#' agree with the ones tabulated by Cohen, Daubechies and Vial up to an
+#' orthogonal rotation within each boundary block, which spans the same
+#' multiresolution spaces and therefore yields the same fitted projections.
+#'
+#' The interval basis requires: (i) the data to lie in \eqn{[0,1]};
+#' (ii) \code{family} to be \emph{Daublets} or \emph{Symmlets} (the
+#' construction needs minimal-length filters, so \emph{Coiflets} are not
+#' supported); (iii) the coarsest level to be large enough for the two
+#' boundary zones not to interact -- the function reports the exact minimum
+#' (roughly \eqn{j_0 \ge \log_2(5 L)}) when the requested level is too small;
+#' and (iv) the filter to be short enough for the boundary construction to be
+#' carried out accurately in double precision: sizes up to 16 (Daublets) and
+#' 20 (Symmlets) are validated, and an informative error is raised otherwise.
 #'
 #' The scaling functions \eqn{\phi_{j_0k}} and wavelets \eqn{\psi_{jk}} are
 #' internally evaluated at the data points efficiently, using the
@@ -114,6 +150,11 @@
 #'   for different values of \eqn{k}.
 #'
 #' @references
+#' Cohen, A., Daubechies, I. and Vial, P. (1993). Wavelets on the Interval and
+#' Fast Wavelet Transforms. \emph{Applied and Computational Harmonic
+#' Analysis}, 1(1), 54--81,
+#' \url{https://doi.org/10.1006/acha.1993.1005}.
+#'
 #' Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II.
 #' Local Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM
 #' Journal on Mathematical Analysis}, 24(4), 1031--1079,
@@ -199,11 +240,41 @@
 #' points(new.obs, f.est.thr, col = 3, lwd = 2, type = 'l')
 #' legend("topright", legend = c("Real function", "Raw Estimate", "Reg. Estimate"),
 #'        col = 1:3, lty = 1)
+#' #
+#' #
+#' # Next example
+#' # ------------
+#' #
+#' # Wavelets on the interval (Cohen-Daubechies-Vial): same regression
+#' # problem, but with a function that does not match at the boundaries
+#' # (f(0) != f(1)), where the periodized basis suffers from wrap-around
+#' # artifacts and the interval basis does not.
+#' #
+#' set.seed(123)
+#' n <- 500
+#' x <- sort(runif(n))
+#' f <- function(x) x + sin(2*pi*x)
+#' y <- f(x) + rnorm(n, sd = 0.2)
+#'
+#' w <- wbasis(x, j0 = 4, J = 5, family = "Daublets", filter.size = 8,
+#'             boundary = "interval")
+#' beta <- coef(lm(y~w-1))
+#'
+#' new.obs <- 0:200/200
+#' myw <- wbasis(new.obs, j0 = 4, J = 5, family = "Daublets", filter.size = 8,
+#'               boundary = "interval")
+#' f.est <- drop(myw %*% beta)
+#'
+#' plot(x, y, main = "Regression with the interval basis")
+#' plot(f, 0, 1, lwd = 2, add = TRUE)
+#' points(new.obs, f.est, col = 2, lwd = 2, type = 'l')
+#' legend("topleft", legend = c("Real function", "Estimate"), col = 1:2, lty = 1)
 #'
 #' @keywords smooth
 #' @export
 wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
-                   prec.wavelet = 30, periodic = TRUE, wavelet.filter){
+                   prec.wavelet = 30, periodic = TRUE, wavelet.filter,
+                   boundary = NULL){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -230,10 +301,18 @@ wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
     fam <- 4
   }
 
+  bcode <- .wb_boundary_code(boundary, periodic, !missing(periodic))
+
+  cdv <- NULL
+  if(bcode == 2L)
+    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+                        level = j0,
+                        what = if (j0 < J) "decompose" else "basis")
+
   wmat <- .Call("_WaveBased_C_WavBasis", as.double(x), as.integer(j0), as.integer(J),
                 as.integer(fam), as.integer(filter.size),
-                as.integer(prec.wavelet), as.integer(periodic),
-                as.double(wavelet.filter))
+                as.integer(prec.wavelet), bcode,
+                as.double(wavelet.filter), cdv)
 
   return(wmat)
 

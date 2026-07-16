@@ -29,4 +29,13 @@
  */
 SEXP WavUtilities(SEXP family, SEXP fs, SEXP waveletfilter);
 
+/**
+ * @brief Returns the wavelet filter coefficients of a built-in family (R interface).
+ *
+ * @param[in] family Integer SEXP: wavelet family (1 = Daublets, 2 = Symmlets, 3 = Coiflets).
+ * @param[in] fs     Integer SEXP: filter size.
+ * @return Real SEXP with the filter coefficients.
+ */
+SEXP C_GetFilter(SEXP family, SEXP fs);
+
 #endif /* WAVEBASED_WAV_UTILITIES_H */

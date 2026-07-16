@@ -11,7 +11,8 @@ PHI(
   filter.size = 20,
   prec.wavelet = 30,
   periodic = TRUE,
-  wavelet.filter
+  wavelet.filter,
+  boundary = NULL
 )
 }
 \arguments{
@@ -32,12 +33,23 @@ Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 functions of the specified wavelet basis at the data points.}
 
 \item{periodic}{If it is TRUE (default), the periodic wavelet basis will be
-used. We recommend to use \code{periodic = TRUE}, because it can handle
-boundary conditions.}
+used. This argument is kept for backward compatibility and is equivalent
+to \code{boundary = "periodic"} (TRUE) or \code{boundary = "none"}
+(FALSE). It is ignored when \code{boundary} is provided.}
 
 \item{wavelet.filter}{Use this to provide your own filter. To use this
 argument, you must specify \code{family = "Own"}. Do not use it, if you are
 not sure about what you are doing.}
+
+\item{boundary}{The boundary treatment of the basis. One of
+\code{"periodic"} (the same as \code{periodic = TRUE}), \code{"none"}
+(the same as \code{periodic = FALSE}) or \code{"interval"} (the
+boundary-corrected orthonormal basis of Cohen, Daubechies and Vial,
+1993, which requires the data to lie in [0, 1], a Daublet or Symmlet
+filter and a sufficiently large resolution level -- an informative error
+states the exact minimum). The default, \code{NULL}, falls back to the
+value implied by \code{periodic}. See \command{\link{wbasis}} for a
+detailed description of the interval basis.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
