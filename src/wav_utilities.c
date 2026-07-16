@@ -55,6 +55,13 @@ SEXP WavUtilities(SEXP family, SEXP fs, SEXP waveletfilter){
     UNPROTECT(1);
   else
     UNPROTECT(2);
-  
+
   return results;
+}
+
+SEXP C_GetFilter(SEXP family, SEXP fs){
+  SEXP wutils = PROTECT(WavUtilities(family, fs, R_NilValue));
+  SEXP wfilter = VECTOR_ELT(wutils, 4);
+  UNPROTECT(1);
+  return wfilter;
 }

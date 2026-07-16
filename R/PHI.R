@@ -16,11 +16,21 @@
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
 #' @param periodic If it is TRUE (default), the periodic wavelet basis will be
-#'   used. We recommend to use \code{periodic = TRUE}, because it can handle
-#'   boundary conditions.
+#'   used. This argument is kept for backward compatibility and is equivalent
+#'   to \code{boundary = "periodic"} (TRUE) or \code{boundary = "none"}
+#'   (FALSE). It is ignored when \code{boundary} is provided.
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
+#' @param boundary The boundary treatment of the basis. One of
+#'   \code{"periodic"} (the same as \code{periodic = TRUE}), \code{"none"}
+#'   (the same as \code{periodic = FALSE}) or \code{"interval"} (the
+#'   boundary-corrected orthonormal basis of Cohen, Daubechies and Vial,
+#'   1993, which requires the data to lie in [0, 1], a Daublet or Symmlet
+#'   filter and a sufficiently large resolution level -- an informative error
+#'   states the exact minimum). The default, \code{NULL}, falls back to the
+#'   value implied by \code{periodic}. See \command{\link{wbasis}} for a
+#'   detailed description of the interval basis.
 #'
 #' @details
 #' The scaling function \eqn{\phi} is obtained according to a wavelet filter with
@@ -165,7 +175,7 @@
 #' @keywords smooth
 #' @export
 PHI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
-                periodic = TRUE, wavelet.filter){
+                periodic = TRUE, wavelet.filter, boundary = NULL){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -189,9 +199,16 @@ PHI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     fam <- 4
   }
 
+  bcode <- .wb_boundary_code(boundary, periodic, !missing(periodic))
+
+  cdv <- NULL
+  if(bcode == 2L)
+    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+                        level = J, what = "basis")
+
   PHI <- .Call("_WaveBased_C_PHImat", as.double(x), as.integer(J), as.integer(fam),
                as.integer(filter.size), as.integer(prec.wavelet),
-               as.integer(periodic), as.double(wavelet.filter))
+               bcode, as.double(wavelet.filter), cdv)
   return(PHI)
 
 }
