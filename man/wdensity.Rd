@@ -29,6 +29,7 @@ wdensity(
   xlab,
   ylab,
   type,
+  boundary = c("periodic", "interval"),
   ...
 )
 }
@@ -102,6 +103,13 @@ estimates.}
 plotted.}
 
 \item{main, xlab, ylab, type}{Plotting parameters with useful defaults.}
+
+\item{boundary}{The boundary treatment of the wavelet basis and of the
+thresholding transform. Either \code{"periodic"} (default) or
+\code{"interval"} (the boundary-corrected basis of Cohen, Daubechies
+and Vial, 1993; see \command{\link{wbasis}}). With
+\code{"interval"}, the levels \code{J0} and \code{J1} must satisfy
+the minimum reported by the corresponding error message.}
 
 \item{...}{Further plotting parameters.}
 }

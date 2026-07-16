@@ -34,9 +34,10 @@
  *          - C_PHImat:    scaling-function basis matrix (8 args)
  *          - C_PSImat:    mother-wavelet basis matrix (8 args)
  *          - C_WavBasis:  decomposed wavelet basis matrix (9 args)
- *          - C_WaveDec:   wavelet decomposition (5 args)
- *          - C_WaveRec:   wavelet reconstruction (5 args)
+ *          - C_WaveDec:   wavelet decomposition (7 args)
+ *          - C_WaveRec:   wavelet reconstruction (7 args)
  *          - C_GetFilter: filter coefficients of a built-in family (2 args)
+ *          - C_GetCDVBlocks: precomputed CDV boundary blocks (2 args)
  *
  * @note Names must match exactly those used in the R wrapper .Call() calls.
  * @note Argument counts are enforced by R's .Call() mechanism at runtime.
@@ -49,9 +50,10 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_PHImat",    (DL_FUNC) &C_PHImat,    8},
   {"_WaveBased_C_PSImat",    (DL_FUNC) &C_PSImat,    8},
   {"_WaveBased_C_WavBasis",  (DL_FUNC) &C_WavBasis,  9},
-  {"_WaveBased_C_WaveDec",   (DL_FUNC) &C_WaveDec,   5},
-  {"_WaveBased_C_WaveRec",   (DL_FUNC) &C_WaveRec,   5},
+  {"_WaveBased_C_WaveDec",   (DL_FUNC) &C_WaveDec,   7},
+  {"_WaveBased_C_WaveRec",   (DL_FUNC) &C_WaveRec,   7},
   {"_WaveBased_C_GetFilter", (DL_FUNC) &C_GetFilter, 2},
+  {"_WaveBased_C_GetCDVBlocks", (DL_FUNC) &C_GetCDVBlocks, 2},
   {NULL, NULL, 0}
 };
 

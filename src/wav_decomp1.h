@@ -65,4 +65,34 @@ void WaveDec1CDV(double *v, int nin, double *h, double *g, int L, int uw,
                  double *BR, double *bR, double *UR, double *uR,
                  double *sclc, double *dtlc);
 
+/**
+ * @brief One synthesis step of the CDV (interval) wavelet transform.
+ *
+ * Inverse of WaveDec1CDV: reconstructs the finer-level vector from scale
+ * and detail coefficients, all in the layout
+ * [left edge (L/2) | interior translates | right edge (L/2)].
+ *
+ * @param[in]  sclc   Scale coefficients (length n).
+ * @param[in]  dtlc   Detail coefficients (length n).
+ * @param[in]  n      Length of sclc and dtlc.
+ * @param[in]  h      Low-pass wavelet filter of length L.
+ * @param[in]  g      High-pass filter, g[n] = (-1)^n h[L-1-n].
+ * @param[in]  L      Filter length.
+ * @param[in]  uw     Number of interior columns of the edge wavelet blocks.
+ * @param[in]  BL     Left edge scaling block, L/2 x L/2 (column-major).
+ * @param[in]  bL     Left interior scaling block, L/2 x (L-1).
+ * @param[in]  UL     Left edge wavelet block, L/2 x L/2.
+ * @param[in]  uL     Left interior wavelet block, L/2 x uw.
+ * @param[in]  BR     Right edge scaling block (from the reversed filter).
+ * @param[in]  bR     Right interior scaling block.
+ * @param[in]  UR     Right edge wavelet block.
+ * @param[in]  uR     Right interior wavelet block.
+ * @param[out] recvec Reconstructed vector (length 2*n).
+ */
+void WaveRec1CDV(double *sclc, double *dtlc, int n, double *h, double *g,
+                 int L, int uw,
+                 double *BL, double *bL, double *UL, double *uL,
+                 double *BR, double *bR, double *UR, double *uR,
+                 double *recvec);
+
 #endif /* WAVEBASED_WAV_DECOMP1_H */

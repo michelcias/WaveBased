@@ -368,39 +368,52 @@ NULL
   .Call("_WaveBased_C_GetFilter", as.integer(fam), as.integer(filter.size))
 }
 
-# Resolves the boundary treatment requested through the 'boundary'/'periodic'
-# arguments of the exported functions into the integer code used by the C
-# entry points: 0 = raw ("none"), 1 = "periodic", 2 = "interval" (CDV).
-.wb_boundary_code <- function(boundary, periodic, periodic_given) {
-  if (is.null(boundary)) {
-    boundary <- if (periodic) "periodic" else "none"
-  } else {
-    if (!is.character(boundary) || length(boundary) != 1L)
-      stop("boundary must be one of \"periodic\", \"none\" or \"interval\".")
-    boundary <- match.arg(tolower(boundary),
-                          c("periodic", "none", "interval"))
-    if (periodic_given && boundary != (if (periodic) "periodic" else "none"))
-      warning("Argument 'boundary' overrides 'periodic'.")
-  }
+# Precomputed boundary blocks of a tabulated filter (see
+# src/wav_filters_cdv.c, generated in high precision by
+# tools/make_cdv_tables.R), or NULL when the filter is not tabulated.
+.cdv_lookup <- function(fam, filter.size) {
+  if (!fam %in% 1:2)
+    return(NULL)
+  .Call("_WaveBased_C_GetCDVBlocks", as.integer(fam), as.integer(filter.size))
+}
+
+# Resolves the boundary treatment requested through the 'boundary' argument
+# of the exported functions into the integer code used by the C entry
+# points: 0 = raw ("none"), 1 = "periodic", 2 = "interval" (CDV).
+.wb_boundary_code <- function(boundary) {
+  if (!is.character(boundary) || length(boundary) < 1L)
+    stop("boundary must be one of \"periodic\", \"none\" or \"interval\".")
+  boundary <- match.arg(tolower(boundary[1L]),
+                        c("periodic", "none", "interval"))
   match(boundary, c("none", "periodic", "interval")) - 1L
 }
 
 # Shared validation + block preparation for boundary = "interval". 'level'
 # is the level whose minimum requirement must be met ('what' as in
 # .cdv_min_level, with the same meaning of the level: j0 for a decomposed
-# basis, J for PHI/PSI). Returns the CDV block list to be passed to C.
-.cdv_prepare <- function(x, fam, filter.size, wavelet.filter, level, what) {
+# basis or transform, J for PHI/PSI). The boundary blocks come from the
+# precomputed high-precision tables (C_GetCDVBlocks) whenever the filter is
+# tabulated, and are derived at run time otherwise (user-provided filters
+# and non-tabulated sizes). check.range is disabled by wavedec/waverec,
+# whose input is a coefficient vector rather than data on [0, 1]. Returns
+# the CDV block list to be passed to C.
+.cdv_prepare <- function(x, fam, filter.size, wavelet.filter, level, what,
+                         check.range = TRUE) {
   if (fam == 3)
     stop("boundary = \"interval\" is not available for Coiflets: the ",
          "Cohen-Daubechies-Vial construction requires minimal-length ",
          "filters. Use Daublets or Symmlets.")
   h <- if (fam == 4) as.double(wavelet.filter)
        else .wb_filter(fam, filter.size)
-  xf <- x[is.finite(x)]
-  if (length(xf) && (min(xf) < 0 || max(xf) > 1))
-    stop("boundary = \"interval\" requires the data to lie in [0, 1]. ",
-         "Rescale x before calling this function.")
-  blocks <- .cdv_blocks(h)
+  if (check.range) {
+    xf <- x[is.finite(x)]
+    if (length(xf) && (min(xf) < 0 || max(xf) > 1))
+      stop("boundary = \"interval\" requires the data to lie in [0, 1]. ",
+           "Rescale x before calling this function.")
+  }
+  blocks <- .cdv_lookup(fam, filter.size)
+  if (is.null(blocks))
+    blocks <- .cdv_blocks(h)
   jmin <- .cdv_min_level(length(h), blocks$uwidth, what)
   if (level < jmin)
     stop("boundary = \"interval\" with a filter of size ", length(h),

@@ -53,6 +53,12 @@
 #'   applied to the detail coefficient estimates; and if \code{thresh = "soft"},
 #'   the soft-thresholding regularizer is applied to the detail coefficient
 #'   estimates.
+#' @param boundary The boundary treatment of the wavelet basis and of the
+#'   thresholding transform. Either \code{"periodic"} (default) or
+#'   \code{"interval"} (the boundary-corrected basis of Cohen, Daubechies
+#'   and Vial, 1993; see \command{\link{wbasis}}). With
+#'   \code{"interval"}, the levels \code{J0} and \code{J1} must satisfy
+#'   the minimum reported by the corresponding error message.
 #' @param plot Logical. If \code{plot = TRUE}, the density estimate is to be
 #'   plotted.
 #' @param main,xlab,ylab,type Plotting parameters with useful defaults.
@@ -177,7 +183,9 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
                      prec.wavelet = 30, wavelet.filter, dens.biased,
                      warped = TRUE, warp.fun, dwarp.fun, rescale = TRUE,
                      eps = 1.9^(-J1), thresh = "hard", plot = TRUE, main, xlab,
-                     ylab, type, ...){
+                     ylab, type, boundary = c("periodic", "interval"), ...){
+
+  boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
 
   if (!any(is.finite(data))){
     data <- data[is.finite(data)]
@@ -250,30 +258,30 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
 
   mbasis <- PHI(x = c(Hyc, Hy.vals), J = J1, family = family,
                 filter.size = filter.size, prec.wavelet = prec.wavelet,
-                periodic = TRUE, wavelet.filter = wavelet.filter)
+                boundary = boundary, wavelet.filter = wavelet.filter)
 
   matvals <- mbasis[seq_len(n),]*dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
   coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)
 
   if(thresh == "h"){
     coefs <- wavedec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size)
+                     filter.size = filter.size, boundary = boundary)
     sig <- mad(coefs[-seq_len(length.out = 2^(J1-1))])
     lambda <- sig*sqrt(2*log(2^(J1-1)))
     d <- coefs[-seq_len(length.out = 2^J0)]
     coefs[-seq_len(length.out = 2^J0)] <- d*(abs(d) > lambda)
     coefs <- waverec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size)
+                     filter.size = filter.size, boundary = boundary)
   }
   if(thresh == "s"){
     coefs <- wavedec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size)
+                     filter.size = filter.size, boundary = boundary)
     sig <- mad(coefs[-seq_len(length.out = 2^(J1-1))])
     lambda <- sig*sqrt(2*log(2^(J1-1)))
     d <- coefs[-seq_len(length.out = 2^J0)]
     coefs[-seq_len(length.out = 2^J0)] <- sign(d)*(abs(d) - lambda)*(abs(d) > lambda)
     coefs <- waverec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size)
+                     filter.size = filter.size, boundary = boundary)
   }
 
   if(!warped & power.dens == 0.5)

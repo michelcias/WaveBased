@@ -11,8 +11,9 @@
 #include "wav_transform.h"
 #include "wav_utilities.h"
 #include "wav_decomp1.h"
+#include "cdv_edge.h"
 
-SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
+SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP boundary, SEXP cdvblocks){
   
   int i, j0, j, J, n, N, tmpscl, tmpn;
   double *dtlc, *rwdx, *rwfilter, *rx, *sclc, *tmp;
@@ -40,7 +41,48 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
     SEXP fsize = VECTOR_ELT(wutils, 5);
     rwfilter = REAL(wfilter);
     N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
-    
+
+    if(INTEGER(boundary)[0] == 2){
+      /* boundary-corrected (CDV) analysis: cascade the interval filter
+       * bank instead of the periodic one */
+      CDVBlocks blk;
+      double *g, *tmpv;
+      int len;
+
+      CDVUnpackBlocks(cdvblocks, N, &blk);
+      g = (double *) R_alloc(N, sizeof(double));
+      for(i = 0; i < N; i++)
+        g[i] = (i % 2 ? -1.0 : 1.0) * rwfilter[N - 1 - i];
+
+      sclc = (double *) R_alloc(n/2, sizeof(double));
+      dtlc = (double *) R_alloc(n/2, sizeof(double));
+      tmpv = (double *) R_alloc(n, sizeof(double));
+
+      PROTECT(wdx = allocVector(REALSXP, n));
+      rwdx = REAL(wdx);
+
+      for(i = 0; i < n; i++)
+        tmpv[i] = rx[i];
+
+      len = n;
+      while(len > (1 << j0)){
+        WaveDec1CDV(tmpv, len, rwfilter, g, N, blk.uw,
+                    blk.BL, blk.bL, blk.UL, blk.uL,
+                    blk.BR, blk.bR, blk.UR, blk.uR,
+                    sclc, dtlc);
+        for(i = 0; i < len/2; i++){
+          rwdx[i + len/2] = dtlc[i];
+          tmpv[i] = sclc[i];
+        }
+        len /= 2;
+      }
+      for(i = 0; i < len; i++)
+        rwdx[i] = tmpv[i];
+
+      UNPROTECT(2);
+      return wdx;
+    }
+
     sclc = (double *) R_alloc(n/2, sizeof(double));
     dtlc = (double *) R_alloc(n/2, sizeof(double));
     tmp  = (double *) R_alloc(n/2, sizeof(double));
@@ -87,7 +129,7 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
   }
 }
 
-SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
+SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP boundary, SEXP cdvblocks){
   
   int i, j, j0, J, n, N, tmpscl;
   double *dtlc, *sclc, *rwfilter, *rwrx, *rx;
@@ -111,7 +153,47 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter){
     SEXP fsize = VECTOR_ELT(wutils, 5);
     rwfilter = REAL(wfilter);
     N = INTEGER(fsize)[0];//LENGTH(wfilter);//INTEGER(fs)[0];
-    
+
+    if(INTEGER(boundary)[0] == 2){
+      /* boundary-corrected (CDV) synthesis */
+      CDVBlocks blk;
+      double *g;
+
+      CDVUnpackBlocks(cdvblocks, N, &blk);
+      g = (double *) R_alloc(N, sizeof(double));
+      for(i = 0; i < N; i++)
+        g[i] = (i % 2 ? -1.0 : 1.0) * rwfilter[N - 1 - i];
+
+      sclc = (double *) R_alloc(n/2, sizeof(double));
+      dtlc = (double *) R_alloc(n/2, sizeof(double));
+
+      PROTECT(wrx = allocVector(REALSXP, n));
+      rwrx = REAL(wrx);
+
+      tmpscl = pow(2, j0);
+      for(i = 0; i < tmpscl; i++){
+        sclc[i] = rx[i];
+        dtlc[i] = rx[i + tmpscl];
+      }
+      WaveRec1CDV(sclc, dtlc, tmpscl, rwfilter, g, N, blk.uw,
+                  blk.BL, blk.bL, blk.UL, blk.uL,
+                  blk.BR, blk.bR, blk.UR, blk.uR, rwrx);
+
+      for(j = j0 + 1; j < J; j++){
+        tmpscl *= 2;
+        for(i = 0; i < tmpscl; i++){
+          sclc[i] = rwrx[i];
+          dtlc[i] = rx[i + tmpscl];
+        }
+        WaveRec1CDV(sclc, dtlc, tmpscl, rwfilter, g, N, blk.uw,
+                    blk.BL, blk.bL, blk.UL, blk.uL,
+                    blk.BR, blk.bR, blk.UR, blk.uR, rwrx);
+      }
+
+      UNPROTECT(2);
+      return wrx;
+    }
+
     sclc = (double *) R_alloc(n/2, sizeof(double));
     dtlc = (double *) R_alloc(n/2, sizeof(double));
 

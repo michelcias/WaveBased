@@ -102,3 +102,56 @@ void WaveDec1CDV(double *v, int nin, double *h, double *g, int L, int uw,
     dtlc[nout - Nv + k] = acc;
   }
 }
+
+void WaveRec1CDV(double *sclc, double *dtlc, int n, double *h, double *g,
+                 int L, int uw,
+                 double *BL, double *bL, double *UL, double *uL,
+                 double *BR, double *bR, double *UR, double *uR,
+                 double *recvec){
+
+  int Nv = L / 2;
+  int nin = 2*n;                  /* length of the reconstructed vector    */
+  int nint_in = nin - L;          /* interior translates at the fine level */
+  int nint_out = n - L;
+  int j, k, m, m1;
+  double dk, sk;
+
+  /* The synthesis step is the transpose of WaveDec1CDV: each coarse
+   * coefficient scatters its edge/interior filter row into the fine
+   * vector, laid out as [edgeL (Nv) | interior m = 1..nint_in | edgeR]. */
+
+  for(j = 0; j < nin; j++)
+    recvec[j] = 0.0;
+
+  /* --- left edge --- */
+  for(k = 0; k < Nv; k++){
+    sk = sclc[k];
+    dk = dtlc[k];
+    for(j = 0; j < Nv; j++)
+      recvec[j] += BL[k + Nv*j]*sk + UL[k + Nv*j]*dk;
+    for(m = 1; m <= L - 1; m++)
+      recvec[Nv + m - 1] += bL[k + Nv*(m - 1)]*sk;
+    for(m = 1; m <= uw; m++)
+      recvec[Nv + m - 1] += uL[k + Nv*(m - 1)]*dk;
+  }
+
+  /* --- interior --- */
+  for(m1 = 1; m1 <= nint_out; m1++){
+    sk = sclc[Nv + m1 - 1];
+    dk = dtlc[Nv + m1 - 1];
+    for(j = 0; j < L; j++)
+      recvec[Nv + 2*m1 + j - 1] += h[j]*sk + g[j]*dk;
+  }
+
+  /* --- right edge --- */
+  for(k = 0; k < Nv; k++){
+    sk = sclc[n - Nv + k];
+    dk = dtlc[n - Nv + k];
+    for(j = 0; j < Nv; j++)
+      recvec[Nv + nint_in + j] += BR[k + Nv*j]*sk + UR[k + Nv*j]*dk;
+    for(m = 1; m <= L - 1; m++)
+      recvec[Nv + nint_in - m] += bR[k + Nv*(m - 1)]*sk;
+    for(m = 1; m <= uw; m++)
+      recvec[Nv + nint_in - m] += uR[k + Nv*(m - 1)]*dk;
+  }
+}
