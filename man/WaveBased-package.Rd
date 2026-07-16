@@ -11,5 +11,10 @@ Provides functions related to the solution of different statistical problems by 
 \author{
 \strong{Maintainer}: Michel H. Montoril \email{michel@ufscar.br}
 
+Authors:
+\itemize{
+  \item Michel H. Montoril \email{michel@ufscar.br}
+}
+
 }
 \keyword{internal}
