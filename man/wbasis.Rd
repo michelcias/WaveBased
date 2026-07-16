@@ -12,7 +12,8 @@ wbasis(
   filter.size = 20,
   prec.wavelet = 30,
   wavelet.filter,
-  boundary = c("periodic", "none", "interval")
+  boundary = c("periodic", "none", "interval"),
+  wavelet.table = NULL
 )
 }
 \arguments{
@@ -45,6 +46,16 @@ not sure about what you are doing.}
 (the raw translates) or \code{"interval"} (the boundary-corrected
 orthonormal basis of Cohen, Daubechies and Vial, 1993). See Details for
 the requirements of \code{boundary = "interval"}.}
+
+\item{wavelet.table}{An optional object created by \command{\link{wtable}}.
+When provided, the scaling functions and wavelets are evaluated by table
+lookup with linear interpolation instead of the Daubechies-Lagarias
+algorithm, which is considerably faster for large data sets. The same
+table serves any pair of levels \code{j0} and \code{J}. It must have been
+built for the same \code{family} and \code{filter.size} requested here;
+the argument \code{prec.wavelet} is then ignored. It is not used with
+\code{boundary = "interval"} (the boundary evaluation is always exact).
+See \command{\link{wtable}} for accuracy considerations.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
@@ -294,7 +305,7 @@ PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
 Source Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
 }
 \seealso{
-\command{\link{PHI}}, \command{\link{PSI}}
+\command{\link{PHI}}, \command{\link{PSI}}, \command{\link{wtable}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}

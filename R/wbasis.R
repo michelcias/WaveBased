@@ -28,6 +28,15 @@
 #'   (the raw translates) or \code{"interval"} (the boundary-corrected
 #'   orthonormal basis of Cohen, Daubechies and Vial, 1993). See Details for
 #'   the requirements of \code{boundary = "interval"}.
+#' @param wavelet.table An optional object created by \command{\link{wtable}}.
+#'   When provided, the scaling functions and wavelets are evaluated by table
+#'   lookup with linear interpolation instead of the Daubechies-Lagarias
+#'   algorithm, which is considerably faster for large data sets. The same
+#'   table serves any pair of levels \code{j0} and \code{J}. It must have been
+#'   built for the same \code{family} and \code{filter.size} requested here;
+#'   the argument \code{prec.wavelet} is then ignored. It is not used with
+#'   \code{boundary = "interval"} (the boundary evaluation is always exact).
+#'   See \command{\link{wtable}} for accuracy considerations.
 #'
 #' @details
 #' The scaling function \eqn{\phi} and the wavelet \eqn{\psi} are obtained
@@ -165,7 +174,7 @@
 #' PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
 #' Source Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
 #'
-#' @seealso \command{\link{PHI}}, \command{\link{PSI}}
+#' @seealso \command{\link{PHI}}, \command{\link{PSI}}, \command{\link{wtable}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -275,7 +284,8 @@
 #' @export
 wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
                    prec.wavelet = 30, wavelet.filter,
-                   boundary = c("periodic", "none", "interval")){
+                   boundary = c("periodic", "none", "interval"),
+                   wavelet.table = NULL){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -310,10 +320,18 @@ wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
                         level = j0,
                         what = if (j0 < J) "decompose" else "basis")
 
+  wtab <- NULL
+  if(!is.null(wavelet.table)){
+    if(bcode == 2L)
+      warning("wavelet.table is not used with boundary = \"interval\" and was ignored.")
+    else
+      wtab <- .match_wavelet_table(wavelet.table, fam, filter.size, wavelet.filter)
+  }
+
   wmat <- .Call("_WaveBased_C_WavBasis", as.double(x), as.integer(j0), as.integer(J),
                 as.integer(fam), as.integer(filter.size),
                 as.integer(prec.wavelet), bcode,
-                as.double(wavelet.filter), cdv)
+                as.double(wavelet.filter), wtab, cdv)
 
   return(wmat)
 

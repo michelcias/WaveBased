@@ -31,6 +31,12 @@
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
+#' @param wavelet.table An optional object created by \command{\link{wtable}}.
+#'   When provided, the wavelet basis is evaluated by table lookup with linear
+#'   interpolation instead of the Daubechies-Lagarias algorithm, which is
+#'   considerably faster for large data sets. The table must have been built
+#'   for the same \code{family} and \code{filter.size} requested here. See
+#'   \command{\link{wtable}} for accuracy considerations.
 #' @param dens.biased Density estimates of the size-biased data. These estimates
 #'   of the (ordered) \code{data} must be provided. By default, a kernel density
 #'   estimate is calculated.
@@ -132,7 +138,7 @@
 #' Statistical Society series B}, 53, 683-690.
 #' \url{http://www.jstor.org/stable/2345597}.
 #'
-#' @seealso \command{\link{PHI}}, \command{\link{bac}}
+#' @seealso \command{\link{PHI}}, \command{\link{bac}}, \command{\link{wtable}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -180,12 +186,15 @@
 #' @export
 wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
                      J0 = 0, J1, family = "Daublets", filter.size = 10,
-                     prec.wavelet = 30, wavelet.filter, dens.biased,
-                     warped = TRUE, warp.fun, dwarp.fun, rescale = TRUE,
-                     eps = 1.9^(-J1), thresh = "hard", plot = TRUE, main, xlab,
-                     ylab, type, boundary = c("periodic", "interval"), ...){
+                     prec.wavelet = 30, wavelet.filter, wavelet.table = NULL,
+                     dens.biased, warped = TRUE, warp.fun, dwarp.fun,
+                     rescale = TRUE, eps = 1.9^(-J1), thresh = "hard",
+                     plot = TRUE, main, xlab, ylab, type,
+                     boundary = c("periodic", "interval"), ...){
 
   boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
+  if(boundary == "interval" && !is.null(wavelet.table))
+    warning("wavelet.table is not used with boundary = \"interval\" and was ignored.")
 
   if (!any(is.finite(data))){
     data <- data[is.finite(data)]
@@ -258,7 +267,8 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
 
   mbasis <- PHI(x = c(Hyc, Hy.vals), J = J1, family = family,
                 filter.size = filter.size, prec.wavelet = prec.wavelet,
-                boundary = boundary, wavelet.filter = wavelet.filter)
+                boundary = boundary, wavelet.filter = wavelet.filter,
+                wavelet.table = if(boundary == "interval") NULL else wavelet.table)
 
   matvals <- mbasis[seq_len(n),]*dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
   coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)
