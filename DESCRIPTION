@@ -10,6 +10,10 @@ Maintainer: Michel H. Montoril <michel@ufscar.br>
 Description: Provides functions related to the solution of different
 	statistical problems by methods developed under wavelet approach.
 Depends: R (>= 4.0.0)
+Imports:
+    graphics,
+    stats,
+    tools
 NeedsCompilation: yes
 License: GPL (>= 2)
 Encoding: UTF-8
