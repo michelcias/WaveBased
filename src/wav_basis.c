@@ -15,36 +15,6 @@
 #include "cdv_edge.h"
 #include "utils.h"
 
-/**
- * @brief Pointers to the CDV boundary blocks received from R.
- *
- * The R side (.cdv_blocks) derives the boundary-corrected filter blocks
- * numerically and passes them as a fixed-layout list:
- * BL, bL, UL, uL, phi0L, BR, bR, UR, uR, phi0R, uwidth.
- */
-typedef struct {
-  double *BL, *bL, *UL, *uL, *phi0L;
-  double *BR, *bR, *UR, *uR, *phi0R;
-  int Nv, uw;
-} CDVBlocks;
-
-static void cdv_unpack(SEXP cdv, int L, CDVBlocks *blk){
-  if(TYPEOF(cdv) != VECSXP || LENGTH(cdv) < 11)
-    error("Invalid CDV block list. This is an internal error; please report it.");
-  blk->BL    = REAL(VECTOR_ELT(cdv, 0));
-  blk->bL    = REAL(VECTOR_ELT(cdv, 1));
-  blk->UL    = REAL(VECTOR_ELT(cdv, 2));
-  blk->uL    = REAL(VECTOR_ELT(cdv, 3));
-  blk->phi0L = REAL(VECTOR_ELT(cdv, 4));
-  blk->BR    = REAL(VECTOR_ELT(cdv, 5));
-  blk->bR    = REAL(VECTOR_ELT(cdv, 6));
-  blk->UR    = REAL(VECTOR_ELT(cdv, 7));
-  blk->uR    = REAL(VECTOR_ELT(cdv, 8));
-  blk->phi0R = REAL(VECTOR_ELT(cdv, 9));
-  blk->Nv    = L / 2;
-  blk->uw    = INTEGER(VECTOR_ELT(cdv, 10))[0];
-}
-
 static SEXP PHImatCDV(double *x, int n, int p, double *filter,
                       double *filtrev, int L, int prec, CDVBlocks *blk){
 
@@ -223,7 +193,7 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
     /* boundary-corrected (CDV) basis on [0, 1] */
     CDVBlocks blk;
     double *hrev;
-    cdv_unpack(cdvblocks, N, &blk);
+    CDVUnpackBlocks(cdvblocks, N, &blk);
     hrev = (double *) R_alloc(N, sizeof(double));
     for(i = 0; i < N; i++)
       hrev[i] = rwfilter[N - 1 - i];
@@ -337,7 +307,7 @@ SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
     /* boundary-corrected (CDV) wavelets on [0, 1] */
     CDVBlocks blk;
     double *hrev, *g;
-    cdv_unpack(cdvblocks, N, &blk);
+    CDVUnpackBlocks(cdvblocks, N, &blk);
     hrev = (double *) R_alloc(N, sizeof(double));
     g = (double *) R_alloc(N, sizeof(double));
     for(i = 0; i < N; i++){
@@ -598,7 +568,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
     if(rper == 2){
       CDVBlocks blk;
       double *hrev;
-      cdv_unpack(cdvblocks, N, &blk);
+      CDVUnpackBlocks(cdvblocks, N, &blk);
       hrev = (double *) R_alloc(N, sizeof(double));
       for(i = 0; i < N; i++)
         hrev[i] = rwfilt[N - 1 - i];
@@ -626,7 +596,7 @@ SEXP C_WavBasis(SEXP x, SEXP J0, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP p
     double *dtlc, *hrev, *g, *rpmat, *rwmat, *sclc, *tmpv;
     int j, k, lev, len;
 
-    cdv_unpack(cdvblocks, N, &blk);
+    CDVUnpackBlocks(cdvblocks, N, &blk);
     hrev = (double *) R_alloc(N, sizeof(double));
     g = (double *) R_alloc(N, sizeof(double));
     for(i = 0; i < N; i++){

@@ -9,6 +9,29 @@
  */
 
 #include <R.h>
+#include <Rinternals.h>
+
+/**
+ * @brief Pointers to the CDV boundary blocks received from R.
+ *
+ * The R side derives (or fetches from the precomputed tables) the
+ * boundary-corrected filter blocks and passes them as a fixed-layout list:
+ * BL, bL, UL, uL, phi0L, BR, bR, UR, uR, phi0R, uwidth.
+ */
+typedef struct {
+  double *BL, *bL, *UL, *uL, *phi0L;
+  double *BR, *bR, *UR, *uR, *phi0R;
+  int Nv, uw;
+} CDVBlocks;
+
+/**
+ * @brief Fills a CDVBlocks structure from the list built on the R side.
+ *
+ * @param[in]  cdv List SEXP with the fixed layout described in CDVBlocks.
+ * @param[in]  L   Filter length.
+ * @param[out] blk Structure receiving the block pointers.
+ */
+void CDVUnpackBlocks(SEXP cdv, int L, CDVBlocks *blk);
 
 /**
  * @brief Number of doubles of workspace required by CDVEdgePhiVec.

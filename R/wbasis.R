@@ -20,20 +20,14 @@
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
-#' @param periodic If it is TRUE (default), the periodic wavelet basis will be
-#'   used. This argument is kept for backward compatibility and is equivalent
-#'   to \code{boundary = "periodic"} (TRUE) or \code{boundary = "none"}
-#'   (FALSE). It is ignored when \code{boundary} is provided.
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
 #' @param boundary The boundary treatment of the basis. One of
-#'   \code{"periodic"} (the periodized basis, the same as
-#'   \code{periodic = TRUE}), \code{"none"} (the raw translates, the same as
-#'   \code{periodic = FALSE}) or \code{"interval"} (the boundary-corrected
-#'   orthonormal basis of Cohen, Daubechies and Vial, 1993). The default,
-#'   \code{NULL}, falls back to the value implied by \code{periodic}. See
-#'   Details for the requirements of \code{boundary = "interval"}.
+#'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
+#'   (the raw translates) or \code{"interval"} (the boundary-corrected
+#'   orthonormal basis of Cohen, Daubechies and Vial, 1993). See Details for
+#'   the requirements of \code{boundary = "interval"}.
 #'
 #' @details
 #' The scaling function \eqn{\phi} and the wavelet \eqn{\psi} are obtained
@@ -58,8 +52,9 @@
 #' of \eqn{x}. The columns of the matrix are organized as
 #' \deqn{\phi_{j_0,k_{\min}}(\cdot) \ldots \phi_{j_0,k_{\max}}(\cdot)
 #' \psi_{j_0,k_{\min}}(\cdot) \ldots \psi_{J-1,k_{\max}}(\cdot).}
-#' If \code{periodic = TRUE}, then \eqn{k_{\min} = 0} and
-#' \eqn{k_{\max} = 2^(j-1)-1}, for each level \eqn{j}. Otherwise, \eqn{k_{\min}}
+#' If \code{boundary = "periodic"}, then \eqn{k_{\min} = 0} and
+#' \eqn{k_{\max} = 2^(j-1)-1}, for each level \eqn{j}. If
+#' \code{boundary = "none"}, \eqn{k_{\min}}
 #' and \eqn{k_{\max}} will be all the integers where their corresponding
 #' function, \eqn{\phi_{j_0k}} or \eqn{\psi_{jk}, j_0 \le j \le J - 1}, is
 #' non-null for at least one observation of \eqn{x}.
@@ -76,21 +71,27 @@
 #' columns of each level block are organized as left boundary functions,
 #' interior translates and right boundary functions, and the resulting matrix
 #' has \eqn{2^J} columns, exactly as in the periodic case. The boundary
-#' blocks are derived numerically from the filter (no coefficient tables are
-#' involved) and the construction validates itself; the boundary functions
-#' agree with the ones tabulated by Cohen, Daubechies and Vial up to an
-#' orthogonal rotation within each boundary block, which spans the same
-#' multiresolution spaces and therefore yields the same fitted projections.
+#' functions agree with the ones tabulated by Cohen, Daubechies and Vial up
+#' to an orthogonal rotation within each boundary block, which spans the
+#' same multiresolution spaces and therefore yields the same fitted
+#' projections.
+#'
+#' For \emph{Daublets} and \emph{Symmlets} with \code{filter.size} between 4
+#' and 24, the boundary coefficient blocks are precomputed: they were derived
+#' from the filters in 320-bit arithmetic (see
+#' \file{tools/make_cdv_tables.R} in the package sources) and are accurate to
+#' the precision of the filter coefficients themselves. For other filters
+#' (\code{family = "Own"}, or non-tabulated sizes) the construction is
+#' carried out at run time in double precision, which is reliable up to
+#' moderate filter sizes and validates itself, raising an informative error
+#' when the filter is too long for a stable construction.
 #'
 #' The interval basis requires: (i) the data to lie in \eqn{[0,1]};
 #' (ii) \code{family} to be \emph{Daublets} or \emph{Symmlets} (the
 #' construction needs minimal-length filters, so \emph{Coiflets} are not
-#' supported); (iii) the coarsest level to be large enough for the two
+#' supported); and (iii) the coarsest level to be large enough for the two
 #' boundary zones not to interact -- the function reports the exact minimum
-#' (roughly \eqn{j_0 \ge \log_2(5 L)}) when the requested level is too small;
-#' and (iv) the filter to be short enough for the boundary construction to be
-#' carried out accurately in double precision: sizes up to 16 (Daublets) and
-#' 20 (Symmlets) are validated, and an informative error is raised otherwise.
+#' (roughly \eqn{j_0 \ge \log_2(5 L)}) when the requested level is too small.
 #'
 #' The scaling functions \eqn{\phi_{j_0k}} and wavelets \eqn{\psi_{jk}} are
 #' internally evaluated at the data points efficiently, using the
@@ -273,8 +274,8 @@
 #' @keywords smooth
 #' @export
 wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
-                   prec.wavelet = 30, periodic = TRUE, wavelet.filter,
-                   boundary = NULL){
+                   prec.wavelet = 30, wavelet.filter,
+                   boundary = c("periodic", "none", "interval")){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -301,7 +302,7 @@ wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
     fam <- 4
   }
 
-  bcode <- .wb_boundary_code(boundary, periodic, !missing(periodic))
+  bcode <- .wb_boundary_code(boundary)
 
   cdv <- NULL
   if(bcode == 2L)

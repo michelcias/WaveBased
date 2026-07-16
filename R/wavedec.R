@@ -14,6 +14,13 @@
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
+#' @param boundary The boundary treatment of the transform. Either
+#'   \code{"periodic"} (the default, the usual periodic wavelet transform)
+#'   or \code{"interval"} (the boundary-corrected transform of Cohen,
+#'   Daubechies and Vial, 1993, which requires a Daublet or Symmlet filter
+#'   and a sufficiently large coarsest level -- an informative error states
+#'   the exact minimum). See \command{\link{wbasis}} for a detailed
+#'   description of the interval construction.
 #'
 #' @details
 #' This function applies the discrete wavelet transform to the data \code{x},
@@ -60,7 +67,7 @@
 #' @keywords smooth
 #' @export
 wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
-                    wavelet.filter){
+                    wavelet.filter, boundary = c("periodic", "interval")){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -90,9 +97,18 @@ wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
     fam <- 4
   }
 
+  bcode <- .wb_boundary_code(boundary)
+  if(bcode == 0L)
+    stop("boundary must be \"periodic\" or \"interval\" for the wavelet transform.")
+
+  cdv <- NULL
+  if(bcode == 2L)
+    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+                        level = j0, what = "decompose", check.range = FALSE)
+
   wdec <- .Call("_WaveBased_C_WaveDec", as.double(x), as.integer(fam),
                 as.integer(filter.size), as.integer(j0),
-                as.double(wavelet.filter))
+                as.double(wavelet.filter), bcode, cdv)
 
   return(wdec)
 

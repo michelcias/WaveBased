@@ -4,7 +4,14 @@
 \alias{wavedec}
 \title{Wavelet decomposition}
 \usage{
-wavedec(x, j0 = 0, family = "Daublets", filter.size = 20, wavelet.filter)
+wavedec(
+  x,
+  j0 = 0,
+  family = "Daublets",
+  filter.size = 20,
+  wavelet.filter,
+  boundary = c("periodic", "interval")
+)
 }
 \arguments{
 \item{x}{Vector containing the data to be decomposed. Its length must be
@@ -22,6 +29,14 @@ chosen family. See Details for more information.}
 \item{wavelet.filter}{Use this to provide your own filter. To use this
 argument, you must specify \code{family = "Own"}. Do not use it, if you are
 not sure about what you are doing.}
+
+\item{boundary}{The boundary treatment of the transform. Either
+\code{"periodic"} (the default, the usual periodic wavelet transform)
+or \code{"interval"} (the boundary-corrected transform of Cohen,
+Daubechies and Vial, 1993, which requires a Daublet or Symmlet filter
+and a sufficiently large coarsest level -- an informative error states
+the exact minimum). See \command{\link{wbasis}} for a detailed
+description of the interval construction.}
 }
 \value{
 A vector of wavelet coefficients decomposed from \code{x}, where the

@@ -6,10 +6,10 @@ test_that("PHI returns a periodic scaling-function basis with the right shape", 
   J <- 3
 
   mat <- PHI(x, J = J, family = "daublets", filter.size = 18,
-             prec.wavelet = 30, periodic = TRUE)
+             prec.wavelet = 30, boundary = "periodic")
 
   expect_true(is.matrix(mat))
-  # With periodic = TRUE the columns correspond to k = 0, ..., 2^J - 1.
+  # With boundary = "periodic" the columns correspond to k = 0, ..., 2^J - 1.
   expect_equal(nrow(mat), length(x))
   expect_equal(ncol(mat), 2^J)
   expect_true(all(is.finite(mat)))
@@ -21,7 +21,7 @@ test_that("PSI returns a periodic wavelet basis with the right shape", {
   J <- 3
 
   mat <- PSI(x, J = J, family = "daublets", filter.size = 18,
-             prec.wavelet = 30, periodic = TRUE)
+             prec.wavelet = 30, boundary = "periodic")
 
   expect_true(is.matrix(mat))
   expect_equal(nrow(mat), length(x))
@@ -36,7 +36,7 @@ test_that("wbasis returns a 2^J-column basis when periodic", {
   J <- 3
 
   mat <- wbasis(x, j0 = j0, J = J, family = "Daublets", filter.size = 18,
-                prec.wavelet = 30, periodic = TRUE)
+                prec.wavelet = 30, boundary = "periodic")
 
   expect_true(is.matrix(mat))
   expect_equal(nrow(mat), length(x))

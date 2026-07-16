@@ -15,22 +15,17 @@
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
-#' @param periodic If it is TRUE (default), the periodic wavelet basis will be
-#'   used. This argument is kept for backward compatibility and is equivalent
-#'   to \code{boundary = "periodic"} (TRUE) or \code{boundary = "none"}
-#'   (FALSE). It is ignored when \code{boundary} is provided.
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
 #' @param boundary The boundary treatment of the basis. One of
-#'   \code{"periodic"} (the same as \code{periodic = TRUE}), \code{"none"}
-#'   (the same as \code{periodic = FALSE}) or \code{"interval"} (the
-#'   boundary-corrected orthonormal basis of Cohen, Daubechies and Vial,
-#'   1993, which requires the data to lie in [0, 1], a Daublet or Symmlet
-#'   filter and a sufficiently large resolution level -- an informative error
-#'   states the exact minimum). The default, \code{NULL}, falls back to the
-#'   value implied by \code{periodic}. See \command{\link{wbasis}} for a
-#'   detailed description of the interval basis.
+#'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
+#'   (the raw translates) or \code{"interval"} (the boundary-corrected
+#'   orthonormal basis of Cohen, Daubechies and Vial, 1993, which requires
+#'   the data to lie in [0, 1], a Daublet or Symmlet filter and a
+#'   sufficiently large resolution level -- an informative error states the
+#'   exact minimum). See \command{\link{wbasis}} for a detailed description
+#'   of the interval basis.
 #'
 #' @details
 #' The scaling function \eqn{\phi} is obtained according to a wavelet filter with
@@ -45,11 +40,11 @@
 #' the \eqn{i}-th element of the data set \eqn{x} and the columns are related to
 #' the values of \eqn{k} for which \eqn{\phi_{Jk}} is non-null.
 #'
-#' If \code{periodic = FALSE}, the first column corresponds to the minimum
+#' If \code{boundary = "none"}, the first column corresponds to the minimum
 #' \eqn{k} where \eqn{\phi_{Jk}} is non-null for at least one element of \eqn{x}.
 #' Analogously, the last column is related to the maximum reasonable value of
-#' \eqn{k}. If \code{periodic = TRUE}, the columns will correspond to the values
-#' of \eqn{k} from \eqn{0} to \eqn{2^J - 1}.
+#' \eqn{k}. If \code{boundary = "periodic"}, the columns will correspond to
+#' the values of \eqn{k} from \eqn{0} to \eqn{2^J - 1}.
 #'
 #' The scaling functions are evaluated at the data points efficiently, using the
 #' Daubechies-Lagarias algorithm (Daubechies and Lagarias, 1992). Coded kindly
@@ -132,7 +127,7 @@
 #' # Let's apply the data to a periodized Daublet, built with a 18-tap filter.
 #' # Consider J = 3 as the resolution level:
 #' w <- PHI(x, J = 3, family = "daublets", filter.size = 18, prec.wavelet = 30,
-#'          periodic = TRUE)
+#'          boundary = "periodic")
 #'
 #' # Estimating the scaling function coefficients
 #' mod <- lm(y ~ w - 1)
@@ -141,7 +136,7 @@
 #' # Calculating estimates of f(x)
 #' new.obs <- 0:(n-1)/n
 #' myphi <- PHI(new.obs, J = 3, family = "daublets", filter.size = 18,
-#'              prec.wavelet = 30, periodic = TRUE)
+#'              prec.wavelet = 30, boundary = "periodic")
 #' f.est <- drop(myphi %*% coef(mod)) # estimates of f(x)
 #'
 #' # Let's see the result
@@ -165,7 +160,7 @@
 #'
 #' # In our function, the analogous case is
 #' matPHI <- PHI(data, J = 8, family = "symmlets", filter.size = 8,
-#'               periodic = FALSE, prec.wavelet = 60)
+#'               boundary = "none", prec.wavelet = 60)
 #' coefPHI <- round(apply(matPHI, 2, mean), 8)
 #'
 #' identical(coefdenproj, coefPHI) # Are the coefficient estimates exact?
@@ -175,7 +170,8 @@
 #' @keywords smooth
 #' @export
 PHI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
-                periodic = TRUE, wavelet.filter, boundary = NULL){
+                wavelet.filter,
+                boundary = c("periodic", "none", "interval")){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -199,7 +195,7 @@ PHI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     fam <- 4
   }
 
-  bcode <- .wb_boundary_code(boundary, periodic, !missing(periodic))
+  bcode <- .wb_boundary_code(boundary)
 
   cdv <- NULL
   if(bcode == 2L)

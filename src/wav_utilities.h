@@ -38,4 +38,17 @@ SEXP WavUtilities(SEXP family, SEXP fs, SEXP waveletfilter);
  */
 SEXP C_GetFilter(SEXP family, SEXP fs);
 
+/**
+ * @brief Returns the precomputed CDV boundary blocks of a tabulated filter (R interface).
+ *
+ * The blocks are returned as the named list expected by CDVUnpackBlocks
+ * (BL, bL, UL, uL, phi0L, BR, bR, UR, uR, phi0R, uwidth), or R_NilValue
+ * when the requested filter is not tabulated.
+ *
+ * @param[in] family Integer SEXP: wavelet family (1 = Daublets, 2 = Symmlets).
+ * @param[in] fs     Integer SEXP: filter size.
+ * @return List SEXP with the boundary blocks, or R_NilValue.
+ */
+SEXP C_GetCDVBlocks(SEXP family, SEXP fs);
+
 #endif /* WAVEBASED_WAV_UTILITIES_H */

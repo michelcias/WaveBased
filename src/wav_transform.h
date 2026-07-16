@@ -20,9 +20,11 @@
  * @param[in] fs            Integer SEXP: filter size.
  * @param[in] J0            Integer SEXP: coarsest decomposition level.
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] boundary      Integer SEXP: 1 for periodic, 2 for interval (CDV).
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when boundary == 2).
  * @return SEXP real vector of length n with wavelet coefficients.
  */
-SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
+SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP boundary, SEXP cdvblocks);
 
 /**
  * @brief Computes the multi-level wavelet reconstruction from decomposed coefficients.
@@ -32,8 +34,10 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
  * @param[in] fs            Integer SEXP: filter size.
  * @param[in] J0            Integer SEXP: coarsest decomposition level.
  * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] boundary      Integer SEXP: 1 for periodic, 2 for interval (CDV).
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when boundary == 2).
  * @return SEXP real vector of length n with the reconstructed signal.
  */
-SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter);
+SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP boundary, SEXP cdvblocks);
 
 #endif /* WAVEBASED_WAV_TRANSFORM_H */

@@ -15,23 +15,17 @@
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
-#' @param periodic If it is TRUE (default), the periodic (mother) wavelet basis
-#'   will be used. This argument is kept for backward compatibility and is
-#'   equivalent to \code{boundary = "periodic"} (TRUE) or
-#'   \code{boundary = "none"} (FALSE). It is ignored when \code{boundary} is
-#'   provided.
 #' @param wavelet.filter Use this to provide your own filter. To use this
 #'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
 #'   not sure about what you are doing.
 #' @param boundary The boundary treatment of the basis. One of
-#'   \code{"periodic"} (the same as \code{periodic = TRUE}), \code{"none"}
-#'   (the same as \code{periodic = FALSE}) or \code{"interval"} (the
-#'   boundary-corrected orthonormal basis of Cohen, Daubechies and Vial,
-#'   1993, which requires the data to lie in [0, 1], a Daublet or Symmlet
-#'   filter and a sufficiently large resolution level -- an informative error
-#'   states the exact minimum). The default, \code{NULL}, falls back to the
-#'   value implied by \code{periodic}. See \command{\link{wbasis}} for a
-#'   detailed description of the interval basis.
+#'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
+#'   (the raw translates) or \code{"interval"} (the boundary-corrected
+#'   orthonormal basis of Cohen, Daubechies and Vial, 1993, which requires
+#'   the data to lie in [0, 1], a Daublet or Symmlet filter and a
+#'   sufficiently large resolution level -- an informative error states the
+#'   exact minimum). See \command{\link{wbasis}} for a detailed description
+#'   of the interval basis.
 #'
 #' @details
 #' The wavelet function \eqn{\psi} is obtained according to a wavelet filter with
@@ -46,11 +40,11 @@
 #' \eqn{\psi_{Jk}} is non-null. The (mother) wavelet basis is defined as
 #' \deqn{\psi_{Jk}(x) = 2^{J/2} \psi(2^J x - k).}
 #'
-#' If \code{periodic = FALSE}, the first column corresponds to the minimum
+#' If \code{boundary = "none"}, the first column corresponds to the minimum
 #' \eqn{k} where \eqn{\psi_{Jk}} is non-null for at least one element of \eqn{x}.
 #' Analogously, the last column is related to the maximum reasonable value of
-#' \eqn{k}. If \code{periodic = TRUE}, the columns will correspond to the values
-#' of \eqn{k} from \eqn{0} to \eqn{2^J - 1}.
+#' \eqn{k}. If \code{boundary = "periodic"}, the columns will correspond to
+#' the values of \eqn{k} from \eqn{0} to \eqn{2^J - 1}.
 #'
 #' The wavelets are calculated based on the dilation equation
 #' (see, e.g., Vidakovic, 1999, Theorem 3.5.5). The scaling function used is
@@ -123,15 +117,16 @@
 #' x <- sort(runif(n)) # generating some specific vector of size n
 #'
 #' psi <- PSI(x, J = 3, family = "Daublets", filter.size = 18, prec.wavelet = 30,
-#'            periodic = FALSE)
+#'            boundary = "none")
 #'
 #' psi.per <- PSI(x, J = 3, family = "Daublets", filter.size = 18,
-#'                prec.wavelet = 30, periodic = TRUE)
+#'                prec.wavelet = 30, boundary = "periodic")
 #'
 #' @keywords smooth
 #' @export
 PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
-                 periodic = TRUE, wavelet.filter, boundary = NULL){
+                 wavelet.filter,
+                boundary = c("periodic", "none", "interval")){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -155,7 +150,7 @@ PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     fam <- 4
   }
 
-  bcode <- .wb_boundary_code(boundary, periodic, !missing(periodic))
+  bcode <- .wb_boundary_code(boundary)
 
   cdv <- NULL
   if(bcode == 2L)

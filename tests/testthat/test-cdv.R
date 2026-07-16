@@ -30,7 +30,7 @@ test_that("wbasis with boundary = 'interval' matches the pure R reference", {
   set.seed(7)
   x <- c(0, 1, sort(runif(80)))
   h <- WaveBased:::.wb_filter(1, 8)
-  blk <- WaveBased:::.cdv_blocks(h)
+  blk <- WaveBased:::.cdv_lookup(1, 8)
   jmin <- WaveBased:::.cdv_min_level(8, blk$uwidth, "decompose")
   Jf <- jmin + 1
 
@@ -104,21 +104,16 @@ test_that("interior columns agree with the periodic basis away from edges", {
   expect_lt(max(abs(Wi[, edge])), 1e-12)
 })
 
-test_that("boundary argument validation and backward compatibility", {
+test_that("boundary argument validation", {
   set.seed(5)
   x <- sort(runif(30))
 
-  # backward compatible defaults
+  # the default is the periodized basis
   expect_equal(wbasis(x, j0 = 3, J = 4, family = "d", filter.size = 8),
                wbasis(x, j0 = 3, J = 4, family = "d", filter.size = 8,
                       boundary = "periodic"))
-  expect_equal(wbasis(x, j0 = 3, J = 4, family = "d", filter.size = 8,
-                      periodic = FALSE),
-               wbasis(x, j0 = 3, J = 4, family = "d", filter.size = 8,
-                      boundary = "none"))
-  expect_warning(wbasis(x, j0 = 3, J = 4, family = "d", filter.size = 8,
-                        periodic = FALSE, boundary = "periodic"),
-                 "overrides")
+  expect_error(wbasis(x, j0 = 3, J = 4, family = "d", filter.size = 8,
+                      boundary = "reflect"), "arg")
 
   # interval-specific validation
   expect_error(wbasis(x, j0 = 2, J = 5, family = "d", filter.size = 8,
@@ -129,7 +124,7 @@ test_that("boundary argument validation and backward compatibility", {
                       boundary = "interval"), "\\[0, 1\\]")
   expect_error(wbasis(x, j0 = 6, J = 7, family = "c", filter.size = 12,
                       boundary = "interval"), "Coiflets")
-  expect_error(wbasis(x, j0 = 7, J = 8, family = "d", filter.size = 20,
+  expect_error(wbasis(x, j0 = 7, J = 8, family = "d", filter.size = 26,
                       boundary = "interval"), "double precision")
 })
 

@@ -7,8 +7,26 @@
 
 #include <math.h>
 #include <R.h>
+#include <Rinternals.h>
 #include "cdv_edge.h"
 #include "phi_psi_vec.h"
+
+void CDVUnpackBlocks(SEXP cdv, int L, CDVBlocks *blk){
+  if(TYPEOF(cdv) != VECSXP || LENGTH(cdv) < 11)
+    error("Invalid CDV block list. This is an internal error; please report it.");
+  blk->BL    = REAL(VECTOR_ELT(cdv, 0));
+  blk->bL    = REAL(VECTOR_ELT(cdv, 1));
+  blk->UL    = REAL(VECTOR_ELT(cdv, 2));
+  blk->uL    = REAL(VECTOR_ELT(cdv, 3));
+  blk->phi0L = REAL(VECTOR_ELT(cdv, 4));
+  blk->BR    = REAL(VECTOR_ELT(cdv, 5));
+  blk->bR    = REAL(VECTOR_ELT(cdv, 6));
+  blk->UR    = REAL(VECTOR_ELT(cdv, 7));
+  blk->uR    = REAL(VECTOR_ELT(cdv, 8));
+  blk->phi0R = REAL(VECTOR_ELT(cdv, 9));
+  blk->Nv    = L / 2;
+  blk->uw    = INTEGER(VECTOR_ELT(cdv, 10))[0];
+}
 
 /* Fills wvec[m-1] = phi(z - m), m = 1, ..., L-1, using the
  * Daubechies-Lagarias algorithm. phi, prod and tmp are workspaces of sizes
