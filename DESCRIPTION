@@ -11,7 +11,9 @@ Description: Provides functions related to the solution of different
 	statistical problems by methods developed under wavelet approach.
 Depends: R (>= 4.0.0)
 Imports:
+    glmnet,
     graphics,
+    Matrix,
     stats,
     tools
 NeedsCompilation: yes
