@@ -9,32 +9,56 @@
 #include "wav_decomp1.h"
 
 void WaveDec1(double *x, int n, double *filter, int N, double *sclc, double *dtlc){
-   
-  int i, j;
-  
+
+  int i, j, ks, kd;
+  double s, d, sgn;
+
   /* --- Calculating the scale and detail coefficients --- */
+  /* The wrapped indices j + 2*i and 1 - j + 2*i (mod n) advance by +1/-1
+   * with j, so they are updated incrementally instead of calling mod();
+   * pow(-1, j + 1) is an alternating sign, kept in sgn. Both replacements
+   * are exact, so the results are bit-identical to the previous version. */
   for(i = 0; i < n/2; i++){
-    sclc[i] = 0.0;
-    dtlc[i] = 0.0;
+    s = 0.0;
+    d = 0.0;
+    sgn = -1.0;        /* pow(-1, j + 1) at j = 0 */
+    ks = 2*i;          /* j + 2*i (mod n), for j = 0; 2*i < n always */
+    kd = 2*i + 1;      /* 1 - j + 2*i (mod n), for j = 0 */
     for(j = 0; j < N; j++){
-      sclc[i] += x[mod(j + 2*i, n)] * filter[j];
-      dtlc[i] += x[mod(1 - j + 2*i, n)] * filter[j] * pow(-1, j + 1);
+      s += x[ks] * filter[j];
+      d += x[kd] * filter[j] * sgn;
+      sgn = -sgn;
+      if(++ks == n) ks = 0;
+      if(--kd < 0) kd = n - 1;
     }
+    sclc[i] = s;
+    dtlc[i] = d;
   }
   /* --- Scale and detail coefficients calculated --- */
 }
 
 void WaveRec1(double *sclc, double *dtlc, int n, double *filter, int N, double *recvec){
 
-  int i, j, k;
+  int i, j, k, is, id;
+  double acc, sg;
 
   /* --- Calculating the reconstructed vector --- */
+  /* As in WaveDec1, the wrapped indices (i -+ 2*j - k)/2 (mod n) move by
+   * -1/+1 with j and are updated incrementally; pow(-1, 2*j - k) does not
+   * depend on j and reduces to the sign of the parity of i. Bit-identical
+   * to the previous version. */
   for(i = 0; i < 2*n; i++){
-    recvec[i] = 0.0;
-    for(j = 0; j < N/2; j ++){
-      k = i%2;
-      recvec[i] += sclc[mod((i - 2*j - k)/2, n)]*filter[2*j + k] + dtlc[mod((i + 2*j - k)/2, n)]*filter[2*j + 1 - k]*pow(-1, 2*j - k);
+    k = i % 2;
+    sg = k ? -1.0 : 1.0;   /* pow(-1, 2*j - k) */
+    is = (i - k)/2;        /* (i - 2*j - k)/2 (mod n), for j = 0; < n always */
+    id = is;               /* (i + 2*j - k)/2 (mod n), for j = 0 */
+    acc = 0.0;
+    for(j = 0; j < N/2; j++){
+      acc += sclc[is]*filter[2*j + k] + dtlc[id]*filter[2*j + 1 - k]*sg;
+      if(--is < 0) is = n - 1;
+      if(++id == n) id = 0;
     }
+    recvec[i] = acc;
   }
   /* --- Reconstructed vector calculated --- */
 }
