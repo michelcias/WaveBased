@@ -23,10 +23,12 @@ cv.wall(
   use.table = c("auto", "always", "never"),
   wavelet.table = NULL,
   sparse = c("auto", "always", "never"),
+  share.design = FALSE,
   lambda = NULL,
   standardize = FALSE,
   weights = NULL,
   parallel = FALSE,
+  parallel.J = FALSE,
   trace = FALSE,
   ...
 )
@@ -60,7 +62,9 @@ basis evaluation. See \command{\link{wall}}.}
 
 \item{eps}{A value in \eqn{[0, 0.5)} used by the rescaling. By default,
 \code{eps} \eqn{= 1.9^{-J}} for each candidate \code{J} (periodized
-basis). See \command{\link{wall}}.}
+basis); with \code{share.design = TRUE}, a single value
+\eqn{1.9^{-\max(J)}} is used for the whole grid. See
+\command{\link{wall}}.}
 
 \item{type.measure}{The loss used for cross-validation, among the measures
 available in \command{\link[glmnet]{cv.glmnet}} for logistic regression:
@@ -85,6 +89,19 @@ grid of \code{J}, where it typically pays off.}
 \item{sparse}{Sparse storage of the design matrix, as in
 \command{\link{wall}}.}
 
+\item{share.design}{Logical. If \code{TRUE}, the design matrix of basis
+functions is built only once, at the largest candidate resolution
+level, and every candidate \code{J} reuses the corresponding subset of
+its columns -- the multiresolution spaces are nested, so the design of
+each \code{J} is exactly the leading block of columns of the design of
+\code{max(J)}, per covariate. This divides the cost of the basis
+evaluation by roughly the size of the grid. It requires a single
+rescaling constant \code{eps} for the whole grid (otherwise the
+rescaled covariates would change with \code{J}): if \code{eps} is not
+provided, \eqn{1.9^{-\max(J)}} is used. The default is \code{FALSE},
+which reproduces the tuning protocol of Montoril (2026) exactly
+(\code{eps} \eqn{= 1.9^{-J}} recomputed for each candidate).}
+
 \item{lambda}{Optional user-supplied sequence of values of \eqn{\lambda},
 shared by all the candidate values of \code{J}. By default, a sequence
 is computed for each \code{J}; see \command{\link[glmnet]{glmnet}}.}
@@ -98,7 +115,18 @@ internally standardized by \pkg{glmnet}? Default is \code{FALSE}. See
 \item{parallel}{Logical. If \code{TRUE}, the cross-validation of each
 candidate \code{J} is parallelized over the folds; it requires a
 parallel backend registered for \pkg{foreach}, as in
-\command{\link[glmnet]{cv.glmnet}}.}
+\command{\link[glmnet]{cv.glmnet}}. Ignored (with a warning) when
+\code{parallel.J = TRUE}.}
+
+\item{parallel.J}{Logical. If \code{TRUE}, the grid of candidate
+resolution levels is processed in parallel, with one task per value of
+\code{J} -- each task builds its design matrix and cross-validates its
+whole path of \eqn{\lambda}. It requires a parallel backend registered
+for \pkg{foreach} (e.g., \pkg{doParallel}). The candidates are
+independent given the folds, so the results are identical to the
+sequential ones. This usually amortizes the work better than
+\code{parallel}, which parallelizes only the folds within each
+candidate. Default is \code{FALSE}.}
 
 \item{trace}{Logical. If \code{TRUE}, prints a progress line for each
 candidate value of \code{J}.}
@@ -159,6 +187,14 @@ built only once on the full data set (with the rescaling constant
 folds. When the basis is evaluated by table lookup (see
 \command{\link{wall}}), a single table serves the whole grid of \code{J},
 which makes the cross-validation substantially faster.
+
+With \code{share.design = TRUE}, the design is built only once for the
+whole grid, at \code{max(J)}, and each candidate reuses the appropriate
+subset of its columns; since the rescaling must then be the same for all
+the candidates, a single \code{eps} (by default \eqn{1.9^{-\max(J)}}) is
+used instead of \eqn{1.9^{-J}}. For a fixed common \code{eps}, the
+subsetting is exact: the results are identical to the ones obtained by
+rebuilding the design at each \code{J}.
 
 The final fit, stored in the component \code{wall.fit}, reuses the model
 already fitted on the full data set during the cross-validation of the
