@@ -459,17 +459,22 @@ coef.wall <- function(object, s = NULL, ...){
 }
 
 # Location/scale of the linear map taking each covariate to [eps, 1-eps],
-# with the same convention adopted in wdensity().
-.wall_rescale_pars <- function(x, eps, rescale, boundary){
+# with the same convention adopted in wdensity(). The column ranges can be
+# supplied through 'ranges' (a 2 x d matrix, as returned by apply(x, 2,
+# range)) to avoid their recomputation over repeated calls on the same data
+# -- e.g., across the grid of J in cv.wall(), where only eps changes.
+.wall_rescale_pars <- function(x, eps, rescale, boundary, ranges = NULL){
   d <- ncol(x)
   if(!rescale){
     if(min(x) < 0 || max(x) > 1)
       warning("Some covariates lie outside [0,1] and rescale = FALSE. The wavelet basis is only valid in the unit interval; the estimates may be unfeasible.")
     return(list(location = rep_len(0, d), scale = rep_len(1, d)))
   }
+  if(is.null(ranges))
+    ranges <- apply(x, 2L, range)
   location <- scale <- numeric(d)
   for(l in seq_len(d)){
-    rx <- range(x[, l])
+    rx <- ranges[, l]
     if(rx[1L] == rx[2L])
       stop("Covariate ", colnames(x)[l], " is constant and cannot be rescaled.")
     a <- eps[l]*diff(rx)/(1 - 2*eps[l])
