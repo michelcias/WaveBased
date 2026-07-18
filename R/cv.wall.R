@@ -26,7 +26,9 @@
 #'   basis evaluation. See \command{\link{wall}}.
 #' @param eps A value in \eqn{[0, 0.5)} used by the rescaling. By default,
 #'   \code{eps} \eqn{= 1.9^{-J}} for each candidate \code{J} (periodized
-#'   basis). See \command{\link{wall}}.
+#'   basis); with \code{share.design = TRUE}, a single value
+#'   \eqn{1.9^{-\max(J)}} is used for the whole grid. See
+#'   \command{\link{wall}}.
 #' @param type.measure The loss used for cross-validation, among the measures
 #'   available in \command{\link[glmnet]{cv.glmnet}} for logistic regression:
 #'   \code{"class"} (default, the misclassification error, as adopted in the
@@ -45,6 +47,18 @@
 #'   grid of \code{J}, where it typically pays off.
 #' @param sparse Sparse storage of the design matrix, as in
 #'   \command{\link{wall}}.
+#' @param share.design Logical. If \code{TRUE}, the design matrix of basis
+#'   functions is built only once, at the largest candidate resolution
+#'   level, and every candidate \code{J} reuses the corresponding subset of
+#'   its columns -- the multiresolution spaces are nested, so the design of
+#'   each \code{J} is exactly the leading block of columns of the design of
+#'   \code{max(J)}, per covariate. This divides the cost of the basis
+#'   evaluation by roughly the size of the grid. It requires a single
+#'   rescaling constant \code{eps} for the whole grid (otherwise the
+#'   rescaled covariates would change with \code{J}): if \code{eps} is not
+#'   provided, \eqn{1.9^{-\max(J)}} is used. The default is \code{FALSE},
+#'   which reproduces the tuning protocol of Montoril (2026) exactly
+#'   (\code{eps} \eqn{= 1.9^{-J}} recomputed for each candidate).
 #' @param lambda Optional user-supplied sequence of values of \eqn{\lambda},
 #'   shared by all the candidate values of \code{J}. By default, a sequence
 #'   is computed for each \code{J}; see \command{\link[glmnet]{glmnet}}.
@@ -55,7 +69,17 @@
 #' @param parallel Logical. If \code{TRUE}, the cross-validation of each
 #'   candidate \code{J} is parallelized over the folds; it requires a
 #'   parallel backend registered for \pkg{foreach}, as in
-#'   \command{\link[glmnet]{cv.glmnet}}.
+#'   \command{\link[glmnet]{cv.glmnet}}. Ignored (with a warning) when
+#'   \code{parallel.J = TRUE}.
+#' @param parallel.J Logical. If \code{TRUE}, the grid of candidate
+#'   resolution levels is processed in parallel, with one task per value of
+#'   \code{J} -- each task builds its design matrix and cross-validates its
+#'   whole path of \eqn{\lambda}. It requires a parallel backend registered
+#'   for \pkg{foreach} (e.g., \pkg{doParallel}). The candidates are
+#'   independent given the folds, so the results are identical to the
+#'   sequential ones. This usually amortizes the work better than
+#'   \code{parallel}, which parallelizes only the folds within each
+#'   candidate. Default is \code{FALSE}.
 #' @param trace Logical. If \code{TRUE}, prints a progress line for each
 #'   candidate value of \code{J}.
 #' @param ... Further arguments passed to
@@ -80,6 +104,14 @@
 #' folds. When the basis is evaluated by table lookup (see
 #' \command{\link{wall}}), a single table serves the whole grid of \code{J},
 #' which makes the cross-validation substantially faster.
+#'
+#' With \code{share.design = TRUE}, the design is built only once for the
+#' whole grid, at \code{max(J)}, and each candidate reuses the appropriate
+#' subset of its columns; since the rescaling must then be the same for all
+#' the candidates, a single \code{eps} (by default \eqn{1.9^{-\max(J)}}) is
+#' used instead of \eqn{1.9^{-J}}. For a fixed common \code{eps}, the
+#' subsetting is exact: the results are identical to the ones obtained by
+#' rebuilding the design at each \code{J}.
 #'
 #' The final fit, stored in the component \code{wall.fit}, reuses the model
 #' already fitted on the full data set during the cross-validation of the
@@ -149,9 +181,9 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
                     type.measure = c("class", "deviance", "auc"),
                     nfolds = 10, foldid = NULL,
                     use.table = c("auto", "always", "never"), wavelet.table = NULL,
-                    sparse = c("auto", "always", "never"),
+                    sparse = c("auto", "always", "never"), share.design = FALSE,
                     lambda = NULL, standardize = FALSE, weights = NULL,
-                    parallel = FALSE, trace = FALSE, ...){
+                    parallel = FALSE, parallel.J = FALSE, trace = FALSE, ...){
 
   this.call <- match.call()
   boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
@@ -181,6 +213,19 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
   else if(length(eps) != 1L)
     stop("In cv.wall, 'eps' must be a single value; it is recycled over the covariates.")
 
+  if(!is.logical(share.design) || length(share.design) != 1L || is.na(share.design))
+    stop("'share.design' must be TRUE or FALSE.")
+  if(!is.logical(parallel.J) || length(parallel.J) != 1L || is.na(parallel.J))
+    stop("'parallel.J' must be TRUE or FALSE.")
+  if(parallel.J && parallel){
+    warning("'parallel' was ignored: with parallel.J = TRUE, the folds of each candidate J run sequentially inside its own task.")
+    parallel <- FALSE
+  }
+  # A shared design requires a rescaling that does not change with J: fix
+  # eps at its value for the largest candidate (Montoril et al., 2019 rule).
+  if(share.design && is.null(eps) && rescale && boundary == "periodic")
+    eps <- 1.9^(-max(J))
+
   wf.own <- if(missing(wavelet.filter)) NULL else wavelet.filter
 
   if(is.null(foldid))
@@ -202,14 +247,40 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
   drop.phi <- boundary == "periodic" && j0 == 0L
   L <- if(is.null(wf.own)) filter.size else length(wf.own)
 
-  cvlist <- vector("list", length(J))
-  best <- NULL
-  best.i <- NA_integer_
-  for(i in seq_along(J)){
+  # The column ranges do not depend on J (only eps does), so they are
+  # computed once and shared by the whole grid.
+  xranges <- if(rescale) apply(x, 2L, range) else NULL
+
+  # With share.design = TRUE, the design is built once at max(J); since eps
+  # is fixed for the whole grid, the design of each candidate J is exactly
+  # the leading 2^J (- drop.phi) columns of each covariate block.
+  design.max <- NULL
+  if(share.design){
+    Jm <- rep_len(max(J), d)
+    em <- .wall_eps(eps, Jm, j0, boundary, rescale)
+    rsm <- .wall_rescale_pars(x, em, rescale, boundary, ranges = xranges)
+    spec.max <- list(J = Jm, j0 = j0, boundary = boundary, family = family,
+                     filter.size = filter.size, prec.wavelet = prec.wavelet,
+                     wavelet.filter = wf.own, wavelet.table = wtab,
+                     rescale = rescale, location = rsm$location,
+                     scale = rsm$scale, eps = em, drop.phi = drop.phi,
+                     sparse = .wall_sparse(sparse, Jm, j0, L, drop.phi),
+                     xnames = colnames(x), classnames = resp$classnames,
+                     nobs = n)
+    design.max <- .wall_design(x, spec.max, clip = FALSE)
+    blk.w <- 2^max(J) - as.integer(drop.phi)   # columns per covariate block
+  }
+
+  # All the work of one candidate J: design (built or sliced), whole-path
+  # cross-validation, and the summaries needed afterwards. The candidates
+  # are independent given foldid, so this closure can run sequentially
+  # (lapply) or in parallel over the grid (foreach, parallel.J = TRUE)
+  # with identical results.
+  run.one <- function(i){
 
     Ji <- rep_len(J[i], d)
     ei <- .wall_eps(eps, Ji, j0, boundary, rescale)
-    rs <- .wall_rescale_pars(x, ei, rescale, boundary)
+    rs <- .wall_rescale_pars(x, ei, rescale, boundary, ranges = xranges)
 
     spec <- list(J = Ji, j0 = j0, boundary = boundary, family = family,
                  filter.size = filter.size, prec.wavelet = prec.wavelet,
@@ -219,7 +290,13 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
                  sparse = .wall_sparse(sparse, Ji, j0, L, drop.phi),
                  xnames = colnames(x), classnames = resp$classnames, nobs = n)
 
-    design <- .wall_design(x, spec, clip = FALSE)
+    if(share.design){
+      wi <- 2^J[i] - as.integer(drop.phi)
+      cols <- as.vector(outer(seq_len(wi), (seq_len(d) - 1L)*blk.w, `+`))
+      design <- design.max[, cols, drop = FALSE]
+    }
+    else
+      design <- .wall_design(x, spec, clip = FALSE)
     pf <- .wall_penalty(Ji, j0, drop.phi)
 
     cvfit <- glmnet::cv.glmnet(x = design, y = resp$y, family = "binomial",
@@ -229,36 +306,55 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
                                parallel = parallel, ...)
 
     imin <- match(cvfit$lambda.min, cvfit$lambda)
-    cvlist[[i]] <- list(J = J[i], lambda = cvfit$lambda, cvm = cvfit$cvm,
-                        cvsd = cvfit$cvsd, cvup = cvfit$cvup,
-                        cvlo = cvfit$cvlo, nzero = cvfit$nzero,
-                        lambda.min = cvfit$lambda.min,
-                        lambda.1se = cvfit$lambda.1se,
-                        cvm.min = cvfit$cvm[imin],
-                        cvsd.min = cvfit$cvsd[imin],
-                        nzero.min = cvfit$nzero[imin])
+    res <- list(cv = list(J = J[i], lambda = cvfit$lambda, cvm = cvfit$cvm,
+                          cvsd = cvfit$cvsd, cvup = cvfit$cvup,
+                          cvlo = cvfit$cvlo, nzero = cvfit$nzero,
+                          lambda.min = cvfit$lambda.min,
+                          lambda.1se = cvfit$lambda.1se,
+                          cvm.min = cvfit$cvm[imin],
+                          cvsd.min = cvfit$cvsd[imin],
+                          nzero.min = cvfit$nzero[imin]),
+                name = cvfit$name, glmnet.fit = cvfit$glmnet.fit,
+                spec = spec, pf = pf, nvars = ncol(design))
 
-    if(trace)
+    if(trace && !parallel.J)
       cat(sprintf("J = %d: %s = %.5f at lambda = %.5g (%d nonzero)\n",
-                  J[i], names(cvfit$name), cvlist[[i]]$cvm.min,
+                  J[i], names(cvfit$name), res$cv$cvm.min,
+                  res$cv$lambda.min, res$cv$nzero.min))
+
+    res
+  }
+
+  if(parallel.J){
+    if(!requireNamespace("foreach", quietly = TRUE))
+      stop("'parallel.J = TRUE' requires the 'foreach' package.")
+    `%dopar%` <- foreach::`%dopar%`
+    runs <- foreach::foreach(i = seq_along(J)) %dopar% run.one(i)
+  }
+  else
+    runs <- lapply(seq_along(J), run.one)
+
+  cvlist <- lapply(runs, `[[`, "cv")
+
+  if(trace && parallel.J)
+    for(i in seq_along(J))
+      cat(sprintf("J = %d: %s = %.5f at lambda = %.5g (%d nonzero)\n",
+                  J[i], names(runs[[i]]$name), cvlist[[i]]$cvm.min,
                   cvlist[[i]]$lambda.min, cvlist[[i]]$nzero.min))
 
-    better <- if(is.null(best)) TRUE
-              else if(type.measure == "auc") cvlist[[i]]$cvm.min > best$cvm.min
-              else cvlist[[i]]$cvm.min < best$cvm.min
-    if(better){
-      best <- cvlist[[i]]
-      best.i <- i
-      best.name <- cvfit$name
-      # The full-data fit of the selected J, reused as the final classifier.
-      best.spec <- spec
-      best.spec$glmnet.fit <- cvfit$glmnet.fit
-      best.spec$lambda <- cvfit$glmnet.fit$lambda
-      best.spec$penalty.factor <- pf
-      best.spec$nvars <- ncol(design)
-    }
+  # Selection of the best candidate (first minimum/maximum on ties, as in
+  # the sequential comparison used before).
+  cvm.all <- vapply(cvlist, `[[`, 0, "cvm.min")
+  best.i <- if(type.measure == "auc") which.max(cvm.all) else which.min(cvm.all)
+  best <- cvlist[[best.i]]
+  best.name <- runs[[best.i]]$name
 
-  }
+  # The full-data fit of the selected J, reused as the final classifier.
+  best.spec <- runs[[best.i]]$spec
+  best.spec$glmnet.fit <- runs[[best.i]]$glmnet.fit
+  best.spec$lambda <- best.spec$glmnet.fit$lambda
+  best.spec$penalty.factor <- runs[[best.i]]$pf
+  best.spec$nvars <- runs[[best.i]]$nvars
 
   best.spec$call <- this.call
   class(best.spec) <- "wall"
