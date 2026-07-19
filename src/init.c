@@ -16,6 +16,7 @@
 
 /* Declarations of the C entry points, now implemented in dedicated files. */
 #include "wav_basis.h"
+#include "wav_basis_sparse.h"
 #include "wav_transform.h"
 #include "wav_utilities.h"
 #include "wav_table.h"
@@ -35,6 +36,7 @@
  *          - C_PHImat:       scaling-function basis matrix (9 args)
  *          - C_PSImat:       mother-wavelet basis matrix (9 args)
  *          - C_WavBasis:     decomposed wavelet basis matrix (10 args)
+ *          - C_WavBasisSparse: sparse (CSC) periodic decomposed basis (9 args)
  *          - C_WaveDec:      wavelet decomposition (7 args)
  *          - C_WaveRec:      wavelet reconstruction (7 args)
  *          - C_GetFilter:    filter coefficients of a built-in family (2 args)
@@ -52,6 +54,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_PHImat",       (DL_FUNC) &C_PHImat,       9},
   {"_WaveBased_C_PSImat",       (DL_FUNC) &C_PSImat,       9},
   {"_WaveBased_C_WavBasis",     (DL_FUNC) &C_WavBasis,     10},
+  {"_WaveBased_C_WavBasisSparse", (DL_FUNC) &C_WavBasisSparse, 9},
   {"_WaveBased_C_WaveDec",      (DL_FUNC) &C_WaveDec,      7},
   {"_WaveBased_C_WaveRec",      (DL_FUNC) &C_WaveRec,      7},
   {"_WaveBased_C_GetFilter",    (DL_FUNC) &C_GetFilter,    2},
