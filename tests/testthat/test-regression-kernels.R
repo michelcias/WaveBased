@@ -81,6 +81,69 @@ test_that("wall design-matrix pipeline is numerically unchanged", {
   expect_snapshot_value(design.new, style = "serialize")
 })
 
+test_that("direct sparse design equals the dense construction bit for bit", {
+  set.seed(77)
+  n <- 60
+  x <- matrix(runif(2*n), n, 2, dimnames = list(NULL, c("X1", "X2")))
+
+  build_spec <- function(J, j0, sparse, wtab = NULL){
+    J <- rep_len(as.integer(J), 2L)
+    eps <- WaveBased:::.wall_eps(NULL, J, j0, "periodic", TRUE)
+    rs <- WaveBased:::.wall_rescale_pars(x, eps, TRUE, "periodic")
+    list(J = J, j0 = j0, boundary = "periodic", family = "Daublets",
+         filter.size = 8, prec.wavelet = 30, wavelet.filter = NULL,
+         wavelet.table = wtab, rescale = TRUE,
+         location = rs$location, scale = rs$scale, eps = eps,
+         drop.phi = j0 == 0L, sparse = sparse, xnames = colnames(x))
+  }
+
+  # The old sparse path: dense evaluation converted by Matrix(, sparse).
+  old_sparse <- function(spec){
+    blocks <- lapply(1:2, function(l){
+      u <- (x[, l] - spec$location[l])/spec$scale[l]
+      B <- WaveBased:::.wall_wbasis(u, spec, spec$J[l])
+      if(spec$drop.phi)
+        B <- B[, -1L, drop = FALSE]
+      colnames(B) <- WaveBased:::.wall_colnames(spec$xnames[l], spec$j0,
+                                                spec$J[l], spec$drop.phi)
+      Matrix::Matrix(B, sparse = TRUE)
+    })
+    do.call(cbind, blocks)
+  }
+
+  for(j0 in c(0L, 1L)){
+    spec <- build_spec(4L, j0, sparse = TRUE)
+    new <- WaveBased:::.wall_design(x, spec, clip = FALSE)
+    old <- old_sparse(spec)
+    expect_s4_class(new, "dgCMatrix")
+    # Same values, same structure (bit-level agreement of the slots).
+    expect_identical(new@i, old@i)
+    expect_identical(new@p, old@p)
+    expect_identical(new@x, old@x)
+    expect_identical(dimnames(new), dimnames(old))
+    # And bitwise equal to the dense design.
+    dense <- WaveBased:::.wall_design(x, build_spec(4L, j0, sparse = FALSE),
+                                      clip = FALSE)
+    expect_identical(as.matrix(new), dense)
+  }
+
+  # Table-lookup path.
+  tab <- wtable(family = "Daublets", filter.size = 8, prec.wavelet = 30,
+                check = FALSE)
+  spec <- build_spec(5L, 0L, sparse = TRUE, wtab = tab)
+  expect_identical(as.matrix(WaveBased:::.wall_design(x, spec, clip = FALSE)),
+                   WaveBased:::.wall_design(x, build_spec(5L, 0L, FALSE, tab),
+                                            clip = FALSE))
+
+  # Prediction path (clip = TRUE) with points beyond the training range.
+  xnew <- x
+  xnew[1L, ] <- c(-0.2, 1.3)
+  spec <- build_spec(4L, 0L, sparse = TRUE)
+  expect_identical(as.matrix(WaveBased:::.wall_design(xnew, spec, clip = TRUE)),
+                   WaveBased:::.wall_design(xnew, build_spec(4L, 0L, FALSE),
+                                            clip = TRUE))
+})
+
 test_that("share.design reuses the max(J) design without changing results", {
   set.seed(99)
   n <- 200
