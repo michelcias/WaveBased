@@ -196,7 +196,7 @@
 #'
 #' @keywords classif
 #' @importFrom glmnet glmnet
-#' @importFrom Matrix Matrix
+#' @importFrom Matrix Matrix sparseMatrix drop0
 #' @export
 wall <- function(x, y, J, j0 = 0, family = "Daublets", filter.size = 20,
                  prec.wavelet = 30, wavelet.filter,
@@ -563,16 +563,56 @@ coef.wall <- function(object, s = NULL, ...){
            boundary = obj$boundary, wavelet.table = obj$wavelet.table)
 }
 
+# Evaluates the wavelet basis of one (already rescaled) covariate directly
+# in sparse (CSC) format, without the dense n x 2^J intermediate. Periodic
+# boundary only. The result is identical to Matrix(B, sparse = TRUE) applied
+# to the dense evaluation (values bit for bit, explicit zeros dropped), with
+# the constant phi_{00} column already removed when obj$drop.phi is TRUE.
+.wall_wbasis_sparse <- function(u, obj, J){
+  fam <- which(tolower(substring(obj$family, 1, 1)) == c("d", "s", "c", "o"))
+  if(length(fam) == 0)
+    stop("Unknown family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'. You can also use 'Own', if you provide your wavelet.filter.")
+  if(is.null(obj$wavelet.filter)){
+    if(fam == 4)
+      stop("Provide your own filter or choose an available family.")
+    wf <- 0
+  }
+  else{
+    fam <- 4L
+    wf <- obj$wavelet.filter
+  }
+  wtab <- if(is.null(obj$wavelet.table)) NULL
+          else .match_wavelet_table(obj$wavelet.table, fam, obj$filter.size,
+                                    obj$wavelet.filter)
+  out <- .Call("_WaveBased_C_WavBasisSparse", as.double(u),
+               as.integer(obj$j0), as.integer(J), as.integer(fam),
+               as.integer(obj$filter.size), as.integer(obj$prec.wavelet),
+               as.double(wf), wtab, as.logical(obj$drop.phi))
+  drop0(sparseMatrix(i = out$i, p = out$p, x = out$x,
+                     dims = c(length(u), 2L^J - as.integer(obj$drop.phi)),
+                     index1 = FALSE))
+}
+
 # Builds the stacked design matrix of basis functions, one block per
 # covariate. With clip = TRUE (predictions), the rescaled covariates are
-# truncated to the interval used in the fit.
+# truncated to the interval used in the fit. With sparse storage and the
+# periodic boundary, each block is built directly in CSC format by
+# .wall_wbasis_sparse(), which yields exactly the same matrix as the dense
+# evaluation followed by Matrix(B, sparse = TRUE).
 .wall_design <- function(x, obj, clip = FALSE){
   d <- ncol(x)
   blocks <- vector("list", d)
+  sparse.direct <- obj$sparse && obj$boundary == "periodic"
   for(l in seq_len(d)){
     u <- (x[, l] - obj$location[l])/obj$scale[l]
     if(clip)
       u <- pmin(pmax(u, obj$eps[l]), 1 - obj$eps[l])
+    if(sparse.direct){
+      B <- .wall_wbasis_sparse(u, obj, obj$J[l])
+      colnames(B) <- .wall_colnames(obj$xnames[l], obj$j0, obj$J[l], obj$drop.phi)
+      blocks[[l]] <- B
+      next
+    }
     B <- .wall_wbasis(u, obj, obj$J[l])
     if(obj$drop.phi)
       B <- B[, -1L, drop = FALSE]
