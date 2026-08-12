@@ -15,6 +15,7 @@
 #include <R_ext/Rdynload.h>
 
 /* Declarations of the C entry points, now implemented in dedicated files. */
+#include "hpdi.h"
 #include "wav_basis.h"
 #include "wav_basis_sparse.h"
 #include "wav_mixreg.h"
@@ -46,6 +47,7 @@
  *          - C_MixCoef:      raw mixture-regression coefficients (15 args)
  *          - C_MixEval:      periodized scaling-function synthesis (8 args)
  *          - C_LocLin:       local linear kernel smoother (4 args)
+ *          - C_hpdi:         highest posterior density intervals (2 args)
  *
  * @note Names must match exactly those used in the R wrapper .Call() calls.
  * @note Argument counts are enforced by R's .Call() mechanism at runtime.
@@ -67,6 +69,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_MixCoef",      (DL_FUNC) &C_MixCoef,      15},
   {"_WaveBased_C_MixEval",      (DL_FUNC) &C_MixEval,      8},
   {"_WaveBased_C_LocLin",       (DL_FUNC) &C_LocLin,       4},
+  {"_WaveBased_C_hpdi",         (DL_FUNC) &C_hpdi,         2},
   {NULL, NULL, 0}
 };
 
