@@ -17,6 +17,7 @@
 /* Declarations of the C entry points, now implemented in dedicated files. */
 #include "wav_basis.h"
 #include "wav_basis_sparse.h"
+#include "wav_mixreg.h"
 #include "wav_transform.h"
 #include "wav_utilities.h"
 #include "wav_table.h"
@@ -42,6 +43,9 @@
  *          - C_GetFilter:    filter coefficients of a built-in family (2 args)
  *          - C_GetCDVBlocks: precomputed CDV boundary blocks (2 args)
  *          - C_WavTable:     phi/psi interpolation tables (5 args)
+ *          - C_MixCoef:      raw mixture-regression coefficients (15 args)
+ *          - C_MixEval:      periodized scaling-function synthesis (8 args)
+ *          - C_LocLin:       local linear kernel smoother (4 args)
  *
  * @note Names must match exactly those used in the R wrapper .Call() calls.
  * @note Argument counts are enforced by R's .Call() mechanism at runtime.
@@ -60,6 +64,9 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_GetFilter",    (DL_FUNC) &C_GetFilter,    2},
   {"_WaveBased_C_GetCDVBlocks", (DL_FUNC) &C_GetCDVBlocks, 2},
   {"_WaveBased_C_WavTable",     (DL_FUNC) &C_WavTable,     5},
+  {"_WaveBased_C_MixCoef",      (DL_FUNC) &C_MixCoef,      15},
+  {"_WaveBased_C_MixEval",      (DL_FUNC) &C_MixEval,      8},
+  {"_WaveBased_C_LocLin",       (DL_FUNC) &C_LocLin,       4},
   {NULL, NULL, 0}
 };
 
