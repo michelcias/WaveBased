@@ -13,10 +13,60 @@
 #include "wav_decomp1.h"
 #include "cdv_edge.h"
 
+void WaveDecP(const double *x, int n, int j0, double *filter, int N,
+              double *out, double *work){
+
+  int i, half, len = n, coarse = 1 << j0;
+  double *tmp = work, *sclc = work + n, *dtlc = work + n + n/2;
+
+  for(i = 0; i < n; i++)
+    tmp[i] = x[i];
+
+  while(len > coarse){
+    WaveDec1(tmp, len, filter, N, sclc, dtlc);
+    half = len/2;
+    for(i = 0; i < half; i++){
+      out[half + i] = dtlc[i];
+      tmp[i] = sclc[i];
+    }
+    len = half;
+  }
+
+  for(i = 0; i < len; i++)
+    out[i] = tmp[i];
+}
+
+void WaveRecP(const double *x, int n, int j0, double *filter, int N,
+              double *out, double *work){
+
+  int i, len = 1 << j0;
+  double *sclc = work, *dtlc = work + n/2;
+
+  if(len >= n){
+    for(i = 0; i < n; i++)
+      out[i] = x[i];
+    return;
+  }
+
+  for(i = 0; i < len; i++){
+    sclc[i] = x[i];
+    dtlc[i] = x[i + len];
+  }
+  WaveRec1(sclc, dtlc, len, filter, N, out);
+
+  for(len *= 2; len < n; len *= 2){
+    for(i = 0; i < len; i++){
+      sclc[i] = out[i];
+      dtlc[i] = x[i + len];
+    }
+    WaveRec1(sclc, dtlc, len, filter, N, out);
+  }
+}
+
 SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP boundary, SEXP cdvblocks){
-  
-  int i, j0, j, J, n, N, tmpscl, tmpn;
-  double *dtlc, *rwdx, *rwfilter, *rx, *sclc, *tmp;
+
+  int i, j0, J, n, N;
+  double *dtlc, *rwdx, *rwfilter, *rx, *sclc;
   SEXP wdx;
   
   rx = REAL(x);
@@ -83,47 +133,11 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP b
       return wdx;
     }
 
-    sclc = (double *) R_alloc(n/2, sizeof(double));
-    dtlc = (double *) R_alloc(n/2, sizeof(double));
-    tmp  = (double *) R_alloc(n/2, sizeof(double));
-    
     PROTECT(wdx = allocVector(REALSXP, n));
-    rwdx = REAL(wdx);
-    
-    tmpscl = n/2;
-    WaveDec1(rx, n, rwfilter, N, sclc, dtlc);
-    for(i = 0; i < tmpscl; i++){
-      rwdx[i + tmpscl] = dtlc[i];
-      tmp[i] = sclc[i];
-    }
-    
-    if(j0 == J - 1){
-      for(i = 0; i < tmpscl; i++){
-        rwdx[i] = sclc[i];
-      }
-      
-      UNPROTECT(2);
-      return wdx;
-    }
-    
-    for(j = J - 2; j > j0; j--){
-      tmpn = tmpscl;
-      tmpscl /= 2;
-      WaveDec1(tmp, tmpn, rwfilter, N, sclc, dtlc);
-      for(i = 0; i < tmpscl; i++){
-        rwdx[i + tmpscl] = dtlc[i];
-        tmp[i] = sclc[i];
-      }
-    }
-    
-    tmpn = tmpscl;
-    tmpscl /= 2;
-    WaveDec1(tmp, tmpn, rwfilter, N, sclc, dtlc);
-    for(i = 0; i < tmpscl; i++){
-      rwdx[i + tmpscl] = dtlc[i];
-      rwdx[i] = sclc[i];
-    }
-    
+
+    WaveDecP(rx, n, j0, rwfilter, N, REAL(wdx),
+             (double *) R_alloc(WB_WAVE_WORK(n), sizeof(double)));
+
     UNPROTECT(2);
     return wdx;
   }
@@ -194,28 +208,11 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP b
       return wrx;
     }
 
-    sclc = (double *) R_alloc(n/2, sizeof(double));
-    dtlc = (double *) R_alloc(n/2, sizeof(double));
-
     PROTECT(wrx = allocVector(REALSXP, n));
-    rwrx = REAL(wrx);
-    
-    tmpscl = pow(2, j0);
-    for(i = 0; i < tmpscl; i++){
-      sclc[i] = rx[i];
-      dtlc[i] = rx[i + tmpscl];
-    }
-    WaveRec1(sclc, dtlc, tmpscl, rwfilter, N, rwrx);
-    
-    for(j = j0 + 1; j < J; j++){
-      tmpscl *= 2;
-      for(i = 0; i < tmpscl; i++){
-        sclc[i] = rwrx[i];
-        dtlc[i] = rx[i + tmpscl];
-      }
-      WaveRec1(sclc, dtlc, tmpscl, rwfilter, N, rwrx);
-    }
-    
+
+    WaveRecP(rx, n, j0, rwfilter, N, REAL(wrx),
+             (double *) R_alloc(WB_WAVE_WORK(n), sizeof(double)));
+
     UNPROTECT(2);
     return wrx;
   }
