@@ -1,8 +1,8 @@
 Package: WaveBased
 Type: Package
 Title: Wavelet-Based Estimation
-Version: 2.2-0
-Date: 2026-07-16
+Version: 2.3-0
+Date: 2026-08-12
 Authors@R: c(person("Michel H. Montoril", role = c("aut", "cre"),
 	email = "michel@ufscar.br"))
 Author: Michel H. Montoril [aut, cre]
@@ -15,17 +15,17 @@ Imports:
     graphics,
     Matrix,
     stats,
-    tools
+    tools,
+    utils
 NeedsCompilation: yes
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
 Suggests:
     changepoint,
-    changepoint,
-    changepoint,
     foreach,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    wavethresh
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
 RoxygenNote: 7.3.1
