@@ -81,7 +81,15 @@ test_that("wall design-matrix pipeline is numerically unchanged", {
   expect_snapshot_value(design.new, style = "serialize")
 })
 
-test_that("direct sparse design equals the dense construction bit for bit", {
+# The sparse and the dense constructions are two loops in C over the same
+# products, so their values agree to the last bit on most platforms, but not on
+# all of them: where the compiler contracts a product and a sum into a fused
+# multiply-add, as it does on arm64, the two loops round differently and the
+# results part company by an ulp or two. The structure of the sparse matrix is
+# exact and is required to be, whereas its values are compared with a tolerance
+# far below anything a real divergence between the two constructions could
+# produce, and far above the reassociation of the arithmetic.
+test_that("direct sparse design equals the dense construction", {
   set.seed(77)
   n <- 60
   x <- matrix(runif(2*n), n, 2, dimnames = list(NULL, c("X1", "X2")))
@@ -116,32 +124,34 @@ test_that("direct sparse design equals the dense construction bit for bit", {
     new <- WaveBased:::.wall_design(x, spec, clip = FALSE)
     old <- old_sparse(spec)
     expect_s4_class(new, "dgCMatrix")
-    # Same values, same structure (bit-level agreement of the slots).
+    # Same sparsity pattern and same names, to the bit.
     expect_identical(new@i, old@i)
     expect_identical(new@p, old@p)
-    expect_identical(new@x, old@x)
     expect_identical(dimnames(new), dimnames(old))
-    # And bitwise equal to the dense design.
+    expect_equal(new@x, old@x, tolerance = 1e-12)
+    # And the same design as the dense construction.
     dense <- WaveBased:::.wall_design(x, build_spec(4L, j0, sparse = FALSE),
                                       clip = FALSE)
-    expect_identical(as.matrix(new), dense)
+    expect_equal(as.matrix(new), dense, tolerance = 1e-12)
   }
 
   # Table-lookup path.
   tab <- wtable(family = "Daublets", filter.size = 8, prec.wavelet = 30,
                 check = FALSE)
   spec <- build_spec(5L, 0L, sparse = TRUE, wtab = tab)
-  expect_identical(as.matrix(WaveBased:::.wall_design(x, spec, clip = FALSE)),
-                   WaveBased:::.wall_design(x, build_spec(5L, 0L, FALSE, tab),
-                                            clip = FALSE))
+  expect_equal(as.matrix(WaveBased:::.wall_design(x, spec, clip = FALSE)),
+               WaveBased:::.wall_design(x, build_spec(5L, 0L, FALSE, tab),
+                                        clip = FALSE),
+               tolerance = 1e-12)
 
   # Prediction path (clip = TRUE) with points beyond the training range.
   xnew <- x
   xnew[1L, ] <- c(-0.2, 1.3)
   spec <- build_spec(4L, 0L, sparse = TRUE)
-  expect_identical(as.matrix(WaveBased:::.wall_design(xnew, spec, clip = TRUE)),
-                   WaveBased:::.wall_design(xnew, build_spec(4L, 0L, FALSE),
-                                            clip = TRUE))
+  expect_equal(as.matrix(WaveBased:::.wall_design(xnew, spec, clip = TRUE)),
+               WaveBased:::.wall_design(xnew, build_spec(4L, 0L, FALSE),
+                                        clip = TRUE),
+               tolerance = 1e-12)
 })
 
 test_that("share.design reuses the max(J) design without changing results", {
