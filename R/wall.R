@@ -172,8 +172,8 @@
 #' 267--288.
 #'
 #' @seealso \command{\link{cv.wall}}, \command{\link{predict.wall}},
-#'   \command{\link{wbasis}}, \command{\link{wtable}},
-#'   \command{\link[glmnet]{glmnet}}
+#'   \command{\link{plot.wall}}, \command{\link{wbasis}},
+#'   \command{\link{wtable}}, \command{\link[glmnet]{glmnet}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -382,6 +382,158 @@ predict.wall <- function(object, newx, s = NULL,
 #' @export
 coef.wall <- function(object, s = NULL, ...){
   predict(object$glmnet.fit, type = "coefficients", s = s, ...)
+}
+
+#' @title Plot the regularization paths or the fitted components of a wall
+#'   classifier
+#'
+#' @description Two displays of a fitted \command{\link{wall}} object are
+#' available. With \code{type = "path"}, the norm of the estimated
+#' coefficients of each covariate is plotted against \eqn{\log(\lambda)},
+#' summarizing the whole LASSO path and the order in which the covariates
+#' enter the classifier. With \code{type = "components"}, the estimated
+#' additive components \eqn{\hat{f}_l} are evaluated on a grid and plotted,
+#' one panel per covariate, at a single value of the penalty parameter.
+#'
+#' @param x A fitted object of class \code{"wall"}.
+#' @param type The display: \code{"path"} (default), the coefficient norms
+#'   along the whole \eqn{\lambda} path, or \code{"components"}, the fitted
+#'   additive components at a given \eqn{\lambda}.
+#' @param s Value of the penalty parameter \eqn{\lambda}. Required by
+#'   \code{type = "components"}, where it defaults to the smallest value of
+#'   the path (the least penalized fit); typically, one passes here the value
+#'   selected by \command{\link{cv.wall}}. With \code{type = "path"}, if
+#'   \code{s} is provided, it is marked by a vertical dotted line and used to
+#'   rank the covariates.
+#' @param which Optional subset of covariates to be displayed, given as
+#'   names, indices or a logical vector. By default (\code{which = NULL}) the
+#'   covariates are selected automatically, as described below.
+#' @param max.vars Maximum number of covariates displayed by the automatic
+#'   selection: the ones with the largest coefficient norm. Default is
+#'   \code{max.vars = 9}, which fills the default grid of panels of
+#'   \code{type = "components"}. Use \code{max.vars = Inf} for all of them.
+#'   Ignored if \code{which} is provided.
+#' @param nonzero Logical, used by \code{type = "components"}. If
+#'   \code{TRUE} (default), the automatic selection only considers the
+#'   covariates whose component is not identically zero at \code{s}.
+#' @param norm The norm used to summarize the block of coefficients of each
+#'   covariate in \code{type = "path"}: \code{"l2"} (default) or \code{"l1"}.
+#' @param center Logical, used by \code{type = "components"}. If \code{TRUE}
+#'   (default), each component is centered at zero over the plotting grid.
+#' @param n.grid Number of grid points at which the components are
+#'   evaluated.
+#' @param col Vector of colors, one per displayed covariate. For
+#'   \code{type = "path"}, it defaults to \code{2:(k+1)}, or to a qualitative
+#'   palette when more than seven covariates are displayed; for
+#'   \code{type = "components"}, it defaults to black.
+#' @param legend.pos Position of the legend of \code{type = "path"}, as in
+#'   \command{\link[graphics]{legend}}, or \code{NULL} to omit it.
+#' @param mfrow Layout of the panels of \code{type = "components"}, as the
+#'   homonymous parameter of \command{\link[graphics]{par}}. By default, the
+#'   components are laid out in three columns, i.e., in a 3 by 3 grid with
+#'   the default \code{max.vars}, with fewer rows when fewer components are
+#'   displayed.
+#' @param xlab,ylab,main,ylim Usual graphical parameters. Their defaults
+#'   depend on \code{type}; with \code{type = "components"}, the axis labels
+#'   are taken from the name of each covariate and \code{ylim} is shared by
+#'   all the panels, so that the components are comparable.
+#' @param ... Further graphical parameters passed to
+#'   \command{\link[graphics]{plot}}.
+#'
+#' @details
+#' The coefficients of each covariate form a block of the whole coefficient
+#' vector (the basis functions of its own expansion), so the path of a
+#' covariate is summarized by the norm of its block, one curve per covariate.
+#' The number of \emph{active} covariates, i.e., those with at least one
+#' nonzero coefficient, is reported on the top axis.
+#'
+#' The components are evaluated on an equally spaced grid of the range of
+#' each covariate observed in the fit, and are plotted on the original scale
+#' of the covariate. They are expressed in the log-odds scale, and only their
+#' sum is identifiable (see \command{\link{wall}}); with
+#' \code{center = TRUE}, each of them is centered over the grid, which makes
+#' the panels comparable and puts the (arbitrary) constants into the
+#' intercept.
+#'
+#' Both displays remain readable when the number of covariates is large. In
+#' \code{type = "path"}, only the \code{max.vars} most important covariates
+#' are colored and named in the legend, while the remaining ones are drawn in
+#' grey, so that the overall picture is kept. Importance is measured by the
+#' coefficient norm at \code{s}, when a value is given, and by the average
+#' norm along the path otherwise, which favors the covariates entering the
+#' model early over those that only grow at the unpenalized end of the path.
+#' In \code{type = "components"}, the covariates that are not displayed are
+#' simply omitted from the layout of panels, with a message reporting how
+#' many they are: the selection keeps the \code{max.vars} largest components
+#' at \code{s}, measured by \eqn{\|\hat{f}_l\|_2 = \|\hat{d}_l\|_2} (the
+#' basis is orthonormal), which are the ones that matter for the fitted
+#' log-odds. By default, they fill a 3 by 3 grid of panels, in decreasing
+#' order of importance; \code{max.vars} and \code{mfrow} change the number
+#' of components displayed and their layout. In both cases, \code{which}
+#' overrides the automatic selection.
+#'
+#' @return Invisibly, a list with the plotted quantities: for
+#'   \code{type = "path"}, the components \code{lambda} and \code{norms} (a
+#'   matrix with one row per covariate and one column per \eqn{\lambda});
+#'   for \code{type = "components"}, the components \code{x} and
+#'   \code{components} (matrices with one column per displayed covariate,
+#'   holding the grid and the fitted values). In both cases, \code{which}
+#'   gives the indices of the displayed covariates.
+#'
+#' @seealso \command{\link{wall}}, \command{\link{cv.wall}},
+#'   \command{\link{predict.wall}}
+#'
+#' @author Michel H. Montoril \email{michel@@ufscar.br}
+#'
+#' @examples
+#' set.seed(123)
+#' n <- 400
+#' x <- matrix(runif(6*n), n, 6)
+#' h <- 3*sin(2*pi*x[, 1]) + 8*(x[, 2] - 0.5)   # only two active covariates
+#' y <- rbinom(n, 1, 1/(1 + exp(-h)))
+#'
+#' fit <- wall(x, y, J = 3, filter.size = 8)
+#' plot(fit)                                    # coefficient paths
+#' plot(fit, type = "components", s = 0.02)     # fitted components
+#'
+#' # With the penalty parameter chosen by cross-validation
+#' cvfit <- cv.wall(x, y, J = 2:3, filter.size = 8, nfolds = 5)
+#' plot(cvfit$wall.fit, s = cvfit$lambda.min)
+#' plot(cvfit$wall.fit, type = "components", s = cvfit$lambda.min)
+#'
+#' @keywords classif hplot
+#' @method plot wall
+#' @importFrom graphics lines abline legend axis mtext par
+#' @importFrom grDevices hcl.colors
+#' @importFrom stats approx
+#' @export
+plot.wall <- function(x, type = c("path", "components"), s = NULL,
+                      which = NULL, max.vars = 9, nonzero = TRUE,
+                      norm = c("l2", "l1"), center = TRUE, n.grid = 256,
+                      col = NULL, legend.pos = "topleft", mfrow = NULL,
+                      xlab = NULL, ylab = NULL, main = NULL, ylim = NULL,
+                      ...){
+
+  type <- match.arg(type)
+  norm <- match.arg(norm)
+
+  if(!is.null(s) && (length(s) != 1L || !is.finite(s) || s < 0))
+    stop("'s' must be a single non-negative value of the penalty parameter.")
+
+  out <- if(type == "path")
+           .wall_plot_path(x, s = s, which = which, max.vars = max.vars,
+                           norm = norm, col = col, legend.pos = legend.pos,
+                           xlab = xlab, ylab = ylab, main = main,
+                           ylim = ylim, ...)
+         else
+           .wall_plot_components(x, s = s, which = which, max.vars = max.vars,
+                                 nonzero = nonzero, center = center,
+                                 n.grid = n.grid, col = col, mfrow = mfrow,
+                                 xlab = xlab, ylab = ylab, main = main,
+                                 ylim = ylim, ...)
+
+  invisible(c(list(type = type), out))
+
 }
 
 
@@ -623,4 +775,233 @@ coef.wall <- function(object, s = NULL, ...){
     blocks[[l]] <- if(obj$sparse) Matrix(B, sparse = TRUE) else B
   }
   do.call(cbind, blocks)
+}
+
+# Column indices of the design (equivalently, of the coefficient vector
+# without the intercept) belonging to each covariate: the basis functions of
+# its own expansion, in the order used by .wall_design().
+.wall_blocks <- function(obj){
+  nphi <- if(obj$drop.phi) 0L else 2L^obj$j0
+  sizes <- as.integer(nphi + 2^obj$J - 2^obj$j0)
+  ends <- cumsum(sizes)
+  Map(seq.int, ends - sizes + 1L, ends)
+}
+
+# Norm of the block of coefficients of each covariate, at every value of
+# lambda: a matrix with one row per covariate and one column per lambda. The
+# blocks of the (sparse) coefficient matrix are densified one at a time,
+# which keeps the memory bounded by a single covariate.
+.wall_block_norms <- function(beta, blocks, norm){
+  out <- matrix(0, length(blocks), ncol(beta))
+  for(l in seq_along(blocks)){
+    b <- as.matrix(beta[blocks[[l]], , drop = FALSE])
+    out[l, ] <- if(norm == "l1") colSums(abs(b)) else sqrt(colSums(b^2))
+  }
+  out
+}
+
+# Default layout of the panels of plot.wall(type = "components"): three
+# components per row, which fills a 3 x 3 grid with the default max.vars,
+# and keeps the panels with the same shape when there are fewer of them.
+.wall_mfrow <- function(k){
+  nc <- min(3L, k)
+  c(ceiling(k/nc), nc)
+}
+
+# Chooses the covariates to be displayed by plot.wall(). A user-supplied
+# 'which' (names, indices or a logical vector) is honored as given;
+# otherwise the covariates with the largest 'score' are selected, and the
+# remaining ones are returned separately, as the background of the plot.
+.wall_pick <- function(which, score, xnames, max.vars, drop.zero = FALSE){
+
+  d <- length(xnames)
+
+  if(!is.null(which)){
+    if(is.character(which)){
+      sel <- match(which, xnames)
+      if(anyNA(sel))
+        stop("Unknown covariate(s) in 'which': ",
+             paste(which[is.na(sel)], collapse = ", "), ".")
+    }
+    else if(is.logical(which)){
+      if(length(which) != d)
+        stop("A logical 'which' must have one entry per covariate (", d, ").")
+      sel <- seq_len(d)[which]
+    }
+    else{
+      sel <- as.integer(which)
+      if(anyNA(sel) || any(sel < 1L) || any(sel > d))
+        stop("'which' must index the ", d, " covariate(s) of the fit.")
+    }
+    if(length(sel) == 0L)
+      stop("'which' selected no covariate.")
+    return(list(sel = sel, bg = setdiff(seq_len(d), sel)))
+  }
+
+  if(length(max.vars) != 1L || is.na(max.vars) || max.vars < 1)
+    stop("'max.vars' must be a single positive value.")
+
+  cand <- seq_len(d)
+  if(drop.zero)
+    cand <- cand[score[cand] > 0]
+  if(length(cand) == 0L)
+    stop("Every component is identically zero at this value of 's'. Try a smaller 's', or nonzero = FALSE.")
+
+  cand <- cand[order(score[cand], decreasing = TRUE)]
+  sel <- if(length(cand) > max.vars) cand[seq_len(max.vars)] else cand
+
+  list(sel = sel, bg = setdiff(seq_len(d), sel))
+
+}
+
+# Coefficient paths of plot.wall(type = "path").
+.wall_plot_path <- function(obj, s, which, max.vars, norm, col, legend.pos,
+                            xlab, ylab, main, ylim, ...){
+
+  blocks <- .wall_blocks(obj)
+  nrm <- .wall_block_norms(obj$glmnet.fit$beta, blocks, norm)
+  loglam <- log(obj$lambda)
+
+  # Importance of a covariate: its coefficient norm at 's', when a value is
+  # given, and its average norm along the path otherwise -- which favors the
+  # covariates entering early over those that only grow at the unpenalized
+  # end of the path.
+  score <- if(is.null(s))
+             rowMeans(nrm)
+           else
+             .wall_block_norms(coef(obj, s = s)[-1L, , drop = FALSE], blocks,
+                               norm)[, 1L]
+
+  pick <- .wall_pick(which, score, obj$xnames, max.vars)
+  sel <- pick$sel
+  k <- length(sel)
+
+  if(is.null(col))
+    col <- if(k > 7L) hcl.colors(k, "Dark 3") else seq_len(k) + 1L
+  col <- rep_len(col, k)
+
+  if(is.null(xlab))
+    xlab <- expression(log(lambda))
+  if(is.null(ylab))
+    ylab <- paste0(if(norm == "l1") "L1" else "L2", " coefficient norm")
+  if(is.null(ylim))
+    ylim <- range(0, nrm[c(sel, pick$bg), , drop = FALSE])
+
+  plot(NA, xlim = range(loglam), ylim = ylim, xlab = xlab, ylab = ylab,
+       main = main, ...)
+
+  # The number of covariates with at least one nonzero coefficient, which
+  # plays here the role of the degrees of freedom of plot.glmnet(). A path
+  # with a single lambda (a user-supplied value) has nothing to interpolate,
+  # and is drawn as points.
+  single <- length(loglam) < 2L
+
+  if(!single){
+    atx <- pretty(loglam)
+    nact <- approx(loglam, colSums(nrm > 0), xout = atx, rule = 2,
+                   method = "constant", f = 0)$y
+    axis(3L, at = atx, labels = nact, tcl = NA)
+    if(is.null(main))
+      mtext("active covariates", side = 3L, line = 2, cex = par("cex.lab"))
+  }
+
+  for(l in pick$bg)
+    lines(loglam, nrm[l, ], col = "grey85", type = if(single) "p" else "l")
+  for(i in seq_len(k))
+    lines(loglam, nrm[sel[i], ], col = col[i], lwd = 1.5,
+          type = if(single) "p" else "l")
+
+  if(!is.null(s))
+    abline(v = log(s), lty = 3)
+
+  if(!is.null(legend.pos)){
+    leg <- obj$xnames[sel]
+    lcol <- col
+    if(length(pick$bg) > 0L){
+      leg <- c(leg, paste(length(pick$bg), "other(s)"))
+      lcol <- c(lcol, "grey85")
+    }
+    legend(legend.pos, legend = leg, col = lcol, lty = 1, lwd = 1.5,
+           bty = "n")
+  }
+
+  rownames(nrm) <- obj$xnames
+  list(lambda = obj$lambda, norm = norm, norms = nrm, which = sel)
+
+}
+
+# Fitted additive components of plot.wall(type = "components").
+.wall_plot_components <- function(obj, s, which, max.vars, nonzero, center,
+                                  n.grid, col, mfrow, xlab, ylab, main, ylim,
+                                  ...){
+
+  if(length(n.grid) != 1L || !is.finite(n.grid) || n.grid < 2)
+    stop("'n.grid' must be a single integer larger than one.")
+  if(!is.null(mfrow)){
+    if(length(mfrow) != 2L || any(!is.finite(mfrow)) || any(mfrow < 1))
+      stop("'mfrow' must be a vector with the number of rows and columns of the layout of panels.")
+    mfrow <- as.integer(mfrow)
+  }
+  if(is.null(s))
+    s <- min(obj$lambda)
+
+  beta <- as.numeric(coef(obj, s = s)[, 1L])[-1L]   # without the intercept
+  blocks <- .wall_blocks(obj)
+
+  # The basis is orthonormal, so the L2 norm of a component is the norm of
+  # its coefficients, and no evaluation is needed to rank the covariates.
+  score <- vapply(blocks, function(i) sqrt(sum(beta[i]^2)), 0)
+  pick <- .wall_pick(which, score, obj$xnames, max.vars, drop.zero = nonzero)
+  sel <- pick$sel
+  k <- length(sel)
+
+  if(is.null(which) && k < length(obj$J))
+    message(sprintf("Showing %d of %d covariates (%d with a nonzero component at s = %s). See 'which' and 'max.vars'.",
+                    k, length(obj$J), sum(score > 0), format(signif(s, 3))))
+
+  n.grid <- as.integer(n.grid)
+  grid <- fit <- matrix(NA_real_, n.grid, k,
+                        dimnames = list(NULL, obj$xnames[sel]))
+
+  for(i in seq_len(k)){
+    l <- sel[i]
+    u <- seq(obj$eps[l], 1 - obj$eps[l], length.out = n.grid)
+    B <- .wall_wbasis(u, obj, obj$J[l])
+    if(obj$drop.phi)
+      B <- B[, -1L, drop = FALSE]
+    f <- as.numeric(B %*% beta[blocks[[l]]])
+    grid[, i] <- obj$location[l] + obj$scale[l]*u
+    fit[, i] <- if(center) f - mean(f) else f
+  }
+
+  if(is.null(col))
+    col <- 1L
+  col <- rep_len(col, k)
+
+  if(is.null(ylim)){
+    ylim <- range(fit)
+    if(diff(ylim) == 0)
+      ylim <- ylim + c(-0.5, 0.5)
+  }
+
+  if(is.null(mfrow) && k > 1L)
+    mfrow <- .wall_mfrow(k)
+
+  if(!is.null(mfrow)){
+    op <- par(mfrow = mfrow, mar = c(3.6, 3.6, 1, 1) + 0.1,
+              mgp = c(2.2, 0.8, 0))
+    on.exit(par(op))
+  }
+
+  for(i in seq_len(k)){
+    plot(grid[, i], fit[, i], type = "l", col = col[i], lwd = 1.5,
+         ylim = ylim, main = main,
+         xlab = if(is.null(xlab)) obj$xnames[sel[i]] else xlab,
+         ylab = if(is.null(ylab)) paste0("f(", obj$xnames[sel[i]], ")")
+                else ylab, ...)
+    abline(h = 0, lty = 3, col = "grey60")
+  }
+
+  list(s = s, x = grid, components = fit, which = sel)
+
 }

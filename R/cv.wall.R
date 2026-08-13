@@ -149,7 +149,8 @@
 #' Statistical Software}, 33(1), 1--22, \doi{10.18637/jss.v033.i01}.
 #'
 #' @seealso \command{\link{wall}}, \command{\link{predict.cv.wall}},
-#'   \command{\link{plot.cv.wall}}, \command{\link[glmnet]{cv.glmnet}}
+#'   \command{\link{plot.cv.wall}}, \command{\link{plot.wall}},
+#'   \command{\link[glmnet]{cv.glmnet}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -453,26 +454,44 @@ coef.cv.wall <- function(object, s = c("lambda.min", "lambda.1se"), ...){
   coef(object$wall.fit, s = s, ...)
 }
 
-#' @title Plot the cross-validation curves of a cv.wall object
+#' @title Plot a cross-validated wall classifier
 #'
-#' @description Plots the cross-validated measure as a function of
-#' \eqn{\log(\lambda)}, with one curve per candidate resolution level
-#' \code{J}. The error bars (one standard error) are drawn for the selected
-#' \code{J}, and the selected values \code{lambda.min} and \code{lambda.1se}
-#' are marked by vertical dotted lines.
+#' @description With the default \code{type = "cv"}, plots the
+#' cross-validated measure as a function of \eqn{\log(\lambda)}, with one
+#' curve per candidate resolution level \code{J}. The error bars (one
+#' standard error) are drawn for the selected \code{J}, and the selected
+#' values \code{lambda.min} and \code{lambda.1se} are marked by vertical
+#' dotted lines. The other two values of \code{type} display the fit of the
+#' selected \code{J} at the selected \eqn{\lambda}, as described in
+#' \command{\link{plot.wall}}.
 #'
 #' @param x A fitted object of class \code{"cv.wall"}.
+#' @param type The display: \code{"cv"} (default), the cross-validation
+#'   curves; \code{"path"}, the coefficient paths of the selected \code{J};
+#'   or \code{"components"}, the fitted additive components. The last two
+#'   are drawn by \command{\link{plot.wall}} on the fitted object of the
+#'   selected \code{J}, in \code{x$wall.fit}.
+#' @param s The value of the penalty parameter used by
+#'   \code{type = "path"} and \code{type = "components"}:
+#'   \code{"lambda.min"} (default), \code{"lambda.1se"} or a numeric value.
+#'   Not used by \code{type = "cv"}, whose display already marks both
+#'   selected values.
 #' @param se Logical. Should the one-standard-error bars of the selected
-#'   \code{J} be drawn? Default is \code{TRUE}.
-#' @param col Vector of colors, one per candidate \code{J}.
+#'   \code{J} be drawn? Default is \code{TRUE}. Only used by
+#'   \code{type = "cv"}.
+#' @param col Vector of colors, one per candidate \code{J} with
+#'   \code{type = "cv"}, and one per displayed covariate otherwise.
 #' @param legend.pos Position of the legend, as in
 #'   \command{\link[graphics]{legend}}, or \code{NULL} to omit it.
 #' @param ... Further graphical parameters passed to
-#'   \command{\link[graphics]{plot}}.
+#'   \command{\link[graphics]{plot}}, or further arguments of
+#'   \command{\link{plot.wall}} (e.g., \code{which}, \code{max.vars}) when
+#'   \code{type} is not \code{"cv"}.
 #'
-#' @return Invisibly, the object \code{x}.
+#' @return Invisibly, the object \code{x} with \code{type = "cv"}, and the
+#'   quantities plotted by \command{\link{plot.wall}} otherwise.
 #'
-#' @seealso \command{\link{cv.wall}}
+#' @seealso \command{\link{cv.wall}}, \command{\link{plot.wall}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'
@@ -482,14 +501,30 @@ coef.cv.wall <- function(object, s = c("lambda.min", "lambda.1se"), ...){
 #' x <- matrix(runif(2*n), n, 2)
 #' y <- rbinom(n, 1, 1/(1 + exp(-5*(x[, 1] - 0.5))))
 #' cvfit <- cv.wall(x, y, J = 1:3, filter.size = 8, nfolds = 5)
-#' plot(cvfit)
+#'
+#' plot(cvfit)                                     # cross-validation curves
+#' plot(cvfit, type = "path")                      # paths of the selected J
+#' plot(cvfit, type = "components")                # components at lambda.min
+#' plot(cvfit, type = "components", s = "lambda.1se")
 #'
 #' @keywords classif hplot
 #' @method plot cv.wall
 #' @importFrom graphics lines points segments legend abline
 #' @export
-plot.cv.wall <- function(x, se = TRUE, col = NULL,
-                         legend.pos = "topleft", ...){
+plot.cv.wall <- function(x, type = c("cv", "path", "components"),
+                         s = c("lambda.min", "lambda.1se"), se = TRUE,
+                         col = NULL, legend.pos = "topleft", ...){
+
+  type <- match.arg(type)
+
+  if(type != "cv"){
+    if(is.character(s)){
+      s <- match.arg(s)
+      s <- x[[s]]
+    }
+    return(invisible(plot(x$wall.fit, type = type, s = s, col = col,
+                          legend.pos = legend.pos, ...)))
+  }
 
   nJ <- length(x$J)
   if(is.null(col))

@@ -224,4 +224,163 @@ test_that("plot.cv.wall draws without errors", {
   on.exit(dev.off())
   expect_invisible(plot(cvfit))
   expect_invisible(plot(cvfit, se = FALSE, legend.pos = NULL))
+  expect_equal(plot(cvfit), cvfit)
+})
+
+test_that("plot.cv.wall delegates the path and the components to plot.wall", {
+  dat <- .wall_sim()
+
+  set.seed(5)
+  cvfit <- cv.wall(dat$x, dat$y, J = 2:3, filter.size = 8, nfolds = 5)
+
+  pdf(NULL)
+  on.exit(dev.off())
+
+  # The selected lambda is passed to plot.wall, on the fit of the selected J.
+  expect_equal(plot(cvfit, type = "path"),
+               plot(cvfit$wall.fit, s = cvfit$lambda.min))
+  expect_equal(plot(cvfit, type = "components")$s, cvfit$lambda.min)
+  expect_equal(plot(cvfit, type = "components", s = "lambda.1se")$s,
+               cvfit$lambda.1se)
+  expect_equal(plot(cvfit, type = "components", s = 0.05)$s, 0.05)
+
+  # Further arguments of plot.wall are honored.
+  cp <- plot(cvfit, type = "components", which = "X1")
+  expect_equal(cp$which, 1L)
+  expect_equal(nrow(cp$components), 256L)
+  expect_length(plot(cvfit, type = "path", max.vars = 1)$which, 1L)
+})
+
+test_that("plot.wall summarizes the coefficient path of each covariate", {
+  dat <- .wall_sim()
+  fit <- wall(dat$x, dat$y, J = 3, filter.size = 8)
+  beta <- as.matrix(fit$glmnet.fit$beta)
+
+  pdf(NULL)
+  on.exit(dev.off())
+
+  p <- plot(fit)
+  expect_invisible(plot(fit))
+  expect_equal(p$type, "path")
+  expect_equal(dim(p$norms), c(2L, length(fit$lambda)))
+  expect_equal(rownames(p$norms), c("X1", "X2"))
+  # Each row is the norm of the block of coefficients of one covariate.
+  expect_equal(p$norms["X1", ], sqrt(colSums(beta[1:7, ]^2)),
+               ignore_attr = TRUE)
+  expect_equal(p$norms["X2", ], sqrt(colSums(beta[8:14, ]^2)),
+               ignore_attr = TRUE)
+
+  p1 <- plot(fit, norm = "l1")
+  expect_equal(p1$norms["X2", ], colSums(abs(beta[8:14, ])),
+               ignore_attr = TRUE)
+
+  # The covariates are ranked by importance, and 'which' overrides it.
+  expect_equal(p$which, order(rowMeans(p$norms), decreasing = TRUE))
+  expect_equal(plot(fit, which = "X2", legend.pos = NULL)$which, 2L)
+  expect_equal(plot(fit, which = c(FALSE, TRUE))$which, 2L)
+  expect_equal(plot(fit, max.vars = 1)$which, p$which[1L])
+
+  expect_error(plot(fit, which = "X9"), "Unknown covariate")
+  expect_error(plot(fit, which = 5), "must index")
+  expect_error(plot(fit, which = c(TRUE, TRUE, FALSE)), "one entry per")
+  expect_error(plot(fit, max.vars = 0), "single positive value")
+  expect_error(plot(fit, s = c(0.1, 0.2)), "single non-negative value")
+})
+
+test_that("plot.wall draws the fitted components of the log-odds", {
+  dat <- .wall_sim()
+  fit <- wall(dat$x, dat$y, J = 3, filter.size = 8)
+  s <- 0.02
+
+  pdf(NULL)
+  on.exit(dev.off())
+
+  cp <- plot(fit, type = "components", s = s, n.grid = 2048, center = FALSE)
+  expect_equal(cp$type, "components")
+  expect_equal(cp$s, s)
+  expect_equal(dim(cp$components), c(2048L, 2L))
+  expect_equal(colnames(cp$components), c("X1", "X2")[cp$which])
+  # The grid covers the range of the covariates observed in the fit.
+  expect_equal(apply(cp$x, 2L, range), apply(dat$x[, cp$which], 2L, range),
+               tolerance = 1e-3, ignore_attr = TRUE)
+
+  # The components add up to the fitted log-odds, up to the intercept: this
+  # checks the alignment between the blocks of coefficients, the rescaling
+  # of each covariate and the basis evaluated on the grid.
+  b0 <- as.numeric(coef(fit, s = s)[1L, 1L])
+  eta <- as.numeric(predict(fit, dat$x[1:20, ], s = s))
+  fl <- vapply(seq_along(cp$which),
+               function(i) approx(cp$x[, i], cp$components[, i],
+                                  xout = dat$x[1:20, cp$which[i]])$y,
+               numeric(20L))
+  expect_equal(b0 + rowSums(fl), eta, tolerance = 1e-4)
+
+  # Centering only shifts each component by its mean over the grid.
+  cpc <- plot(fit, type = "components", s = s, n.grid = 2048)
+  expect_equal(colMeans(cpc$components), c(X1 = 0, X2 = 0)[cp$which],
+               ignore_attr = TRUE)
+  expect_equal(sweep(cp$components, 2L, colMeans(cp$components)),
+               cpc$components)
+
+  # Without 's', the least penalized fit of the path is displayed.
+  expect_equal(plot(fit, type = "components")$s, min(fit$lambda))
+  expect_error(plot(fit, type = "components", n.grid = 1),
+               "larger than one")
+})
+
+test_that("plot.wall keeps the display readable with many covariates", {
+  set.seed(6)
+  n <- 200
+  x <- matrix(runif(20*n), n, 20)
+  y <- rbinom(n, 1, 1/(1 + exp(-(8*(x[, 3] - 0.5)))))
+  fit <- wall(x, y, J = 2, filter.size = 8)
+
+  pdf(NULL)
+  on.exit(dev.off())
+
+  # The path shows every covariate, but only 'max.vars' of them are named.
+  p <- plot(fit, max.vars = 4)
+  expect_equal(nrow(p$norms), 20L)
+  expect_length(p$which, 4L)
+
+  # The components are restricted to the ones that are worth a panel, with a
+  # message reporting the omitted covariates.
+  expect_message(cp <- plot(fit, type = "components", s = 0.05, max.vars = 2),
+                 "Showing 2 of 20 covariates")
+  expect_length(cp$which, 2L)
+  expect_true(all(apply(cp$components, 2L, function(f) diff(range(f))) > 0))
+
+  # Covariates with a zero component are dropped, unless asked otherwise.
+  s0 <- max(fit$lambda[colSums(as.matrix(fit$glmnet.fit$beta) != 0) > 0])
+  expect_message(cp1 <- plot(fit, type = "components", s = s0),
+                 "1 with a nonzero component")
+  expect_length(cp1$which, 1L)
+  expect_length(plot(fit, type = "components", s = s0, nonzero = FALSE,
+                     max.vars = Inf)$which, 20L)
+  expect_error(plot(fit, type = "components", s = max(fit$lambda)),
+               "identically zero")
+
+  # An explicit selection is honored as given, without a message.
+  expect_silent(cp2 <- plot(fit, type = "components", s = 0.05,
+                            which = c("X5", "X3")))
+  expect_equal(cp2$which, c(5L, 3L))
+  expect_equal(colnames(cp2$components), c("X5", "X3"))
+
+  # By default, the components fill a 3 x 3 grid of panels, laid out in
+  # three columns when there are fewer of them. The layout in force is read
+  # from inside the first panel, before it is restored on exit.
+  e <- new.env()
+  grab <- function(...)
+    plot(fit, type = "components", s = 0.05, nonzero = FALSE, ...,
+         panel.first = assign("layout", par("mfrow"), envir = e))
+
+  expect_length(suppressMessages(grab())$which, 9L)
+  expect_equal(e$layout, c(3, 3))
+  suppressMessages(grab(max.vars = 4))
+  expect_equal(e$layout, c(2, 3))
+  suppressMessages(grab(max.vars = 2))
+  expect_equal(e$layout, c(1, 2))
+  suppressMessages(grab(max.vars = 4, mfrow = c(4, 1)))
+  expect_equal(e$layout, c(4, 1))
+  expect_error(grab(mfrow = 3), "'mfrow' must be")
 })

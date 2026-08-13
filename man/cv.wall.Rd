@@ -229,7 +229,8 @@ Statistical Software}, 33(1), 1--22, \doi{10.18637/jss.v033.i01}.
 }
 \seealso{
 \command{\link{wall}}, \command{\link{predict.cv.wall}},
-  \command{\link{plot.cv.wall}}, \command{\link[glmnet]{cv.glmnet}}
+  \command{\link{plot.cv.wall}}, \command{\link{plot.wall}},
+  \command{\link[glmnet]{cv.glmnet}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}
