@@ -241,8 +241,8 @@ Tibshirani, R. (1996). Regression shrinkage and selection via the lasso.
 }
 \seealso{
 \command{\link{cv.wall}}, \command{\link{predict.wall}},
-  \command{\link{wbasis}}, \command{\link{wtable}},
-  \command{\link[glmnet]{glmnet}}
+  \command{\link{plot.wall}}, \command{\link{wbasis}},
+  \command{\link{wtable}}, \command{\link[glmnet]{glmnet}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}
