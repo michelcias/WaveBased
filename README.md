@@ -129,49 +129,52 @@ wtable_cache(clear = TRUE) # remove them
 
 ## Citation
 
-If you use `WaveBased` in your research, please cite the package. You can get an
-up-to-date citation (including BibTeX) from R with:
+If you use `WaveBased` in your research, please cite the package together with
+the paper of the methodology you used. Both are returned, with BibTeX, by
 
 ```r
 citation("WaveBased")
 ```
 
-For the methodology behind each estimator, please also cite:
+| Function     | Methodology                                    |
+|--------------|------------------------------------------------|
+| `wdensity()` | Montoril, Pinheiro and Vidakovic (2021)        |
+| `wmixreg()`  | Montoril, Pinheiro and Vidakovic (2019)        |
+| `bwmixreg()` | Motta and Montoril (2026a)                     |
+| `bwregime()` | Motta and Montoril (2026b)                     |
 
-> `wdensity()` — Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2021).
-> Wavelet-based estimation of power densities of size-biased data.
-> *arXiv:2112.12895*.
->
-> `wmixreg()` — Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2019).
-> Wavelet-based estimators for mixture regression. *Scandinavian Journal of
-> Statistics*, 46(1), 215–234.
->
-> `bwmixreg()` — Motta, F. C. and Montoril, M. H. (2026a). A Bayesian
-> estimation approach for the wavelet-based mixture regression. *Communications
-> in Statistics – Simulation and Computation*, 55(6), 2426–2434.
->
-> `bwregime()` — Motta, F. C. and Montoril, M. H. (2026b). Identifying regime
-> switches through Bayesian wavelet estimation: application to environmental
-> and genetic data. *Journal of Applied Statistics*.
+The full entries are in the references below.
 
 ## References
 
-- Daubechies, I. and Lagarias, J. C. (1992). Two-Scale Difference Equations II.
-  Local Regularity, Infinite Products of Matrices and Fractals.
-  *SIAM Journal on Mathematical Analysis*, 24(4), 1031–1079.
-- Mallat, S. G. (1989). A theory for multiresolution signal decomposition: the
-  wavelet representation. *IEEE Trans. Pattern Anal. Mach. Intell.*, 11, 674–693.
-- Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
-  PyWavelets: A Python package for wavelet analysis. *Journal of Open Source
-  Software*, 4(36), 1237.
 - Abramovich, F., Sapatinas, T. and Silverman, B. W. (1998). Wavelet
   thresholding via a Bayesian approach. *Journal of the Royal Statistical
   Society Series B*, 60(4), 725–749.
 - Albert, J. H. and Chib, S. (1993). Bayesian analysis of binary and
   polychotomous response data. *Journal of the American Statistical
   Association*, 88(422), 669–679.
+- Daubechies, I. and Lagarias, J. C. (1992). Two-Scale Difference Equations II.
+  Local Regularity, Infinite Products of Matrices and Fractals.
+  *SIAM Journal on Mathematical Analysis*, 24(4), 1031–1079.
+- Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
+  PyWavelets: A Python package for wavelet analysis. *Journal of Open Source
+  Software*, 4(36), 1237.
+- Mallat, S. G. (1989). A theory for multiresolution signal decomposition: the
+  wavelet representation. *IEEE Trans. Pattern Anal. Mach. Intell.*, 11, 674–693.
+- Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2019). Wavelet-based
+  estimators for mixture regression. *Scandinavian Journal of Statistics*,
+  46(1), 215–234.
+  [doi:10.1111/sjos.12344](https://doi.org/10.1111/sjos.12344)
 - Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2021). Wavelet-based
   estimation of power densities of size-biased data. *arXiv:2112.12895*.
+- Motta, F. C. and Montoril, M. H. (2026a). A Bayesian estimation approach for
+  the wavelet-based mixture regression. *Communications in Statistics –
+  Simulation and Computation*, 55(6), 2426–2434.
+  [doi:10.1080/03610918.2025.2470797](https://doi.org/10.1080/03610918.2025.2470797)
+- Motta, F. C. and Montoril, M. H. (2026b). Identifying regime switches through
+  Bayesian wavelet estimation: application to environmental and genetic data.
+  *Journal of Applied Statistics*.
+  [doi:10.1080/02664763.2025.2612551](https://doi.org/10.1080/02664763.2025.2612551)
 
 ## License
 
