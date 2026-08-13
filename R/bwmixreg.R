@@ -163,9 +163,9 @@
 #' Simulation and Computation}, 55(6), 2426--2434,
 #' \doi{10.1080/03610918.2025.2470797}.
 #'
-#' @seealso \command{\link{wmixreg}}, \command{\link{bayesthresh}},
-#'   \command{\link{hpdi}}, \command{\link{plot.bwmixreg}},
-#'   \command{\link{predict.bwmixreg}}
+#' @seealso \command{\link{wmixreg}}, \command{\link{bwregime}},
+#'   \command{\link{bayesthresh}}, \command{\link{hpdi}},
+#'   \command{\link{plot.bwmixreg}}, \command{\link{predict.bwmixreg}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'

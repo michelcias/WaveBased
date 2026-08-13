@@ -1,7 +1,7 @@
 Package: WaveBased
 Type: Package
 Title: Wavelet-Based Estimation
-Version: 2.3-0
+Version: 2.4-0
 Date: 2026-08-12
 Authors@R: c(person("Michel H. Montoril", role = c("aut", "cre"),
 	email = "michel@ufscar.br"))
