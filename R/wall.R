@@ -565,9 +565,12 @@ coef.wall <- function(object, s = NULL, ...){
 
 # Evaluates the wavelet basis of one (already rescaled) covariate directly
 # in sparse (CSC) format, without the dense n x 2^J intermediate. Periodic
-# boundary only. The result is identical to Matrix(B, sparse = TRUE) applied
-# to the dense evaluation (values bit for bit, explicit zeros dropped), with
-# the constant phi_{00} column already removed when obj$drop.phi is TRUE.
+# boundary only. The result is the one of Matrix(B, sparse = TRUE) applied to
+# the dense evaluation: same sparsity pattern to the bit (explicit zeros
+# dropped), and the same values up to the rounding of the arithmetic, which
+# the two loops reassociate differently where the compiler contracts a product
+# and a sum into a fused multiply-add. The constant phi_{00} column is already
+# removed when obj$drop.phi is TRUE.
 .wall_wbasis_sparse <- function(u, obj, J){
   fam <- which(tolower(substring(obj$family, 1, 1)) == c("d", "s", "c", "o"))
   if(length(fam) == 0)
