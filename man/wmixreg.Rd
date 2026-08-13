@@ -295,6 +295,7 @@ estimators for mixture regression. \emph{Scandinavian Journal of Statistics},
 }
 \seealso{
 \command{\link{plot.wmixreg}}, \command{\link{predict.wmixreg}},
+  \command{\link{bwmixreg}}, \command{\link{bwregime}},
   \command{\link{PHI}}, \command{\link{wtable}}
 }
 \author{

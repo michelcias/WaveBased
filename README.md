@@ -10,8 +10,10 @@ nonparametric problems through compactly supported orthonormal wavelet bases.
 Since compactly supported orthonormal wavelets (other than Haar) have no closed
 form, `WaveBased` evaluates the scaling and wavelet functions at arbitrary
 points using the **Daubechies–Lagarias algorithm** (Daubechies and Lagarias,
-1992). On top of that it provides the discrete wavelet transform and a
-wavelet-based density estimator for size-biased data.
+1992). On top of that it provides the discrete wavelet transform, Bayesian
+wavelet thresholding, and estimators built on them: a density estimator for
+size-biased data, a logistic classifier, and mixture models whose weights vary
+with the data index, which identify regime switches in bimodal data.
 
 The package ships with families **Daublets**, **Symmlets** and **Coiflets**
 (filters from PyWavelets, Lee et al., 2019), and also accepts user-supplied
@@ -26,15 +28,22 @@ remotes::install_github("michelcias/WaveBased")
 
 ## Main functions
 
-| Function     | Purpose                                                                  |
-|--------------|--------------------------------------------------------------------------|
-| `PHI()`      | Matrix of scaling functions evaluated at the data                        |
-| `PSI()`      | Matrix of (mother) wavelets evaluated at the data                        |
-| `wbasis()`   | Full decomposed wavelet basis (scaling functions + wavelets)             |
-| `wavedec()`  | Discrete wavelet decomposition (Mallat's pyramidal algorithm)            |
-| `waverec()`  | Inverse wavelet reconstruction                                           |
-| `wdensity()` | Wavelet-based density estimation for univariate size-biased data         |
-| `wtable()`   | Precomputed interpolation tables for fast basis evaluation               |
+| Function        | Purpose                                                               |
+|-----------------|-----------------------------------------------------------------------|
+| `PHI()`         | Matrix of scaling functions evaluated at the data                     |
+| `PSI()`         | Matrix of (mother) wavelets evaluated at the data                     |
+| `wbasis()`      | Full decomposed wavelet basis (scaling functions + wavelets)          |
+| `wavedec()`     | Discrete wavelet decomposition (Mallat's pyramidal algorithm)         |
+| `waverec()`     | Inverse wavelet reconstruction                                        |
+| `wtable()`      | Precomputed interpolation tables for fast basis evaluation            |
+| `wdensity()`    | Wavelet-based density estimation for univariate size-biased data      |
+| `bayesthresh()` | Bayesian wavelet thresholding under a spike and slab prior            |
+| `wall()`        | Wavelet-based additive logistic LASSO classifier                      |
+| `cv.wall()`     | Cross-validation for the `wall` classifier                            |
+| `wmixreg()`     | Wavelet-based estimators for mixture regression                       |
+| `bwmixreg()`    | Bayesian wavelet-based mixture regression                             |
+| `bwregime()`    | Identification of regime switches by Bayesian wavelet estimation      |
+| `hpdi()`        | Highest posterior density intervals of MCMC samples                   |
 
 The package also includes the `bac` dataset (blood alcohol concentrations of
 drivers in fatal US accidents, 2019), used in Montoril et al. (2021).
@@ -73,6 +82,17 @@ data(bac)
 est <- wdensity(data = bac, wf = function(x) 0.1 + 0.9 * x,
                 power.dens = 0.5, J1 = ceiling(0.95 * log2(length(bac))),
                 family = "s", filter.size = 20, warped = TRUE)
+```
+
+Regime switches in a two-component mixture, on the aCGH data of Motta and
+Montoril (2026b):
+
+```r
+y   <- changepoint::Lai2005fig4$GBM29   # log-ratios of 193 genomic probes
+fit <- bwregime(y, nchain = 1000, burn = 1000, lag = 50)
+
+which(fit$alpha > 0.5)   # the regions where a copy number alteration is present
+coef(fit)                # the two components: means and precisions
 ```
 
 ### Fast evaluation with precomputed tables
@@ -116,10 +136,23 @@ up-to-date citation (including BibTeX) from R with:
 citation("WaveBased")
 ```
 
-For the size-biased density methodology, please also cite:
+For the methodology behind each estimator, please also cite:
 
-> Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2021). Wavelet-based
-> estimation of power densities of size-biased data. *arXiv:2112.12895*.
+> `wdensity()` — Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2021).
+> Wavelet-based estimation of power densities of size-biased data.
+> *arXiv:2112.12895*.
+>
+> `wmixreg()` — Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2019).
+> Wavelet-based estimators for mixture regression. *Scandinavian Journal of
+> Statistics*, 46(1), 215–234.
+>
+> `bwmixreg()` — Motta, F. C. and Montoril, M. H. (2026a). A Bayesian
+> estimation approach for the wavelet-based mixture regression. *Communications
+> in Statistics – Simulation and Computation*, 55(6), 2426–2434.
+>
+> `bwregime()` — Motta, F. C. and Montoril, M. H. (2026b). Identifying regime
+> switches through Bayesian wavelet estimation: application to environmental
+> and genetic data. *Journal of Applied Statistics*.
 
 ## References
 
@@ -131,6 +164,12 @@ For the size-biased density methodology, please also cite:
 - Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
   PyWavelets: A Python package for wavelet analysis. *Journal of Open Source
   Software*, 4(36), 1237.
+- Abramovich, F., Sapatinas, T. and Silverman, B. W. (1998). Wavelet
+  thresholding via a Bayesian approach. *Journal of the Royal Statistical
+  Society Series B*, 60(4), 725–749.
+- Albert, J. H. and Chib, S. (1993). Bayesian analysis of binary and
+  polychotomous response data. *Journal of the American Statistical
+  Association*, 88(422), 669–679.
 - Montoril, M. H., Pinheiro, A. and Vidakovic, B. (2021). Wavelet-based
   estimation of power densities of size-biased data. *arXiv:2112.12895*.
 

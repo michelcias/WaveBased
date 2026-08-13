@@ -19,6 +19,7 @@
 #include "wav_basis.h"
 #include "wav_basis_sparse.h"
 #include "wav_bayesmix.h"
+#include "wav_bayesregime.h"
 #include "wav_bayesthresh.h"
 #include "wav_mixreg.h"
 #include "wav_transform.h"
@@ -51,6 +52,7 @@
  *          - C_LocLin:       local linear kernel smoother (4 args)
  *          - C_BayesThresh:  Bayesian wavelet thresholding (6 args)
  *          - C_BayesMixReg:  Gibbs sampler of the Bayesian mixture regression (10 args)
+ *          - C_BayesRegime:  Gibbs sampler of the regime switching model (7 args)
  *          - C_hpdi:         highest posterior density intervals (2 args)
  *
  * @note Names must match exactly those used in the R wrapper .Call() calls.
@@ -75,6 +77,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_LocLin",       (DL_FUNC) &C_LocLin,       4},
   {"_WaveBased_C_BayesThresh",  (DL_FUNC) &C_BayesThresh,  6},
   {"_WaveBased_C_BayesMixReg",  (DL_FUNC) &C_BayesMixReg,  10},
+  {"_WaveBased_C_BayesRegime",  (DL_FUNC) &C_BayesRegime,  7},
   {"_WaveBased_C_hpdi",         (DL_FUNC) &C_hpdi,         2},
   {NULL, NULL, 0}
 };

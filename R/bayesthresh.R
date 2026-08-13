@@ -74,8 +74,8 @@
 #' Simulation and Computation}, 55(6), 2426--2434,
 #' \doi{10.1080/03610918.2025.2470797}.
 #'
-#' @seealso \command{\link{bwmixreg}}, \command{\link{wavedec}},
-#'   \command{\link{waverec}}
+#' @seealso \command{\link{bwmixreg}}, \command{\link{bwregime}},
+#'   \command{\link{wavedec}}, \command{\link{waverec}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'

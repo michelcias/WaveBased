@@ -50,7 +50,7 @@ hpdi(draws, prob = 0.95)
 
 }
 \seealso{
-\command{\link{bwmixreg}}
+\command{\link{bwmixreg}}, \command{\link{bwregime}}
 }
 \author{
 Michel H. Montoril \email{michel@ufscar.br}

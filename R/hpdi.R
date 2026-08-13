@@ -27,7 +27,7 @@
 #'   matrix with one row per column of \code{data} and columns \code{lower} and
 #'   \code{upper}.
 #'
-#' @seealso \command{\link{bwmixreg}}
+#' @seealso \command{\link{bwmixreg}}, \command{\link{bwregime}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}
 #'

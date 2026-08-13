@@ -185,6 +185,7 @@
 #' 46(1), 215--234, \doi{10.1111/sjos.12344}.
 #'
 #' @seealso \command{\link{plot.wmixreg}}, \command{\link{predict.wmixreg}},
+#'   \command{\link{bwmixreg}}, \command{\link{bwregime}},
 #'   \command{\link{PHI}}, \command{\link{wtable}}
 #'
 #' @author Michel H. Montoril \email{michel@@ufscar.br}

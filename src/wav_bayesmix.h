@@ -30,6 +30,57 @@
 #include <Rinternals.h>
 
 /**
+ * @brief Draws the mean and the precision of one mixture component.
+ *
+ * @details Both full conditionals are the conjugate ones of expression (3) of
+ *          the article: the mean is normal given the previous precision, and
+ *          the precision is gamma given the mean just drawn. Components with no
+ *          allocated observation fall back to their priors, which the formulas
+ *          already produce.
+ *
+ *          The component parameters of the dynamic mixture do not depend on how
+ *          the mixture weights are built, so this routine is shared with the
+ *          regime sampler of C_BayesRegime(). A different prior for the
+ *          component scales (a half-t, say, through its scale mixture
+ *          representation) belongs beside this function, and not inside the
+ *          samplers that call it.
+ *
+ * @param[in]     y     Observed values of length n.
+ * @param[in]     z     Allocation variables of length n.
+ * @param[in]     n     Sample size.
+ * @param[in]     grp   Group whose parameters are drawn, 0 or 1.
+ * @param[in]     b0    Prior mean of mu.
+ * @param[in]     B0    Prior variance of mu.
+ * @param[in]     v0    Prior shape of tau^2.
+ * @param[in]     V0    Prior rate of tau^2.
+ * @param[in,out] mu    On entry unused; on exit the drawn mean.
+ * @param[in,out] tau2  On entry the current precision, on exit the drawn one.
+ */
+void WBDrawComponent(const double *y, const int *z, int n, int grp,
+                     double b0, double B0, double v0, double V0,
+                     double *mu, double *tau2);
+
+/**
+ * @brief Draws the allocation variables from their full conditionals.
+ *
+ * @details This is expression (4) of the article, evaluated on the logarithmic
+ *          scale so that the ratio stays defined when a weight reaches zero or
+ *          one, or when both normal densities underflow. One uniform variate is
+ *          consumed per observation regardless of the path taken, which keeps
+ *          the stream of the sampler independent of the data. It is shared with
+ *          the regime sampler of C_BayesRegime().
+ *
+ * @param[in]  y     Observed values of length n.
+ * @param[in]  alpha Mixture weights of length n, in [0, 1].
+ * @param[in]  n     Sample size.
+ * @param[in]  mu    Means of the two components.
+ * @param[in]  sd    Standard deviations of the two components.
+ * @param[out] z     Allocation variables of length n.
+ */
+void WBDrawAlloc(const double *y, const double *alpha, int n,
+                 const double *mu, const double *sd, int *z);
+
+/**
  * @brief Runs the Gibbs sampler of the dynamic Gaussian mixture model.
  *
  * @details Each sweep draws \f$\mu_k\f$ and \f$\tau_k^2\f$ from their conjugate
