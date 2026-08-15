@@ -468,25 +468,27 @@ coef.cv.wall <- function(object, s = c("lambda.min", "lambda.1se"), ...){
 #' @param x A fitted object of class \code{"cv.wall"}.
 #' @param type The display: \code{"cv"} (default), the cross-validation
 #'   curves; \code{"path"}, the coefficient paths of the selected \code{J};
-#'   or \code{"components"}, the fitted additive components. The last two
-#'   are drawn by \command{\link{plot.wall}} on the fitted object of the
-#'   selected \code{J}, in \code{x$wall.fit}.
-#' @param s The value of the penalty parameter used by
-#'   \code{type = "path"} and \code{type = "components"}:
-#'   \code{"lambda.min"} (default), \code{"lambda.1se"} or a numeric value.
-#'   Not used by \code{type = "cv"}, whose display already marks both
-#'   selected values.
+#'   \code{"components"}, the fitted additive components; or
+#'   \code{"network"}, the layered structure of the classifier. The last
+#'   three are drawn by \command{\link{plot.wall}} on the fitted object of
+#'   the selected \code{J}, in \code{x$wall.fit}.
+#' @param s The value of the penalty parameter used by the displays other
+#'   than \code{type = "cv"}: \code{"lambda.min"} (default),
+#'   \code{"lambda.1se"} or a numeric value. Not used by
+#'   \code{type = "cv"}, whose display already marks both selected values.
 #' @param se Logical. Should the one-standard-error bars of the selected
 #'   \code{J} be drawn? Default is \code{TRUE}. Only used by
 #'   \code{type = "cv"}.
 #' @param col Vector of colors, one per candidate \code{J} with
-#'   \code{type = "cv"}, and one per displayed covariate otherwise.
+#'   \code{type = "cv"}, and as in \command{\link{plot.wall}} otherwise.
 #' @param legend.pos Position of the legend, as in
-#'   \command{\link[graphics]{legend}}, or \code{NULL} to omit it.
+#'   \command{\link[graphics]{legend}}, or \code{NULL} to omit it. When it is
+#'   not provided, each display of \command{\link{plot.wall}} keeps its own
+#'   default.
 #' @param ... Further graphical parameters passed to
 #'   \command{\link[graphics]{plot}}, or further arguments of
-#'   \command{\link{plot.wall}} (e.g., \code{which}, \code{max.vars}) when
-#'   \code{type} is not \code{"cv"}.
+#'   \command{\link{plot.wall}} (e.g., \code{which}, \code{max.vars},
+#'   \code{newx}) when \code{type} is not \code{"cv"}.
 #'
 #' @return Invisibly, the object \code{x} with \code{type = "cv"}, and the
 #'   quantities plotted by \command{\link{plot.wall}} otherwise.
@@ -506,12 +508,13 @@ coef.cv.wall <- function(object, s = c("lambda.min", "lambda.1se"), ...){
 #' plot(cvfit, type = "path")                      # paths of the selected J
 #' plot(cvfit, type = "components")                # components at lambda.min
 #' plot(cvfit, type = "components", s = "lambda.1se")
+#' plot(cvfit, type = "network")                   # structure at lambda.min
 #'
 #' @keywords classif hplot
 #' @method plot cv.wall
 #' @importFrom graphics lines points segments legend abline
 #' @export
-plot.cv.wall <- function(x, type = c("cv", "path", "components"),
+plot.cv.wall <- function(x, type = c("cv", "path", "components", "network"),
                          s = c("lambda.min", "lambda.1se"), se = TRUE,
                          col = NULL, legend.pos = "topleft", ...){
 
@@ -522,8 +525,12 @@ plot.cv.wall <- function(x, type = c("cv", "path", "components"),
       s <- match.arg(s)
       s <- x[[s]]
     }
-    return(invisible(plot(x$wall.fit, type = type, s = s, col = col,
-                          legend.pos = legend.pos, ...)))
+    # 'legend.pos' is only forwarded when the user asks for a position, so
+    # that each display of plot.wall keeps its own default.
+    args <- list(x$wall.fit, type = type, s = s, col = col, ...)
+    if(!missing(legend.pos))
+      args$legend.pos <- legend.pos
+    return(invisible(do.call(plot, args)))
   }
 
   nJ <- length(x$J)

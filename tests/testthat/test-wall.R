@@ -243,6 +243,7 @@ test_that("plot.cv.wall delegates the path and the components to plot.wall", {
   expect_equal(plot(cvfit, type = "components", s = "lambda.1se")$s,
                cvfit$lambda.1se)
   expect_equal(plot(cvfit, type = "components", s = 0.05)$s, 0.05)
+  expect_equal(plot(cvfit, type = "network")$s, cvfit$lambda.min)
 
   # Further arguments of plot.wall are honored.
   cp <- plot(cvfit, type = "components", which = "X1")
@@ -328,6 +329,89 @@ test_that("plot.wall draws the fitted components of the log-odds", {
                "larger than one")
 })
 
+test_that("plot.wall draws the classifier as a layered network", {
+  dat <- .wall_sim()
+  fit <- wall(dat$x, dat$y, J = 3, filter.size = 8)
+  s <- 0.02
+
+  pdf(NULL)
+  on.exit(dev.off())
+
+  np <- plot(fit, type = "network", s = s)
+  expect_invisible(plot(fit, type = "network", s = s))
+  expect_equal(np$type, "network")
+  expect_equal(np$s, s)
+  expect_equal(plot(fit, type = "network")$s, min(fit$lambda))
+
+  # One node per resolution level of each covariate, holding the block of
+  # coefficients of that level: with j0 = 0 and the periodized basis, the
+  # blocks of a covariate are W0 (1 coefficient), W1 (2) and W2 (4).
+  b <- as.numeric(coef(fit, s = s)[, 1L])
+  idx <- list(W0 = 1L, W1 = 2:3, W2 = 4:7)
+  for(l in seq_len(2L)){
+    bl <- b[1L + (l - 1L)*7L + seq_len(7L)]
+    nz <- vapply(idx, function(i) sum(bl[i] != 0), 0L)
+    nd <- np$nodes[np$nodes$var == c("X1", "X2")[l], ]
+    expect_equal(nd$label, names(idx)[nz > 0])
+    expect_equal(nd$level, (0:2)[nz > 0])
+    expect_equal(nd$nnz, unname(nz[nz > 0]))
+    expect_equal(nd$norm,
+                 unname(vapply(idx, function(i) sqrt(sum(bl[i]^2)), 0)[nz > 0]))
+  }
+
+  # Without an observation, the display is structural: the components are
+  # summarized by the norm of their coefficients and there is nothing to
+  # propagate through the last two layers.
+  expect_equal(np$intercept, b[1L])
+  expect_true(all(is.na(np$nodes$value)))
+  expect_true(is.na(np$h) && is.na(np$prob))
+  expect_equal(np$f, vapply(split(np$nodes$norm, np$nodes$var),
+                            function(z) sqrt(sum(z^2)), 0)[names(np$f)])
+
+  # Every resolution level is kept with nonzero = FALSE, even the ones the
+  # LASSO emptied.
+  expect_equal(nrow(plot(fit, type = "network", s = s, nonzero = FALSE)$nodes),
+               2L*3L)
+})
+
+test_that("plot.wall propagates one observation through the network", {
+  dat <- .wall_sim()
+  fit <- wall(dat$x, dat$y, J = 3, filter.size = 8)
+  s <- 0.02
+  x0 <- dat$x[1L, ]
+
+  pdf(NULL)
+  on.exit(dev.off())
+
+  q <- plot(fit, type = "network", s = s, newx = x0)
+
+  # The nodes hold the forward pass of the observation: the values of the
+  # levels of a covariate add up to its component, the components and the
+  # intercept add up to the log-odds, and the logistic link closes the
+  # network with the predicted probability.
+  expect_equal(vapply(split(q$nodes$value, q$nodes$var), sum, 0)[names(q$f)],
+               q$f)
+  expect_equal(sum(q$f) + q$intercept, q$h)
+  expect_equal(q$h, as.numeric(predict(fit, dat$x[1L, , drop = FALSE], s = s)))
+  expect_equal(q$prob, as.numeric(predict(fit, dat$x[1L, , drop = FALSE],
+                                          s = s, type = "response")))
+
+  # A vector, a one-row matrix and a one-row data frame are the same
+  # observation. The structure of the graph does not depend on it.
+  expect_equal(q, plot(fit, type = "network", s = s,
+                       newx = dat$x[1L, , drop = FALSE]))
+  expect_equal(q, plot(fit, type = "network", s = s,
+                       newx = as.data.frame(dat$x)[1L, ]))
+  expect_equal(q$nodes[setdiff(names(q$nodes), "value")],
+               plot(fit, type = "network", s = s)$nodes[
+                 setdiff(names(q$nodes), "value")])
+
+  expect_error(plot(fit, type = "network", s = s, newx = dat$x[1:2, ]),
+               "single observation")
+  expect_error(plot(fit, type = "network", s = s, newx = dat$x[1L, 1L]),
+               "must have 2 column")
+})
+
 test_that("plot.wall keeps the display readable with many covariates", {
   set.seed(6)
   n <- 200
@@ -365,6 +449,16 @@ test_that("plot.wall keeps the display readable with many covariates", {
                             which = c("X5", "X3")))
   expect_equal(cp2$which, c(5L, 3L))
   expect_equal(colnames(cp2$components), c("X5", "X3"))
+
+  # The network shares that selection, and displays no node for the
+  # covariates whose coefficients were all set to zero.
+  expect_message(np <- plot(fit, type = "network", s = 0.05, max.vars = 2),
+                 "Showing 2 of 20 covariates")
+  expect_equal(np$which, cp$which)
+  expect_silent(np2 <- plot(fit, type = "network", s = 0.2, which = c(5L, 3L),
+                            legend.pos = NULL))
+  expect_equal(np2$which, c(5L, 3L))
+  expect_equal(sort(unique(np2$nodes$var)), sort(names(np2$f)[np2$f > 0]))
 
   # By default, the components fill a 3 x 3 grid of panels, laid out in
   # three columns when there are fewer of them. The layout in force is read

@@ -6,7 +6,7 @@
 \usage{
 \method{plot}{cv.wall}(
   x,
-  type = c("cv", "path", "components"),
+  type = c("cv", "path", "components", "network"),
   s = c("lambda.min", "lambda.1se"),
   se = TRUE,
   col = NULL,
@@ -19,30 +19,32 @@
 
 \item{type}{The display: \code{"cv"} (default), the cross-validation
 curves; \code{"path"}, the coefficient paths of the selected \code{J};
-or \code{"components"}, the fitted additive components. The last two
-are drawn by \command{\link{plot.wall}} on the fitted object of the
-selected \code{J}, in \code{x$wall.fit}.}
+\code{"components"}, the fitted additive components; or
+\code{"network"}, the layered structure of the classifier. The last
+three are drawn by \command{\link{plot.wall}} on the fitted object of
+the selected \code{J}, in \code{x$wall.fit}.}
 
-\item{s}{The value of the penalty parameter used by
-\code{type = "path"} and \code{type = "components"}:
-\code{"lambda.min"} (default), \code{"lambda.1se"} or a numeric value.
-Not used by \code{type = "cv"}, whose display already marks both
-selected values.}
+\item{s}{The value of the penalty parameter used by the displays other
+than \code{type = "cv"}: \code{"lambda.min"} (default),
+\code{"lambda.1se"} or a numeric value. Not used by
+\code{type = "cv"}, whose display already marks both selected values.}
 
 \item{se}{Logical. Should the one-standard-error bars of the selected
 \code{J} be drawn? Default is \code{TRUE}. Only used by
 \code{type = "cv"}.}
 
 \item{col}{Vector of colors, one per candidate \code{J} with
-\code{type = "cv"}, and one per displayed covariate otherwise.}
+\code{type = "cv"}, and as in \command{\link{plot.wall}} otherwise.}
 
 \item{legend.pos}{Position of the legend, as in
-\command{\link[graphics]{legend}}, or \code{NULL} to omit it.}
+\command{\link[graphics]{legend}}, or \code{NULL} to omit it. When it is
+not provided, each display of \command{\link{plot.wall}} keeps its own
+default.}
 
 \item{...}{Further graphical parameters passed to
 \command{\link[graphics]{plot}}, or further arguments of
-\command{\link{plot.wall}} (e.g., \code{which}, \code{max.vars}) when
-\code{type} is not \code{"cv"}.}
+\command{\link{plot.wall}} (e.g., \code{which}, \code{max.vars},
+\code{newx}) when \code{type} is not \code{"cv"}.}
 }
 \value{
 Invisibly, the object \code{x} with \code{type = "cv"}, and the
@@ -69,6 +71,7 @@ plot(cvfit)                                     # cross-validation curves
 plot(cvfit, type = "path")                      # paths of the selected J
 plot(cvfit, type = "components")                # components at lambda.min
 plot(cvfit, type = "components", s = "lambda.1se")
+plot(cvfit, type = "network")                   # structure at lambda.min
 
 }
 \seealso{

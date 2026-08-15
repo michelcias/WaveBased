@@ -384,27 +384,33 @@ coef.wall <- function(object, s = NULL, ...){
   predict(object$glmnet.fit, type = "coefficients", s = s, ...)
 }
 
-#' @title Plot the regularization paths or the fitted components of a wall
-#'   classifier
+#' @title Plot the regularization paths, the fitted components or the
+#'   network structure of a wall classifier
 #'
-#' @description Two displays of a fitted \command{\link{wall}} object are
+#' @description Three displays of a fitted \command{\link{wall}} object are
 #' available. With \code{type = "path"}, the norm of the estimated
 #' coefficients of each covariate is plotted against \eqn{\log(\lambda)},
 #' summarizing the whole LASSO path and the order in which the covariates
 #' enter the classifier. With \code{type = "components"}, the estimated
 #' additive components \eqn{\hat{f}_l} are evaluated on a grid and plotted,
-#' one panel per covariate, at a single value of the penalty parameter.
+#' one panel per covariate, at a single value of the penalty parameter. With
+#' \code{type = "network"}, the classifier is drawn as a layered graph, in
+#' the fashion of a neural network diagram: the wavelet basis feeds the
+#' additive components, which are summed into the log-odds, which the
+#' logistic link turns into the predicted probability.
 #'
 #' @param x A fitted object of class \code{"wall"}.
 #' @param type The display: \code{"path"} (default), the coefficient norms
-#'   along the whole \eqn{\lambda} path, or \code{"components"}, the fitted
-#'   additive components at a given \eqn{\lambda}.
+#'   along the whole \eqn{\lambda} path; \code{"components"}, the fitted
+#'   additive components at a given \eqn{\lambda}; or \code{"network"}, the
+#'   layered structure of the classifier at a given \eqn{\lambda}.
 #' @param s Value of the penalty parameter \eqn{\lambda}. Required by
-#'   \code{type = "components"}, where it defaults to the smallest value of
-#'   the path (the least penalized fit); typically, one passes here the value
-#'   selected by \command{\link{cv.wall}}. With \code{type = "path"}, if
-#'   \code{s} is provided, it is marked by a vertical dotted line and used to
-#'   rank the covariates.
+#'   \code{type = "components"} and \code{type = "network"}, where it
+#'   defaults to the smallest value of the path (the least penalized fit);
+#'   typically, one passes here the value selected by
+#'   \command{\link{cv.wall}}. With \code{type = "path"}, if \code{s} is
+#'   provided, it is marked by a vertical dotted line and used to rank the
+#'   covariates.
 #' @param which Optional subset of covariates to be displayed, given as
 #'   names, indices or a logical vector. By default (\code{which = NULL}) the
 #'   covariates are selected automatically, as described below.
@@ -413,21 +419,33 @@ coef.wall <- function(object, s = NULL, ...){
 #'   \code{max.vars = 9}, which fills the default grid of panels of
 #'   \code{type = "components"}. Use \code{max.vars = Inf} for all of them.
 #'   Ignored if \code{which} is provided.
-#' @param nonzero Logical, used by \code{type = "components"}. If
-#'   \code{TRUE} (default), the automatic selection only considers the
-#'   covariates whose component is not identically zero at \code{s}.
+#' @param nonzero Logical, used by \code{type = "components"} and
+#'   \code{type = "network"}. If \code{TRUE} (default), the automatic
+#'   selection only considers the covariates whose component is not
+#'   identically zero at \code{s}; in \code{type = "network"}, it also
+#'   restricts the display to the resolution levels that survived the LASSO.
 #' @param norm The norm used to summarize the block of coefficients of each
 #'   covariate in \code{type = "path"}: \code{"l2"} (default) or \code{"l1"}.
 #' @param center Logical, used by \code{type = "components"}. If \code{TRUE}
 #'   (default), each component is centered at zero over the plotting grid.
 #' @param n.grid Number of grid points at which the components are
 #'   evaluated.
-#' @param col Vector of colors, one per displayed covariate. For
-#'   \code{type = "path"}, it defaults to \code{2:(k+1)}, or to a qualitative
-#'   palette when more than seven covariates are displayed; for
-#'   \code{type = "components"}, it defaults to black.
-#' @param legend.pos Position of the legend of \code{type = "path"}, as in
-#'   \command{\link[graphics]{legend}}, or \code{NULL} to omit it.
+#' @param newx Optional single observation (a vector, or a matrix or data
+#'   frame with one row and the covariates used in the fit), used by
+#'   \code{type = "network"}. If provided, the nodes of the graph display the
+#'   forward pass of that observation through the classifier, as described
+#'   below.
+#' @param col Vector of colors. For \code{type = "path"}, one per displayed
+#'   covariate, defaulting to \code{2:(k+1)}, or to a qualitative palette
+#'   when more than seven covariates are displayed; for
+#'   \code{type = "components"}, one per displayed covariate, defaulting to
+#'   black; for \code{type = "network"}, one per resolution level, from the
+#'   scaling block (when present) to \eqn{W_{J-1}}, defaulting to grey for
+#'   the scaling block and to a qualitative palette for the detail levels.
+#' @param legend.pos Position of the legend of \code{type = "path"} and
+#'   \code{type = "network"}, as in \command{\link[graphics]{legend}}, or
+#'   \code{NULL} to omit it. Defaults to \code{"bottom"} (horizontally, over
+#'   the free strip below the graph) with \code{type = "network"}.
 #' @param mfrow Layout of the panels of \code{type = "components"}, as the
 #'   homonymous parameter of \command{\link[graphics]{par}}. By default, the
 #'   components are laid out in three columns, i.e., in a 3 by 3 grid with
@@ -436,7 +454,8 @@ coef.wall <- function(object, s = NULL, ...){
 #' @param xlab,ylab,main,ylim Usual graphical parameters. Their defaults
 #'   depend on \code{type}; with \code{type = "components"}, the axis labels
 #'   are taken from the name of each covariate and \code{ylim} is shared by
-#'   all the panels, so that the components are comparable.
+#'   all the panels, so that the components are comparable, and with
+#'   \code{type = "network"} the axes are omitted.
 #' @param ... Further graphical parameters passed to
 #'   \command{\link[graphics]{plot}}.
 #'
@@ -472,13 +491,50 @@ coef.wall <- function(object, s = NULL, ...){
 #' of components displayed and their layout. In both cases, \code{which}
 #' overrides the automatic selection.
 #'
+#' The display of \code{type = "network"} arranges the classifier in four
+#' layers, read from right to left: the predicted probability
+#' \eqn{\hat{\eta}(x)}; the log-odds \eqn{\hat{h}(x)}; the additive
+#' components \eqn{\hat{f}_l}, one node per covariate; and the wavelet basis,
+#' grouped by resolution level. A node of the leftmost layer collects the
+#' coefficients of one resolution level of one covariate, i.e., the scaling
+#' block \eqn{V_{j_0}} (when it is not dropped) or a detail block \eqn{W_j},
+#' \eqn{j_0 \le j \le J_l - 1}; its color identifies the level, its size
+#' grows with the number of coefficients that survived the LASSO there, and
+#' the width of its edge is the norm \eqn{\|\hat{d}_{l,j}\|_2} of the block,
+#' i.e., how much that level contributes to the component. With the default
+#' \code{nonzero = TRUE}, only the levels with at least one nonzero
+#' coefficient are drawn, so the picture displays the structure selected by
+#' the LASSO. The remaining two layers carry no free parameters: the
+#' components are summed into the log-odds, together with the unpenalized
+#' intercept \eqn{\hat{\beta}_0} (drawn as a separate bias node), and the
+#' logistic link maps the sum into the probability of the positive class.
+#' The nodes are annotated in the notation of \command{\link{wall}}, with a
+#' covariate identified by its index when the data carry no column names,
+#' and by its name otherwise.
+#'
+#' With \code{newx}, the same graph displays the forward pass of a single
+#' observation: each node of the basis layer is labeled with the detail of
+#' the component at that level, \eqn{\sum_k \hat{d}_{jk}^l \psi_{jk}(x_l)},
+#' each component node with \eqn{\hat{f}_l(x_l)}, and the last two nodes with
+#' \eqn{\hat{h}(x)} and \eqn{\hat{\eta}(x)}; the edges leaving a component
+#' are dashed when its contribution to the log-odds is negative. These values
+#' are the ones actually used by \command{\link{predict.wall}} -- they are
+#' not centered, so that they add up to \eqn{\hat{h}(x)} -- and the display
+#' shows which covariates and which resolution levels drove the
+#' classification of that observation.
+#'
 #' @return Invisibly, a list with the plotted quantities: for
 #'   \code{type = "path"}, the components \code{lambda} and \code{norms} (a
 #'   matrix with one row per covariate and one column per \eqn{\lambda});
 #'   for \code{type = "components"}, the components \code{x} and
 #'   \code{components} (matrices with one column per displayed covariate,
-#'   holding the grid and the fitted values). In both cases, \code{which}
-#'   gives the indices of the displayed covariates.
+#'   holding the grid and the fitted values); for \code{type = "network"},
+#'   the component \code{nodes} (a data frame with one row per node of the
+#'   basis layer, holding its covariate, resolution level, label, number of
+#'   nonzero coefficients, block norm and, with \code{newx}, its value),
+#'   together with \code{f} (the components), \code{intercept}, \code{h} and
+#'   \code{prob}, the last three being \code{NA} without \code{newx}. In
+#'   every case, \code{which} gives the indices of the displayed covariates.
 #'
 #' @seealso \command{\link{wall}}, \command{\link{cv.wall}},
 #'   \command{\link{predict.wall}}
@@ -495,24 +551,30 @@ coef.wall <- function(object, s = NULL, ...){
 #' fit <- wall(x, y, J = 3, filter.size = 8)
 #' plot(fit)                                    # coefficient paths
 #' plot(fit, type = "components", s = 0.02)     # fitted components
+#' plot(fit, type = "network", s = 0.02)        # structure of the classifier
+#'
+#' # The forward pass of a single observation through the network
+#' plot(fit, type = "network", s = 0.02, newx = x[1, ])
 #'
 #' # With the penalty parameter chosen by cross-validation
 #' cvfit <- cv.wall(x, y, J = 2:3, filter.size = 8, nfolds = 5)
 #' plot(cvfit$wall.fit, s = cvfit$lambda.min)
 #' plot(cvfit$wall.fit, type = "components", s = cvfit$lambda.min)
+#' plot(cvfit$wall.fit, type = "network", s = cvfit$lambda.min)
 #'
 #' @keywords classif hplot
 #' @method plot wall
-#' @importFrom graphics lines abline legend axis mtext par
+#' @importFrom graphics lines abline legend axis mtext par points segments
+#' @importFrom graphics text strheight
 #' @importFrom grDevices hcl.colors
 #' @importFrom stats approx
 #' @export
-plot.wall <- function(x, type = c("path", "components"), s = NULL,
+plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
                       which = NULL, max.vars = 9, nonzero = TRUE,
                       norm = c("l2", "l1"), center = TRUE, n.grid = 256,
-                      col = NULL, legend.pos = "topleft", mfrow = NULL,
-                      xlab = NULL, ylab = NULL, main = NULL, ylim = NULL,
-                      ...){
+                      newx = NULL, col = NULL, legend.pos = "topleft",
+                      mfrow = NULL, xlab = NULL, ylab = NULL, main = NULL,
+                      ylim = NULL, ...){
 
   type <- match.arg(type)
   norm <- match.arg(norm)
@@ -520,17 +582,31 @@ plot.wall <- function(x, type = c("path", "components"), s = NULL,
   if(!is.null(s) && (length(s) != 1L || !is.finite(s) || s < 0))
     stop("'s' must be a single non-negative value of the penalty parameter.")
 
-  out <- if(type == "path")
-           .wall_plot_path(x, s = s, which = which, max.vars = max.vars,
-                           norm = norm, col = col, legend.pos = legend.pos,
-                           xlab = xlab, ylab = ylab, main = main,
-                           ylim = ylim, ...)
-         else
-           .wall_plot_components(x, s = s, which = which, max.vars = max.vars,
-                                 nonzero = nonzero, center = center,
-                                 n.grid = n.grid, col = col, mfrow = mfrow,
-                                 xlab = xlab, ylab = ylab, main = main,
-                                 ylim = ylim, ...)
+  # The layered graph leaves its bottom strip free, where a horizontal
+  # legend of the resolution levels fits without covering any node.
+  if(type == "network" && missing(legend.pos))
+    legend.pos <- "bottom"
+
+  out <- switch(type,
+                path =
+                  .wall_plot_path(x, s = s, which = which,
+                                  max.vars = max.vars, norm = norm, col = col,
+                                  legend.pos = legend.pos, xlab = xlab,
+                                  ylab = ylab, main = main, ylim = ylim, ...),
+                components =
+                  .wall_plot_components(x, s = s, which = which,
+                                        max.vars = max.vars, nonzero = nonzero,
+                                        center = center, n.grid = n.grid,
+                                        col = col, mfrow = mfrow, xlab = xlab,
+                                        ylab = ylab, main = main, ylim = ylim,
+                                        ...),
+                network =
+                  .wall_plot_network(x, s = s, which = which,
+                                     max.vars = max.vars, nonzero = nonzero,
+                                     newx = newx, col = col,
+                                     legend.pos = legend.pos, xlab = xlab,
+                                     ylab = ylab, main = main, ylim = ylim,
+                                     ...))
 
   invisible(c(list(type = type), out))
 
@@ -1003,5 +1079,272 @@ plot.wall <- function(x, type = c("path", "components"), s = NULL,
   }
 
   list(s = s, x = grid, components = fit, which = sel)
+
+}
+
+# Resolution-level blocks of the coefficients of one covariate: the scaling
+# block V_{j0} (when it is not dropped) and the detail blocks W_j, for
+# j0 <= j <= J_l - 1, in the order used by .wall_design(). The indices are
+# relative to the block of the covariate, as given by .wall_blocks().
+.wall_groups <- function(obj, l){
+  j <- obj$j0:(obj$J[l] - 1L)
+  sizes <- as.integer(c(if(!obj$drop.phi) 2^obj$j0, 2^j))
+  ends <- cumsum(sizes)
+  list(idx = Map(seq.int, ends - sizes + 1L, ends),
+       level = c(if(!obj$drop.phi) obj$j0, j),
+       label = c(if(!obj$drop.phi) paste0("V", obj$j0), paste0("W", j)))
+}
+
+# Numbers displayed on the nodes: enough digits to be read, without the
+# common padding that format() applies to a vector.
+.wall_fmt <- function(v) vapply(v, function(z) format(signif(z, 3)), "")
+
+# Subscript identifying a covariate in the annotation of the network: its
+# index, when the covariates carry the names X1, ..., Xd that .wall_x()
+# gives to an unnamed design, and its own name otherwise.
+.wall_sub <- function(obj, sel){
+  if(identical(obj$xnames, paste0("X", seq_along(obj$J))))
+    as.character(sel)
+  else
+    obj$xnames[sel]
+}
+
+# Mathematical annotation of the resolution levels, from their labels: the
+# scaling block V_{j0} and the detail blocks W_j.
+.wall_key_expr <- function(keys){
+  lev <- as.integer(substring(keys, 2L))
+  lapply(seq_along(keys), function(i)
+    if(substr(keys[i], 1L, 1L) == "V") bquote(V[.(lev[i])])
+    else bquote(W[.(lev[i])]))
+}
+
+# Label of a node, with the value of a forward pass underneath it when there
+# is one. The labels are plotmath expressions, one per node, and the two
+# lines are drawn separately: text() would left-align the lines of a
+# multi-line string, and plotmath has no line break anyway. With
+# adj[2] = 0.5 the pair is centered on the node; otherwise it hangs below it.
+.wall_label <- function(x, y, label, value, adj, cex, yr){
+  x <- rep_len(x, length(label))
+  y <- rep_len(y, length(label))
+  for(i in seq_along(label)){
+    lab <- as.expression(label[[i]])
+    if(is.null(value))
+      text(x[i], y[i], lab, adj = adj, cex = cex, xpd = NA)
+    else if(adj[2L] == 0.5){
+      # Centered on the node: the lines are anchored back to back, so that
+      # the pair reads as one block, apart from the labels of its neighbors.
+      text(x[i], y[i] + 0.25*cex*yr, lab, adj = c(adj[1L], 0), cex = cex,
+           xpd = NA)
+      text(x[i], y[i] - 0.25*cex*yr, value[i], adj = c(adj[1L], 1), cex = cex,
+           xpd = NA)
+    }
+    else{
+      # Hanging below the node, clear of the label above it, whose height
+      # depends on the subscripts of its annotation.
+      text(x[i], y[i], lab, adj = adj, cex = cex, xpd = NA)
+      text(x[i], y[i] - strheight(lab, cex = cex) - 0.5*cex*yr, value[i],
+           adj = adj, cex = cex, xpd = NA)
+    }
+  }
+  invisible(NULL)
+}
+
+# Layered graph of plot.wall(type = "network").
+.wall_plot_network <- function(obj, s, which, max.vars, nonzero, newx, col,
+                               legend.pos, xlab, ylab, main, ylim, ...){
+
+  if(is.null(s))
+    s <- min(obj$lambda)
+
+  cf <- as.numeric(coef(obj, s = s)[, 1L])
+  b0 <- cf[1L]
+  beta <- cf[-1L]                                   # without the intercept
+  blocks <- .wall_blocks(obj)
+  d <- length(blocks)
+
+  # With an observation, the graph displays its forward pass; a vector is
+  # read as the covariates of a single observation.
+  act <- !is.null(newx)
+  if(act){
+    newx <- .wall_x(newx)
+    if(d > 1L && ncol(newx) == 1L && nrow(newx) == d)
+      newx <- t(newx)
+    if(ncol(newx) != d)
+      stop("'newx' must have ", d, " column(s), as the data used in the fit.")
+    if(nrow(newx) != 1L)
+      stop("'newx' must contain a single observation, whose forward pass through the network is displayed.")
+  }
+
+  # The basis is orthonormal, so the covariates are ranked by the norm of
+  # their coefficients, as in type = "components".
+  score <- vapply(blocks, function(i) sqrt(sum(beta[i]^2)), 0)
+  pick <- .wall_pick(which, score, obj$xnames, max.vars, drop.zero = nonzero)
+  sel <- pick$sel
+  k <- length(sel)
+
+  if(is.null(which) && k < d)
+    message(sprintf("Showing %d of %d covariates (%d with a nonzero component at s = %s). See 'which' and 'max.vars'.",
+                    k, d, sum(score > 0), format(signif(s, 3))))
+
+  # One node per resolution level of each displayed covariate: how many of
+  # its coefficients survived the LASSO (the size of the node), how large
+  # they are as a block (the width of its edge) and, in a forward pass, the
+  # detail of the component at that level (the value of the node).
+  nodes <- vector("list", k)
+  fx <- rep(NA_real_, k)
+  for(i in seq_len(k)){
+    l <- sel[i]
+    g <- .wall_groups(obj, l)
+    bl <- beta[blocks[[l]]]
+    if(act){
+      u <- (newx[1L, l] - obj$location[l])/obj$scale[l]
+      u <- min(max(u, obj$eps[l]), 1 - obj$eps[l])
+      B <- as.numeric(.wall_wbasis(u, obj, obj$J[l]))
+      if(obj$drop.phi)
+        B <- B[-1L]
+    }
+    nnz <- vapply(g$idx, function(ii) sum(bl[ii] != 0), 0L)
+    nrm <- vapply(g$idx, function(ii) sqrt(sum(bl[ii]^2)), 0)
+    val <- if(act) vapply(g$idx, function(ii) sum(B[ii]*bl[ii]), 0)
+           else rep(NA_real_, length(g$idx))
+    if(act)
+      fx[i] <- sum(val)
+    keep <- if(nonzero) nnz > 0L else rep(TRUE, length(nnz))
+    nodes[[i]] <- data.frame(var = rep(obj$xnames[l], sum(keep)),
+                             level = g$level[keep], label = g$label[keep],
+                             nnz = nnz[keep], norm = nrm[keep],
+                             value = val[keep])
+  }
+
+  h <- if(act) as.numeric(predict(obj, newx, s = s)) else NA_real_
+  prob <- if(act) 1/(1 + exp(-h)) else NA_real_
+
+  # Vertical layout: the levels of a covariate are stacked in their own
+  # block, consecutive blocks are separated by a blank slot, and each
+  # component is aligned with the center of the block that builds it.
+  ng <- vapply(nodes, nrow, 0L)
+  slots <- sum(pmax(ng, 1L)) + (k - 1L)
+  ylev <- vector("list", k)
+  yf <- numeric(k)
+  cur <- slots
+  for(i in seq_len(k)){
+    m <- max(ng[i], 1L)
+    yi <- cur - seq_len(m) + 1
+    ylev[[i]] <- if(ng[i] > 0L) yi else numeric(0)
+    yf[i] <- mean(yi)
+    cur <- cur - m - 1
+  }
+  yh <- (slots + 1)/2
+  ybias <- yh + 1.2
+  yhead <- max(slots, ybias) + 0.9
+
+  # The palette spans every level of the fit, from the coarsest to the
+  # finest, so that a color means the same across the covariates (and across
+  # plots of the same object). The unpenalized scaling block, which is a
+  # different kind of object, is kept neutral.
+  keys <- c(if(!obj$drop.phi) paste0("V", obj$j0),
+            paste0("W", obj$j0:(max(obj$J[sel]) - 1L)))
+  ndet <- length(keys) - as.integer(!obj$drop.phi)
+  if(is.null(col))
+    col <- c(if(!obj$drop.phi) "grey45",
+             hcl.colors(max(ndet, 2L), "Dark 3")[seq_len(ndet)])
+  col <- rep_len(col, length(keys))
+
+  nnz.max <- max(c(unlist(lapply(nodes, `[[`, "nnz")), 1L))
+  nrm.max <- max(c(unlist(lapply(nodes, `[[`, "norm")), 0))
+  fw <- if(act) abs(fx) else score[sel]
+  fw.max <- max(c(fw, 0))
+  lwd.of <- function(v, vmax) 0.7 + 3.3*(if(vmax > 0) v/vmax else 0)
+
+  if(is.null(ylim))
+    ylim <- c(if(identical(legend.pos, "bottom")) -1 else 0.2, yhead + 0.4)
+
+  op <- par(mar = c(1, 1, if(is.null(main)) 1 else 2.4, 1) + 0.1)
+  on.exit(par(op))
+
+  plot(NA, xlim = c(0.42, 4.32), ylim = ylim, axes = FALSE, main = main,
+       xlab = if(is.null(xlab)) "" else xlab,
+       ylab = if(is.null(ylab)) "" else ylab, ...)
+
+  # Radius, in user coordinates, of a symbol drawn with cex = 1: the labels
+  # are placed just outside each node, whatever its size.
+  usr <- par("usr")
+  xr <- 0.5*par("cin")[1L]*diff(usr[1:2])/par("pin")[1L]
+  yr <- 0.5*par("cin")[2L]*diff(usr[3:4])/par("pin")[2L]
+
+  text(1:4, yhead, c("wavelet basis", "components", "logit", "probability"),
+       font = 2, cex = 0.85)
+
+  # Edges, drawn first so that the nodes sit on top of them. From the basis
+  # to the components, they are the blocks of coefficients estimated by the
+  # LASSO; the remaining layers carry no free parameter, and a dashed edge
+  # marks a component pulling the log-odds down.
+  for(i in seq_len(k)){
+    nd <- nodes[[i]]
+    if(nrow(nd) == 0L)
+      next
+    segments(1, ylev[[i]], 2, yf[i], col = col[match(nd$label, keys)],
+             lwd = lwd.of(nd$norm, nrm.max))
+  }
+  segments(2, yf, 3, yh, col = "grey30", lwd = lwd.of(fw, fw.max),
+           lty = if(act) ifelse(fx < 0, 2L, 1L) else 1L)
+  segments(3, ybias, 3, yh, col = "grey60", lty = if(b0 < 0) 2L else 1L)
+  segments(3, yh, 4, yh, col = "grey30", lwd = 2)
+  text(3.6, yh + 0.55*yr, expression(1/(1 + e^-hat(h))), cex = 0.75,
+       col = "grey30", adj = c(0.5, 0))
+
+  # Nodes of the basis layer, one per resolution level of each covariate,
+  # labeled by the block they hold and by how many of its coefficients
+  # survived the LASSO.
+  for(i in seq_len(k)){
+    nd <- nodes[[i]]
+    if(nrow(nd) == 0L)
+      next
+    cex.i <- 1.4 + 2.6*nd$nnz/nnz.max
+    points(rep(1, nrow(nd)), ylev[[i]], pch = 21, col = "black",
+           bg = col[match(nd$label, keys)], cex = cex.i)
+    ke <- .wall_key_expr(nd$label)
+    .wall_label(1 - cex.i*xr - 0.5*xr, ylev[[i]],
+                lapply(seq_len(nrow(nd)),
+                       function(z) bquote(.(ke[[z]])*
+                                          .(sprintf(" (%d)", nd$nnz[z])))),
+                if(act) .wall_fmt(nd$value), adj = c(1, 0.5), cex = 0.72,
+                yr = yr)
+  }
+
+  # The remaining layers: components, log-odds (with the unpenalized
+  # intercept as a bias node) and the predicted probability.
+  points(rep(2, k), yf, pch = 21, col = "black", bg = "grey95", cex = 3.2)
+  .wall_label(2, yf - 2.1*yr,
+              lapply(.wall_sub(obj, sel),
+                     function(nm) bquote(hat(f)[.(nm)](x[.(nm)]))),
+              if(act) .wall_fmt(fx), adj = c(0.5, 1), cex = 0.75, yr = yr)
+
+  points(3, ybias, pch = 22, col = "black", bg = "grey95", cex = 2.2)
+  .wall_label(3 + 1.6*xr, ybias,
+              list(bquote(hat(beta)[0] == .(signif(b0, 3)))), NULL,
+              adj = c(0, 0.5), cex = 0.75, yr = yr)
+
+  points(3, yh, pch = 21, col = "black", bg = "grey95", cex = 3.6)
+  .wall_label(3, yh - 2.3*yr, list(quote(hat(h)(x))),
+              if(act) .wall_fmt(h), adj = c(0.5, 1), cex = 0.75, yr = yr)
+
+  points(4, yh, pch = 21, col = "black", bg = "grey95", cex = 4)
+  .wall_label(4, yh - 2.5*yr,
+              list(bquote(hat(P)(Y == .(obj$classnames[2L])))),
+              if(act) .wall_fmt(prob), adj = c(0.5, 1), cex = 0.75, yr = yr)
+
+  shown <- keys %in% unlist(lapply(nodes, `[[`, "label"))
+  if(!is.null(legend.pos) && any(shown))
+    legend(legend.pos, legend = as.expression(.wall_key_expr(keys[shown])),
+           col = col[shown], pch = 19, pt.cex = 1.4, cex = 0.85, bty = "n",
+           title = "resolution level",
+           horiz = identical(legend.pos, "bottom"))
+
+  nodes <- do.call(rbind, nodes)
+  f <- if(act) fx else score[sel]
+  names(f) <- obj$xnames[sel]
+  list(s = s, nodes = nodes, f = f, intercept = b0, h = h, prob = prob,
+       which = sel)
 
 }
