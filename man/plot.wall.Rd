@@ -2,12 +2,12 @@
 % Please edit documentation in R/wall.R
 \name{plot.wall}
 \alias{plot.wall}
-\title{Plot the regularization paths or the fitted components of a wall
-  classifier}
+\title{Plot the regularization paths, the fitted components or the
+  network structure of a wall classifier}
 \usage{
 \method{plot}{wall}(
   x,
-  type = c("path", "components"),
+  type = c("path", "components", "network"),
   s = NULL,
   which = NULL,
   max.vars = 9,
@@ -15,6 +15,7 @@
   norm = c("l2", "l1"),
   center = TRUE,
   n.grid = 256,
+  newx = NULL,
   col = NULL,
   legend.pos = "topleft",
   mfrow = NULL,
@@ -29,15 +30,17 @@
 \item{x}{A fitted object of class \code{"wall"}.}
 
 \item{type}{The display: \code{"path"} (default), the coefficient norms
-along the whole \eqn{\lambda} path, or \code{"components"}, the fitted
-additive components at a given \eqn{\lambda}.}
+along the whole \eqn{\lambda} path; \code{"components"}, the fitted
+additive components at a given \eqn{\lambda}; or \code{"network"}, the
+layered structure of the classifier at a given \eqn{\lambda}.}
 
 \item{s}{Value of the penalty parameter \eqn{\lambda}. Required by
-\code{type = "components"}, where it defaults to the smallest value of
-the path (the least penalized fit); typically, one passes here the value
-selected by \command{\link{cv.wall}}. With \code{type = "path"}, if
-\code{s} is provided, it is marked by a vertical dotted line and used to
-rank the covariates.}
+\code{type = "components"} and \code{type = "network"}, where it
+defaults to the smallest value of the path (the least penalized fit);
+typically, one passes here the value selected by
+\command{\link{cv.wall}}. With \code{type = "path"}, if \code{s} is
+provided, it is marked by a vertical dotted line and used to rank the
+covariates.}
 
 \item{which}{Optional subset of covariates to be displayed, given as
 names, indices or a logical vector. By default (\code{which = NULL}) the
@@ -49,9 +52,11 @@ selection: the ones with the largest coefficient norm. Default is
 \code{type = "components"}. Use \code{max.vars = Inf} for all of them.
 Ignored if \code{which} is provided.}
 
-\item{nonzero}{Logical, used by \code{type = "components"}. If
-\code{TRUE} (default), the automatic selection only considers the
-covariates whose component is not identically zero at \code{s}.}
+\item{nonzero}{Logical, used by \code{type = "components"} and
+\code{type = "network"}. If \code{TRUE} (default), the automatic
+selection only considers the covariates whose component is not
+identically zero at \code{s}; in \code{type = "network"}, it also
+restricts the display to the resolution levels that survived the LASSO.}
 
 \item{norm}{The norm used to summarize the block of coefficients of each
 covariate in \code{type = "path"}: \code{"l2"} (default) or \code{"l1"}.}
@@ -62,13 +67,24 @@ covariate in \code{type = "path"}: \code{"l2"} (default) or \code{"l1"}.}
 \item{n.grid}{Number of grid points at which the components are
 evaluated.}
 
-\item{col}{Vector of colors, one per displayed covariate. For
-\code{type = "path"}, it defaults to \code{2:(k+1)}, or to a qualitative
-palette when more than seven covariates are displayed; for
-\code{type = "components"}, it defaults to black.}
+\item{newx}{Optional single observation (a vector, or a matrix or data
+frame with one row and the covariates used in the fit), used by
+\code{type = "network"}. If provided, the nodes of the graph display the
+forward pass of that observation through the classifier, as described
+below.}
 
-\item{legend.pos}{Position of the legend of \code{type = "path"}, as in
-\command{\link[graphics]{legend}}, or \code{NULL} to omit it.}
+\item{col}{Vector of colors. For \code{type = "path"}, one per displayed
+covariate, defaulting to \code{2:(k+1)}, or to a qualitative palette
+when more than seven covariates are displayed; for
+\code{type = "components"}, one per displayed covariate, defaulting to
+black; for \code{type = "network"}, one per resolution level, from the
+scaling block (when present) to \eqn{W_{J-1}}, defaulting to grey for
+the scaling block and to a qualitative palette for the detail levels.}
+
+\item{legend.pos}{Position of the legend of \code{type = "path"} and
+\code{type = "network"}, as in \command{\link[graphics]{legend}}, or
+\code{NULL} to omit it. Defaults to \code{"bottom"} (horizontally, over
+the free strip below the graph) with \code{type = "network"}.}
 
 \item{mfrow}{Layout of the panels of \code{type = "components"}, as the
 homonymous parameter of \command{\link[graphics]{par}}. By default, the
@@ -79,7 +95,8 @@ displayed.}
 \item{xlab, ylab, main, ylim}{Usual graphical parameters. Their defaults
 depend on \code{type}; with \code{type = "components"}, the axis labels
 are taken from the name of each covariate and \code{ylim} is shared by
-all the panels, so that the components are comparable.}
+all the panels, so that the components are comparable, and with
+\code{type = "network"} the axes are omitted.}
 
 \item{...}{Further graphical parameters passed to
 \command{\link[graphics]{plot}}.}
@@ -90,17 +107,26 @@ Invisibly, a list with the plotted quantities: for
   matrix with one row per covariate and one column per \eqn{\lambda});
   for \code{type = "components"}, the components \code{x} and
   \code{components} (matrices with one column per displayed covariate,
-  holding the grid and the fitted values). In both cases, \code{which}
-  gives the indices of the displayed covariates.
+  holding the grid and the fitted values); for \code{type = "network"},
+  the component \code{nodes} (a data frame with one row per node of the
+  basis layer, holding its covariate, resolution level, label, number of
+  nonzero coefficients, block norm and, with \code{newx}, its value),
+  together with \code{f} (the components), \code{intercept}, \code{h} and
+  \code{prob}, the last three being \code{NA} without \code{newx}. In
+  every case, \code{which} gives the indices of the displayed covariates.
 }
 \description{
-Two displays of a fitted \command{\link{wall}} object are
+Three displays of a fitted \command{\link{wall}} object are
 available. With \code{type = "path"}, the norm of the estimated
 coefficients of each covariate is plotted against \eqn{\log(\lambda)},
 summarizing the whole LASSO path and the order in which the covariates
 enter the classifier. With \code{type = "components"}, the estimated
 additive components \eqn{\hat{f}_l} are evaluated on a grid and plotted,
-one panel per covariate, at a single value of the penalty parameter.
+one panel per covariate, at a single value of the penalty parameter. With
+\code{type = "network"}, the classifier is drawn as a layered graph, in
+the fashion of a neural network diagram: the wavelet basis feeds the
+additive components, which are summed into the log-odds, which the
+logistic link turns into the predicted probability.
 }
 \details{
 The coefficients of each covariate form a block of the whole coefficient
@@ -133,6 +159,38 @@ log-odds. By default, they fill a 3 by 3 grid of panels, in decreasing
 order of importance; \code{max.vars} and \code{mfrow} change the number
 of components displayed and their layout. In both cases, \code{which}
 overrides the automatic selection.
+
+The display of \code{type = "network"} arranges the classifier in four
+layers, read from right to left: the predicted probability
+\eqn{\hat{\eta}(x)}; the log-odds \eqn{\hat{h}(x)}; the additive
+components \eqn{\hat{f}_l}, one node per covariate; and the wavelet basis,
+grouped by resolution level. A node of the leftmost layer collects the
+coefficients of one resolution level of one covariate, i.e., the scaling
+block \eqn{V_{j_0}} (when it is not dropped) or a detail block \eqn{W_j},
+\eqn{j_0 \le j \le J_l - 1}; its color identifies the level, its size
+grows with the number of coefficients that survived the LASSO there, and
+the width of its edge is the norm \eqn{\|\hat{d}_{l,j}\|_2} of the block,
+i.e., how much that level contributes to the component. With the default
+\code{nonzero = TRUE}, only the levels with at least one nonzero
+coefficient are drawn, so the picture displays the structure selected by
+the LASSO. The remaining two layers carry no free parameters: the
+components are summed into the log-odds, together with the unpenalized
+intercept \eqn{\hat{\beta}_0} (drawn as a separate bias node), and the
+logistic link maps the sum into the probability of the positive class.
+The nodes are annotated in the notation of \command{\link{wall}}, with a
+covariate identified by its index when the data carry no column names,
+and by its name otherwise.
+
+With \code{newx}, the same graph displays the forward pass of a single
+observation: each node of the basis layer is labeled with the detail of
+the component at that level, \eqn{\sum_k \hat{d}_{jk}^l \psi_{jk}(x_l)},
+each component node with \eqn{\hat{f}_l(x_l)}, and the last two nodes with
+\eqn{\hat{h}(x)} and \eqn{\hat{\eta}(x)}; the edges leaving a component
+are dashed when its contribution to the log-odds is negative. These values
+are the ones actually used by \command{\link{predict.wall}} -- they are
+not centered, so that they add up to \eqn{\hat{h}(x)} -- and the display
+shows which covariates and which resolution levels drove the
+classification of that observation.
 }
 \examples{
 set.seed(123)
@@ -144,11 +202,16 @@ y <- rbinom(n, 1, 1/(1 + exp(-h)))
 fit <- wall(x, y, J = 3, filter.size = 8)
 plot(fit)                                    # coefficient paths
 plot(fit, type = "components", s = 0.02)     # fitted components
+plot(fit, type = "network", s = 0.02)        # structure of the classifier
+
+# The forward pass of a single observation through the network
+plot(fit, type = "network", s = 0.02, newx = x[1, ])
 
 # With the penalty parameter chosen by cross-validation
 cvfit <- cv.wall(x, y, J = 2:3, filter.size = 8, nfolds = 5)
 plot(cvfit$wall.fit, s = cvfit$lambda.min)
 plot(cvfit$wall.fit, type = "components", s = cvfit$lambda.min)
+plot(cvfit$wall.fit, type = "network", s = cvfit$lambda.min)
 
 }
 \seealso{
