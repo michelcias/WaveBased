@@ -9,6 +9,7 @@
  *          with the whole sweep moved into C.
  */
 
+#include <float.h>
 #include <math.h>
 #include <R.h>
 #include <Rinternals.h>
@@ -43,6 +44,16 @@ void WBDrawComponent(const double *y, const int *z, int n, int grp,
 
   *mu = m;
   *tau2 = rgamma(v0 + 0.5*nk, 1.0/(V0 + 0.5*ss));
+}
+
+double WBDrawHalfTAux(double tau2, double df, double scale){
+
+  double rate = df*tau2 + 1.0/(scale*scale);
+
+  /* The draw is floored at the machine epsilon. A vanishing auxiliary would
+   * leave the next precision with the sum of squares as its whole rate, which
+   * a component with no allocated observation does not have. */
+  return fmax2(DBL_EPSILON, rgamma(0.5*(df + 1.0), 1.0/rate));
 }
 
 void WBDrawAlloc(const double *y, const double *alpha, int n,
