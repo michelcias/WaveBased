@@ -56,6 +56,68 @@ double WBDrawHalfTAux(double tau2, double df, double scale){
   return fmax2(DBL_EPSILON, rgamma(0.5*(df + 1.0), 1.0/rate));
 }
 
+//==============================================================================
+// THE PRIOR OF THE COMPONENT PARAMETERS
+//==============================================================================
+
+/* --- Normal-gamma prior, the one of both articles -------------------------- */
+
+static void WBDrawCompGamma(const WBCompPrior *pr, const double *y,
+                            const int *z, int n, int grp, double aux,
+                            double *mu, double *tau2){
+
+  (void) aux;  /* The normal-gamma prior carries no auxiliary variable. */
+
+  WBDrawComponent(y, z, n, grp, pr->b0, pr->B0, pr->v0, pr->V0, mu, tau2);
+}
+
+static double WBRefreshCompGamma(const WBCompPrior *pr, double tau2,
+                                 double aux){
+
+  (void) pr; (void) tau2;
+
+  /* Nothing to refresh, and nothing drawn, so that the stream of a sampler
+   * under this prior is the one it was before the prior became an option. */
+  return aux;
+}
+
+/* --- Half-t prior of the component standard deviations --------------------- */
+
+static void WBDrawCompHalfT(const WBCompPrior *pr, const double *y,
+                            const int *z, int n, int grp, double aux,
+                            double *mu, double *tau2){
+
+  /* Under the scale mixture of WBDrawHalfTAux() the precision has the same
+   * gamma full conditional as under the normal-gamma prior, with the shape
+   * nu/2 and the rate nu*b in place of the shape and the rate of the prior. */
+  WBDrawComponent(y, z, n, grp, pr->b0, pr->B0, 0.5*pr->nu0, pr->nu0*aux,
+                  mu, tau2);
+}
+
+static double WBRefreshCompHalfT(const WBCompPrior *pr, double tau2,
+                                 double aux){
+
+  (void) aux;
+
+  return WBDrawHalfTAux(tau2, pr->nu0, pr->A0);
+}
+
+/* --- The registry ---------------------------------------------------------- */
+
+const WBComponent *WBComponentGet(int code){
+
+  static const WBComponent table[] = {
+    {"gamma",  WBDrawCompGamma, WBRefreshCompGamma},
+    {"half-t", WBDrawCompHalfT, WBRefreshCompHalfT}
+  };
+
+  if(code == WB_CPRIOR_GAMMA) return &table[0];
+  if(code == WB_CPRIOR_HALFT) return &table[1];
+
+  error("Unknown component prior code.");
+  return NULL;
+}
+
 void WBDrawAlloc(const double *y, const double *alpha, int n,
                  const double *mu, const double *sd, int *z){
 
@@ -77,10 +139,10 @@ void WBDrawAlloc(const double *y, const double *alpha, int n,
 }
 
 SEXP C_BayesMixReg(SEXP y, SEXP padidx, SEXP family, SEXP fs,
-                   SEXP waveletfilter, SEXP j0, SEXP hyper, SEXP prior,
-                   SEXP init, SEXP mcmc){
+                   SEXP waveletfilter, SEXP j0, SEXP hyper, SEXP cprior,
+                   SEXP prior, SEXP init, SEXP mcmc){
 
-  int i, t, n = length(y), npad = length(padidx), N, keep, J = 0;
+  int i, k, t, n = length(y), npad = length(padidx), N, keep, J = 0;
   int jlo = INTEGER(j0)[0], *idx = INTEGER(padidx), *z;
   int nchain = INTEGER(mcmc)[0], burn = INTEGER(mcmc)[1];
   int lag = INTEGER(mcmc)[2], nverb = INTEGER(mcmc)[3];
@@ -88,7 +150,9 @@ SEXP C_BayesMixReg(SEXP y, SEXP padidx, SEXP family, SEXP fs,
   double *ry = REAL(y), *rhyper = REAL(hyper), *rprior = REAL(prior);
   double *rwfilter, *work, *w, *wc, *fit, *alpha;
   double *rmu, *rtau2, *ralpha, *rsigma, *rC1, *rC2, *rzbar;
-  double mu[2], tau2[2], delta, sd[2], tmp;
+  double mu[2], tau2[2], delta, sd[2], aux[2], tmp;
+  WBCompPrior cpr[2];
+  const WBComponent *comp;
   WBBayesThreshFit btfit;
   SEXP out, nms;
 
@@ -104,6 +168,21 @@ SEXP C_BayesMixReg(SEXP y, SEXP padidx, SEXP family, SEXP fs,
    * raised after the state of the random number generator has been read. */
   if(jlo < 0 || jlo >= J)
     error("The coarsest level to threshold must lie between 0 and log2(n) - 1.");
+  if(length(prior) < 12)
+    error("The prior of the component parameters must hold six values by component.");
+
+  /* The prior of the component parameters is resolved once, into a pair of
+   * function pointers, so that no sweep branches on the choice. */
+  comp = WBComponentGet(INTEGER(cprior)[0]);
+
+  for(k = 0; k < 2; k++){
+    cpr[k].b0 = rprior[6*k];
+    cpr[k].B0 = rprior[6*k + 1];
+    cpr[k].v0 = rprior[6*k + 2];
+    cpr[k].V0 = rprior[6*k + 3];
+    cpr[k].nu0 = rprior[6*k + 4];
+    cpr[k].A0 = rprior[6*k + 5];
+  }
 
   SEXP wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
   rwfilter = REAL(VECTOR_ELT(wutils, 4));
@@ -151,6 +230,13 @@ SEXP C_BayesMixReg(SEXP y, SEXP padidx, SEXP family, SEXP fs,
 
   GetRNGstate();
 
+  /* The auxiliary variables of the prior of the component parameters start from
+   * their own full conditional given the initial precisions, which is the draw
+   * the sweep performs anyway. Under the normal-gamma prior there is nothing to
+   * draw, and the two calls leave the stream untouched. */
+  aux[0] = comp->refresh(&cpr[0], tau2[0], 0.0);
+  aux[1] = comp->refresh(&cpr[1], tau2[1], 0.0);
+
   /* The allocation variables start from the weights implied by the initial
    * component parameters, as in the reference implementation. */
   delta = mu[1] - mu[0];
@@ -180,15 +266,19 @@ SEXP C_BayesMixReg(SEXP y, SEXP padidx, SEXP family, SEXP fs,
     R_CheckUserInterrupt();
 
     /* --- Component parameters, and the label switching constraint -------- */
-    WBDrawComponent(ry, z, n, 0, rprior[0], rprior[1], rprior[2], rprior[3],
-                    &mu[0], &tau2[0]);
-    WBDrawComponent(ry, z, n, 1, rprior[4], rprior[5], rprior[6], rprior[7],
-                    &mu[1], &tau2[1]);
+    comp->draw(&cpr[0], ry, z, n, 0, aux[0], &mu[0], &tau2[0]);
+    comp->draw(&cpr[1], ry, z, n, 1, aux[1], &mu[1], &tau2[1]);
 
     if(mu[1] < mu[0]){
       tmp = mu[0];    mu[0] = mu[1];       mu[1] = tmp;
       tmp = tau2[0];  tau2[0] = tau2[1];   tau2[1] = tmp;
     }
+
+    /* The auxiliary variables are refreshed after the permutation, and not
+     * permuted with the precisions, so that each of them is drawn from the
+     * precision that occupies its slot, under the prior of that slot. */
+    aux[0] = comp->refresh(&cpr[0], tau2[0], aux[0]);
+    aux[1] = comp->refresh(&cpr[1], tau2[1], aux[1]);
 
     /* --- Mixture weights, by Bayesian wavelet regularization ------------- */
     delta = mu[1] - mu[0];

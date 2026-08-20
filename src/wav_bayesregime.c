@@ -245,76 +245,6 @@ static const WBSlab *WBSlabGet(int code){
 }
 
 //==============================================================================
-// THE PRIOR OF THE COMPONENT PARAMETERS
-//==============================================================================
-
-/* --- Normal-gamma prior, the one of the article ---------------------------- */
-
-static void WBDrawCompGamma(const WBRegimeSpec *spec, const double *y,
-                            const int *z, int n, int k, double aux,
-                            double *mu, double *tau2){
-
-  (void) aux;  /* The normal-gamma prior carries no auxiliary variable. */
-
-  WBDrawComponent(y, z, n, k, spec->b0[k], spec->B0[k], spec->v0[k],
-                  spec->V0[k], mu, tau2);
-}
-
-static double WBRefreshCompGamma(const WBRegimeSpec *spec, int k, double tau2,
-                                 double aux){
-
-  (void) spec; (void) k; (void) tau2;
-
-  /* Nothing to refresh, and nothing drawn, so that the stream of the sampler is
-   * the one it was before the prior became an option. */
-  return aux;
-}
-
-/* --- Half-t prior of the component standard deviations --------------------- */
-
-static void WBDrawCompHalfT(const WBRegimeSpec *spec, const double *y,
-                            const int *z, int n, int k, double aux,
-                            double *mu, double *tau2){
-
-  /* Under the scale mixture of WBDrawHalfTAux() the precision has the same
-   * gamma full conditional as under the normal-gamma prior, with the shape
-   * nu/2 and the rate nu*b in place of the shape and the rate of the prior. */
-  WBDrawComponent(y, z, n, k, spec->b0[k], spec->B0[k], 0.5*spec->nu0[k],
-                  spec->nu0[k]*aux, mu, tau2);
-}
-
-static double WBRefreshCompHalfT(const WBRegimeSpec *spec, int k, double tau2,
-                                 double aux){
-
-  (void) aux;
-
-  return WBDrawHalfTAux(tau2, spec->nu0[k], spec->A0[k]);
-}
-
-/* --- The registry ---------------------------------------------------------- */
-
-/**
- * @brief Returns the prior of the component parameters requested by a code.
- *
- * @param[in] code One of the WB_CPRIOR_* constants.
- * @return Pointer to the corresponding interface. The function does not return
- *         when the code is unknown.
- */
-static const WBComponent *WBComponentGet(int code){
-
-  static const WBComponent table[] = {
-    {"gamma",  WBDrawCompGamma, WBRefreshCompGamma},
-    {"half-t", WBDrawCompHalfT, WBRefreshCompHalfT}
-  };
-
-  if(code == WB_CPRIOR_GAMMA) return &table[0];
-  if(code == WB_CPRIOR_HALFT) return &table[1];
-
-  error("Unknown component prior code.");
-  return NULL;
-}
-
-//==============================================================================
 // READING THE ARGUMENTS
 //==============================================================================
 
@@ -413,12 +343,12 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   comp = WBComponentGet(spec.cprior);
 
   for(k = 0; k < 2; k++){
-    spec.b0[k] = WBReal(hyper, "mean", k);
-    spec.B0[k] = WBReal(hyper, "var", k);
-    spec.v0[k] = WBReal(hyper, "shape", k);
-    spec.V0[k] = WBReal(hyper, "rate", k);
-    spec.nu0[k] = WBReal(hyper, "df", k);
-    spec.A0[k] = WBReal(hyper, "scale", k);
+    spec.comp[k].b0 = WBReal(hyper, "mean", k);
+    spec.comp[k].B0 = WBReal(hyper, "var", k);
+    spec.comp[k].v0 = WBReal(hyper, "shape", k);
+    spec.comp[k].V0 = WBReal(hyper, "rate", k);
+    spec.comp[k].nu0 = WBReal(hyper, "df", k);
+    spec.comp[k].A0 = WBReal(hyper, "scale", k);
   }
 
   spec.zeta = WBReal(hyper, "zeta", 0);
@@ -498,8 +428,8 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
    * their own full conditional given the initial precisions, which is the draw
    * the sweep performs anyway. Under the normal-gamma prior there is nothing to
    * draw, and the two calls leave the stream untouched. */
-  aux[0] = comp->refresh(&spec, 0, tau2[0], 0.0);
-  aux[1] = comp->refresh(&spec, 1, tau2[1], 0.0);
+  aux[0] = comp->refresh(&spec.comp[0], tau2[0], 0.0);
+  aux[1] = comp->refresh(&spec.comp[1], tau2[1], 0.0);
 
   sd[0] = 1.0/sqrt(tau2[0]);
   sd[1] = 1.0/sqrt(tau2[1]);
@@ -516,8 +446,8 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
     R_CheckUserInterrupt();
 
     /* --- Component parameters, and the label switching constraint -------- */
-    comp->draw(&spec, ry, z, n, 0, aux[0], &mu[0], &tau2[0]);
-    comp->draw(&spec, ry, z, n, 1, aux[1], &mu[1], &tau2[1]);
+    comp->draw(&spec.comp[0], ry, z, n, 0, aux[0], &mu[0], &tau2[0]);
+    comp->draw(&spec.comp[1], ry, z, n, 1, aux[1], &mu[1], &tau2[1]);
 
     if(mu[1] < mu[0]){
       tmp = mu[0];    mu[0] = mu[1];       mu[1] = tmp;
@@ -527,8 +457,8 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
     /* The auxiliary variables are refreshed after the permutation, and not
      * permuted with the precisions, so that each of them is drawn from the
      * precision that occupies its slot, under the prior of that slot. */
-    aux[0] = comp->refresh(&spec, 0, tau2[0], aux[0]);
-    aux[1] = comp->refresh(&spec, 1, tau2[1], aux[1]);
+    aux[0] = comp->refresh(&spec.comp[0], tau2[0], aux[0]);
+    aux[1] = comp->refresh(&spec.comp[1], tau2[1], aux[1]);
 
     /* --- Allocation variables -------------------------------------------- */
     sd[0] = 1.0/sqrt(tau2[0]);

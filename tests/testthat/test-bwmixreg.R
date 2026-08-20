@@ -4,7 +4,7 @@
 # Transcription of Algorithm 1 of the paper, drawing the same variates in the
 # same order as the compiled sampler, so that the two chains must coincide.
 ref_gibbs <- function(y, padidx, nchain, burn, lag, prior, init, thr,
-                      family, filter.size){
+                      family, filter.size, cprior = "gamma"){
 
   n <- length(y)
   mu <- init$mu
@@ -29,6 +29,17 @@ ref_gibbs <- function(y, padidx, nchain, burn, lag, prior, init, thr,
     z
   }
 
+  # The auxiliary variable of the scale mixture that represents the half-t
+  # prior, drawn from its own full conditional given the precision of its slot.
+  halft_aux <- function(tau2k, k)
+    rgamma(1, shape = (prior$df[k] + 1)/2,
+           rate = prior$df[k]*tau2k + 1/prior$scale[k]^2)
+
+  aux <- c(0, 0)
+
+  if(cprior != "gamma")
+    aux <- vapply(1:2, function(k) halft_aux(init$tau2[k], k), 0)
+
   alpha <- weights(mu)
   z <- allocate(alpha, mu, tau2)
 
@@ -46,14 +57,25 @@ ref_gibbs <- function(y, padidx, nchain, burn, lag, prior, init, thr,
       Bk <- 1/(nk*tau2[k] + 1/prior$var[k])
       bk <- Bk*(sum(y[z == g])*tau2[k] + prior$mean[k]/prior$var[k])
       mu[k] <- rnorm(1, bk, sqrt(Bk))
-      tau2[k] <- rgamma(1, shape = prior$shape[k] + nk/2,
-                        rate = prior$rate[k] + sum((y[z == g] - mu[k])^2)/2)
+
+      # Under the half-t prior the gamma full conditional is the same one, with
+      # the shape df/2 and the rate df*aux of the scale mixture.
+      shape <- if(cprior == "gamma") prior$shape[k] else prior$df[k]/2
+      rate <- if(cprior == "gamma") prior$rate[k] else prior$df[k]*aux[k]
+
+      tau2[k] <- rgamma(1, shape = shape + nk/2,
+                        rate = rate + sum((y[z == g] - mu[k])^2)/2)
     }
 
     if(mu[2L] < mu[1L]){
       mu <- mu[2:1]
       tau2 <- tau2[2:1]
     }
+
+    # The auxiliary variables are refreshed after the labels are permuted, from
+    # the precision that ended up in each slot.
+    if(cprior != "gamma")
+      aux <- vapply(1:2, function(k) halft_aux(tau2[k], k), 0)
 
     alpha <- weights(mu)
     z <- allocate(alpha, mu, tau2)
@@ -89,7 +111,7 @@ test_that("the compiled sampler reproduces a transcription of Algorithm 1", {
   # The same defaults that bwmixreg() builds.
   prior <- list(mean = unname(quantile(y, c(0.25, 0.75))),
                 var = rep(var(y), 2), shape = rep(0.01, 2),
-                rate = rep(0.01, 2))
+                rate = rep(0.01, 2), df = rep(1, 2), scale = rep(sd(y), 2))
   init <- list(mu = prior$mean, tau2 = rep(1/var(y), 2))
   thr <- list(j0 = 3, alpha = 0.5, beta = 1, C1 = NA, C2 = NA, C1.start = 100)
 
@@ -107,6 +129,115 @@ test_that("the compiled sampler reproduces a transcription of Algorithm 1", {
 })
 
 
+test_that("the half-t prior of the component scales follows the scale mixture", {
+
+  y <- mix_data()$y
+  n <- length(y)
+
+  init <- list(mu = unname(quantile(y, c(0.25, 0.75))), tau2 = rep(1/var(y), 2))
+  thr <- list(j0 = 3, alpha = 0.5, beta = 1, C1 = NA, C2 = NA, C1.start = 100)
+
+  # The half-Cauchy prior is the half-t prior with one degree of freedom, and
+  # both are drawn through the auxiliary variable of Wand et al. (2011).
+  for(cprior in c("halfcauchy", "halft")){
+
+    df <- if(cprior == "halfcauchy") c(1, 1) else c(3, 7)
+    prior <- list(mean = init$mu, var = rep(var(y), 2), shape = rep(0.01, 2),
+                  rate = rep(0.01, 2), df = df, scale = rep(sd(y), 2))
+
+    set.seed(2024)
+    got <- bwmixreg(y, cprior = cprior,
+                    prior = if(cprior == "halft") list(df = df) else list(),
+                    nchain = 20, burn = 10, lag = 2, plot = FALSE)
+
+    set.seed(2024)
+    ref <- ref_gibbs(y, padidx = seq_len(n), nchain = 20, burn = 10, lag = 2,
+                     prior = prior, init = init, thr = thr, family = "Coiflets",
+                     filter.size = 30, cprior = cprior)
+
+    expect_equal(unname(got$draws$mu), ref$mu, tolerance = 1e-10)
+    expect_equal(unname(got$draws$tau2), ref$tau2, tolerance = 1e-10)
+    expect_equal(got$draws$alpha, ref$alpha, tolerance = 1e-10)
+
+    expect_equal(got$cprior, cprior)
+    expect_equal(got$prior$df, df)
+    expect_equal(got$prior$scale, rep(sd(y), 2))
+    expect_true(all(got$draws$tau2 > 0))
+  }
+
+  # The default is the prior of the paper, which the option leaves untouched.
+  set.seed(2024)
+  gam <- bwmixreg(y, nchain = 20, burn = 10, lag = 2, plot = FALSE)
+
+  expect_equal(gam$cprior, "gamma")
+  expect_false(isTRUE(all.equal(gam$draws$tau2, got$draws$tau2)))
+})
+
+
+test_that("the half-t prior recovers the mixture as the gamma prior does", {
+
+  # The weights are estimated from the component means alone, so the prior of
+  # the scales reaches them only through the allocation variables, and the two
+  # priors are expected to agree closely on a well separated mixture.
+  set.seed(20)
+  n <- 512
+  a <- 0.1 + 0.8*((1:n)/n > 0.4)
+  z <- rbinom(n, size = 1, prob = a)
+  y <- z*rnorm(n, mean = 2, sd = 0.5) + (1 - z)*rnorm(n, mean = 0, sd = 0.5)
+
+  set.seed(11)
+  fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 300, burn = 300,
+                     plot = FALSE)
+  set.seed(11)
+  fit_ht <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)),
+                     nchain = 300, burn = 300, plot = FALSE)
+
+  for(fit in list(fit_hc, fit_ht)){
+    expect_equal(unname(fit$mu[1]), 0, tolerance = 0.15)
+    expect_equal(unname(fit$mu[2]), 2, tolerance = 0.15)
+    expect_equal(unname(1/sqrt(fit$tau2)), c(0.5, 0.5), tolerance = 0.15)
+
+    expect_true(mean(fit$alpha[1:200]) < 0.3)
+    expect_true(mean(fit$alpha[300:512]) > 0.7)
+    expect_true(mean((fit$alpha - a)^2) < 0.06)
+  }
+
+  expect_equal(fit_ht$prior$df, c(4, 4))
+})
+
+
+test_that("the prior of the component scales validates its settings", {
+
+  y <- mix_data(n = 64)$y
+
+  expect_error(bwmixreg(y, cprior = "inverse-gamma", plot = FALSE),
+               "should be one of")
+  expect_error(bwmixreg(y, prior = list(df = c(0, 1)), plot = FALSE),
+               "must be positive")
+  expect_error(bwmixreg(y, prior = list(scale = c(1, -1)), plot = FALSE),
+               "must be positive")
+  expect_error(bwmixreg(y, prior = list(scale = 1), plot = FALSE),
+               "two finite values")
+
+  # The half-Cauchy prior has a single degree of freedom by definition, so
+  # asking for another number of them is a contradiction and not a preference.
+  expect_error(bwmixreg(y, cprior = "halfcauchy", prior = list(df = c(3, 3)),
+                        plot = FALSE),
+               "fixed at one")
+  expect_silent(bwmixreg(y, cprior = "halfcauchy", prior = list(df = c(1, 1)),
+                         nchain = 5, burn = 2, lag = 1, plot = FALSE))
+
+  # The printout names the prior in use.
+  set.seed(3)
+  fit <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)), nchain = 5,
+                  burn = 2, lag = 1, plot = FALSE)
+
+  expect_output(print(fit), "half-t prior of the standard deviations \\(df = 4, 4\\)")
+  expect_output(print(bwmixreg(y, nchain = 5, burn = 2, lag = 1, plot = FALSE)),
+                "gamma prior of the precisions")
+})
+
+
 test_that("the reflected padding is the one of the reference implementation", {
 
   d <- mix_data(n = 100)
@@ -118,7 +249,7 @@ test_that("the reflected padding is the one of the reference implementation", {
 
   prior <- list(mean = unname(quantile(y, c(0.25, 0.75))),
                 var = rep(var(y), 2), shape = rep(0.01, 2),
-                rate = rep(0.01, 2))
+                rate = rep(0.01, 2), df = rep(1, 2), scale = rep(sd(y), 2))
   init <- list(mu = prior$mean, tau2 = rep(1/var(y), 2))
   thr <- list(j0 = 3, alpha = 0.5, beta = 1, C1 = NA, C2 = NA, C1.start = 100)
 

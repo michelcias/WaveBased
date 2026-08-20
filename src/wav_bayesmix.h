@@ -29,6 +29,82 @@
 #include <R.h>
 #include <Rinternals.h>
 
+/** @name Codes of the prior of the component parameters, shared with R. */
+/**@{*/
+#define WB_CPRIOR_GAMMA  1  /**< Normal-gamma prior of the components.     */
+#define WB_CPRIOR_HALFT  2  /**< Half-t prior of the component scales.     */
+/**@}*/
+
+/**
+ * @brief The hyperparameters of the prior of one mixture component.
+ *
+ * @details Only the pair that the WB_CPRIOR_* code selects is read: the shape
+ *          and the rate of the gamma prior of the precision, or the degrees of
+ *          freedom and the scale of the half-t prior of the standard deviation.
+ *          The normal prior of the mean is common to both.
+ */
+typedef struct {
+  double b0;   /**< Prior mean of mu.                                        */
+  double B0;   /**< Prior variance of mu.                                    */
+  double v0;   /**< Prior shape of tau^2, under the gamma prior.             */
+  double V0;   /**< Prior rate of tau^2, under the gamma prior.              */
+  double nu0;  /**< Degrees of freedom, under the half-t prior.              */
+  double A0;   /**< Scale, under the half-t prior.                           */
+} WBCompPrior;
+
+/**
+ * @brief The prior of the component parameters, seen by a sweep.
+ *
+ * @details The two members are the only places where a sampler of the dynamic
+ *          mixture depends on the prior of the means and of the precisions of
+ *          its components, and both C_BayesMixReg() and C_BayesRegime() are
+ *          written against them. They are kept apart because the identifying
+ *          restriction mu_1 < mu_2 is imposed between them: the precisions are
+ *          drawn first, the labels are permuted if need be, and only then is
+ *          the auxiliary variable of each slot refreshed, from the precision
+ *          that ended up in it.
+ */
+typedef struct {
+  const char *name;
+  /**
+   * @brief Draws the mean and the precision of one component.
+   * @param[in]     pr   Prior of that component.
+   * @param[in]     y    Observed mixture of length n.
+   * @param[in]     z    Allocation variables of length n.
+   * @param[in]     n    Sample size.
+   * @param[in]     grp  Group whose parameters are drawn, 0 or 1.
+   * @param[in]     aux  Current auxiliary variable of the component, ignored by
+   *                     a prior that carries none.
+   * @param[out]    mu   The drawn mean.
+   * @param[in,out] tau2 On entry the current precision, which the mean is drawn
+   *                     given; on exit the drawn one.
+   */
+  void (*draw)(const WBCompPrior *pr, const double *y, const int *z, int n,
+               int grp, double aux, double *mu, double *tau2);
+  /**
+   * @brief Refreshes the auxiliary variable of one component.
+   * @param[in] pr   Prior of that component.
+   * @param[in] tau2 Precision that occupies its slot.
+   * @param[in] aux  Current auxiliary variable.
+   * @return The refreshed auxiliary variable, which is @p aux itself, drawn
+   *         from nothing, when the prior carries no auxiliary variable.
+   */
+  double (*refresh)(const WBCompPrior *pr, double tau2, double aux);
+} WBComponent;
+
+/**
+ * @brief Returns the prior of the component parameters requested by a code.
+ *
+ * @details The registry of the two priors available, resolved once by the
+ *          driver, before its sweeps, so that the hot path never branches on
+ *          the choice.
+ *
+ * @param[in] code One of the WB_CPRIOR_* constants.
+ * @return Pointer to the corresponding interface. The function does not return
+ *         when the code is unknown.
+ */
+const WBComponent *WBComponentGet(int code);
+
 /**
  * @brief Draws the mean and the precision of one mixture component.
  *
@@ -122,9 +198,10 @@ void WBDrawAlloc(const double *y, const double *alpha, int n,
 /**
  * @brief Runs the Gibbs sampler of the dynamic Gaussian mixture model.
  *
- * @details Each sweep draws \f$\mu_k\f$ and \f$\tau_k^2\f$ from their conjugate
- *          full conditionals, permutes the labels whenever
- *          \f$\mu_2 < \mu_1\f$, rebuilds the mixture weights by Bayesian
+ * @details Each sweep draws \f$\mu_k\f$ and \f$\tau_k^2\f$ from the full
+ *          conditionals of the prior that the 'cprior' code selects, permutes
+ *          the labels whenever \f$\mu_2 < \mu_1\f$, refreshes the auxiliary
+ *          variables of that prior, rebuilds the mixture weights by Bayesian
  *          wavelet thresholding of the transformed responses, and draws the
  *          allocation variables. Only the draws after the burn-in period, taken
  *          every 'lag' sweeps, are stored.
@@ -142,11 +219,15 @@ void WBDrawAlloc(const double *y, const double *alpha, int n,
  * @param[in] hyper         Real SEXP of length 5: alpha, beta, C1, C2 and
  *                          C1.start of the BayesThresh prior. C1 and C2 may
  *                          be NA, in which case they are estimated.
- * @param[in] prior         Real SEXP of length 8 holding, for each component,
- *                          the mean and the variance of the normal prior of
- *                          mu, and the shape and the rate of the gamma prior of
- *                          tau^2, in the order b01, B01, v01, V01, b02, B02,
- *                          v02, V02.
+ * @param[in] cprior        Integer SEXP with the code of the prior of the
+ *                          component parameters, a WB_CPRIOR_* constant.
+ * @param[in] prior         Real SEXP of length 12 holding, for each component
+ *                          in turn, the six fields of a WBCompPrior: the mean
+ *                          and the variance of the normal prior of mu, the
+ *                          shape and the rate of the gamma prior of tau^2, and
+ *                          the degrees of freedom and the scale of the half-t
+ *                          prior of 1/tau. Only the pair that 'cprior' selects
+ *                          is read.
  * @param[in] init          Real SEXP of length 4: initial values of mu1, mu2,
  *                          tau1^2 and tau2^2.
  * @param[in] mcmc          Integer SEXP of length 4: number of draws to keep,
@@ -159,7 +240,7 @@ void WBDrawAlloc(const double *y, const double *alpha, int n,
  *         the allocation variables.
  */
 SEXP C_BayesMixReg(SEXP y, SEXP padidx, SEXP family, SEXP fs,
-                   SEXP waveletfilter, SEXP j0, SEXP hyper, SEXP prior,
-                   SEXP init, SEXP mcmc);
+                   SEXP waveletfilter, SEXP j0, SEXP hyper, SEXP cprior,
+                   SEXP prior, SEXP init, SEXP mcmc);
 
 #endif /* WAVEBASED_WAV_BAYESMIX_H */

@@ -11,6 +11,7 @@ bwmixreg(
   nchain = 1000,
   burn = 1000,
   lag = 5,
+  cprior = c("gamma", "halfcauchy", "halft"),
   prior = list(),
   init = list(),
   thresholding = list(),
@@ -46,13 +47,24 @@ spaced. See Details.}
 reduces the autocorrelation of the chains. The sampler therefore performs
 \code{burn + lag*nchain} sweeps.}
 
+\item{cprior}{The prior of the scales of the two Gaussian components, either
+\code{"gamma"} (the default), the conjugate gamma prior of the precisions
+\eqn{\tau_k^2} used by the paper, or a half-t prior of the standard
+deviations \eqn{\tau_k^{-1}}, which is the weakly informative choice of
+Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its one
+degree of freedom special case, and as \code{"halft"}, whose degrees of
+freedom are the entry \code{df} of \code{prior}. It is the option of the same
+name of \command{\link{bwregime}}. See Details.}
+
 \item{prior}{A list with the hyperparameters of the priors of the component
 parameters, any of which may be omitted. The entries are \code{mean} and
 \code{var}, the means and the variances of the normal priors of
-\eqn{\mu_1} and \eqn{\mu_2}, and \code{shape} and \code{rate}, the
-parameters of the gamma priors of \eqn{\tau_1^2} and \eqn{\tau_2^2}, each
-of them of length two. The defaults are the choices of Section 5 of the
-paper, described in Details.}
+\eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
+parameters of the gamma priors of \eqn{\tau_1^2} and \eqn{\tau_2^2}, and
+\code{df} and \code{scale}, the degrees of freedom and the scales of the
+half-t priors of \eqn{\tau_1^{-1}} and \eqn{\tau_2^{-1}}, each of them of
+length two. Only the pair that \code{cprior} selects is used. The defaults
+are the choices of Section 5 of the paper, described in Details.}
 
 \item{init}{A list with the initial values \code{mu} and \code{tau2} of the
 chains, each of length two. The defaults are the means of the priors of
@@ -119,6 +131,7 @@ An object of class \code{"bwmixreg"}, that is, a list with components
 \item{nobs, npad, padding}{The sample size, the padded sample size and the
   padding scheme.}
 \item{nchain, burn, lag, level}{The settings of the sampler.}
+\item{cprior}{The prior of the component scales used.}
 \item{prior, init, thresholding}{The priors, the initial values and the
   thresholding settings actually used.}
 \item{family, filter.size, wavelet.filter}{The wavelet basis used.}
@@ -160,6 +173,36 @@ of the data, and \eqn{\tau_k^2 \sim \Gamma(0.01, 0.01)}. Following the
 paper, the point estimates are posterior medians, which are optimal under
 the absolute loss, and they are reported together with highest posterior
 density intervals computed by \command{\link{hpdi}}.
+
+The alternative \code{cprior} places the weakly informative prior of Gelman
+(2006) on the standard deviation of each component,
+\deqn{\tau_k^{-1} \sim \mathrm{half-}t(\nu_k, A_k),}
+with \eqn{\nu_k} degrees of freedom and scale \eqn{A_k}, the entries
+\code{df} and \code{scale} of \code{prior}. One degree of freedom gives the
+half-Cauchy prior, and the density approaches a half-normal one as the
+degrees of freedom grow. It is a prior of a scale, and not of a precision:
+it is flat near the origin instead of vanishing there, and its tail is heavy,
+so that neither a small nor a large component variance is ruled out by the
+prior. That matters when a component holds few observations, because the
+gamma prior of the precision is then informative about a parameter the data
+say little about. The default scale is the sample standard deviation of the
+whole mixture, which is larger than the standard deviation of either
+component and therefore leaves them free.
+
+The half-t prior is written as the inverse gamma scale mixture of Wand et al.
+(2011),
+\deqn{\tau_k^{-2} \mid a_k \sim \mathrm{IG}(\nu_k/2, \nu_k/a_k), \qquad
+      a_k \sim \mathrm{IG}(1/2, 1/A_k^2),}
+so that the full conditional of \eqn{\tau_k^2} stays the gamma distribution
+of the conjugate case, with the shape \eqn{\nu_k/2} and the rate
+\eqn{\nu_k/a_k} in place of \code{shape} and \code{rate}, and the sweep
+gains a single auxiliary variable per component. The Gibbs sampler is
+therefore the same one, and no Metropolis step is introduced. The auxiliary
+variables are drawn after the labels are permuted, so that each of them stays
+paired with the precision that ends the sweep in its slot; they are nuisance
+parameters and are not returned. The weights are estimated from the component
+means alone, so the prior of the scales reaches them only through the
+allocation variables.
 
 The whole sampler runs in compiled code, including the wavelet transforms
 and the thresholding, so that no memory is allocated during the sweeps. It
@@ -203,13 +246,27 @@ if(requireNamespace("changepoint", quietly = TRUE)){
   y <- changepoint::Lai2005fig4$GBM29
 
   set.seed(123)
-  fit <- bwmixreg(y, nchain = 1000, burn = 1000, lag = 5)
+  fit_g <- bwmixreg(y, nchain = 1000, burn = 1000, lag = 5)
 
-  fit
-  plot(fit)
+  fit_g
+  plot(fit_g)
 
   # The three amplifications reported in the paper.
-  which(fit$alpha > 0.5)
+  which(fit_g$alpha > 0.5)
+
+  # The same data under the weakly informative prior of Gelman (2006) on the
+  # standard deviations of the components, in place of the gamma prior of
+  # their precisions used by the paper.
+  set.seed(123)
+  fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 1000, burn = 1000,
+                     lag = 5, plot = FALSE)
+
+  # The two priors agree here: the amplifications are the same ones, and the
+  # component parameters barely move. The weights are built from the
+  # component means, so the prior of the scales reaches them only through the
+  # allocation variables.
+  which(fit_hc$alpha > 0.5)
+  rbind(g = 1/sqrt(fit_g$tau2), hc = 1/sqrt(fit_hc$tau2))
 }
 
 #
@@ -230,12 +287,35 @@ lines(t, a, col = 2, lwd = 2, lty = 2)
 legend("topright", legend = c("Estimate", "Real function"), col = 1:2,
        lty = c(1, 2), lwd = 2, bty = "n")
 
+#
+# The three priors of the component scales, on the same data and at the same
+# settings: the gamma prior of the precisions used by the paper, and the
+# half-Cauchy and half-t priors of Gelman (2006) on the standard deviations.
+#
+fit_g <- bwmixreg(y, nchain = 500, burn = 500, plot = FALSE)
+fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 500, burn = 500,
+                   plot = FALSE)
+fit_ht <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)),
+                   nchain = 500, burn = 500, plot = FALSE)
+
+# The standard deviations of the two components, whose true value is 0.5.
+rbind(g = 1/sqrt(fit_g$tau2), hc = 1/sqrt(fit_hc$tau2),
+      ht = 1/sqrt(fit_ht$tau2))
+
+# And the mean squared errors of the estimated weights.
+c(g = mean((fit_g$alpha - a)^2), hc = mean((fit_hc$alpha - a)^2),
+  ht = mean((fit_ht$alpha - a)^2))
+
 }
 \references{
 Abramovich, F., Sapatinas, T. and Silverman, B. W. (1998). Wavelet
 thresholding via a Bayesian approach. \emph{Journal of the Royal Statistical
 Society Series B}, 60(4), 725--749,
 \doi{10.1111/1467-9868.00151}.
+
+Gelman, A. (2006). Prior distributions for variance parameters in
+hierarchical models. \emph{Bayesian Analysis}, 1(3), 515--534,
+\doi{10.1214/06-BA117A}.
 
 Lai, W. R., Johnson, M. D., Kucherlapati, R. and Park, P. J. (2005).
 Comparative analysis of algorithms for identifying amplifications and
@@ -250,6 +330,10 @@ Motta, F. C. and Montoril, M. H. (2026). A Bayesian estimation approach for
 the wavelet-based mixture regression. \emph{Communications in Statistics -
 Simulation and Computation}, 55(6), 2426--2434,
 \doi{10.1080/03610918.2025.2470797}.
+
+Wand, M. P., Ormerod, J. T., Padoan, S. A. and Fruhwirth, R. (2011). Mean
+field variational Bayes for elaborate distributions. \emph{Bayesian
+Analysis}, 6(4), 847--900, \doi{10.1214/11-BA631}.
 }
 \seealso{
 \command{\link{wmixreg}}, \command{\link{bwregime}},

@@ -52,7 +52,9 @@
  *   the labels between them, and each auxiliary must end the sweep paired with
  *   the precision that occupies its slot, under the prior of that slot. A prior
  *   without an auxiliary variable leaves the refresh returning what it is
- *   given, which is what the normal-gamma instance does.
+ *   given, which is what the normal-gamma instance does. The interface does not
+ *   depend on how the weights are built, so it lives in wav_bayesmix.h and is
+ *   shared with C_BayesMixReg().
  *
  * The R entry point takes the model codes and the hyperparameters as coded
  * vectors and named lists, and not as positional arguments, so that new options
@@ -69,14 +71,16 @@
 #include <R.h>
 #include <Rinternals.h>
 
+#include "wav_bayesmix.h"  /* WBCompPrior, WBComponent, the WB_CPRIOR_* codes */
+
 /** @name Model codes, shared with the R interface. */
 /**@{*/
 #define WB_LINK_PROBIT   1  /**< Probit link, by data augmentation.        */
 #define WB_SLAB_GAUSSIAN 1  /**< Spike and slab with Gaussian slab (SSG).  */
 #define WB_SLAB_LAPLACE  2  /**< Spike and slab with Laplace slab (SSL).   */
-#define WB_CPRIOR_GAMMA  1  /**< Normal-gamma prior of the components.     */
-#define WB_CPRIOR_HALFT  2  /**< Half-t prior of the component scales.     */
 /**@}*/
+/* The codes of the prior of the component parameters, WB_CPRIOR_*, are shared
+ * with C_BayesMixReg() and live in wav_bayesmix.h. */
 
 /**
  * @brief Everything the sweep needs to know about the model being fitted.
@@ -92,12 +96,7 @@ typedef struct {
   int link;           /**< Link code, one of the WB_LINK_* constants.       */
   int slab;           /**< Slab code, one of the WB_SLAB_* constants.       */
   int cprior;         /**< Component prior code, a WB_CPRIOR_* constant.    */
-  double b0[2];       /**< Prior means of mu_1 and mu_2.                    */
-  double B0[2];       /**< Prior variances of mu_1 and mu_2.                */
-  double v0[2];       /**< Prior shapes of tau_1^2 and tau_2^2.             */
-  double V0[2];       /**< Prior rates of tau_1^2 and tau_2^2.              */
-  double nu0[2];      /**< Degrees of freedom of the half-t priors.         */
-  double A0[2];       /**< Scales of the half-t priors.                     */
+  WBCompPrior comp[2];/**< Priors of the parameters of the two components.  */
   double zeta;        /**< First shape of the beta prior of pi_j.           */
   double rho;         /**< Second shape of the beta prior of pi_j.          */
   double kappa;       /**< Shape of the gamma prior of v_j^-2 or of a_j.    */
@@ -146,45 +145,6 @@ typedef struct {
    */
   double (*draw_theta)(double d, double sigma, double par, int gam);
 } WBSlab;
-
-/**
- * @brief The prior of the component parameters, seen by the sweep.
- *
- * @details The two members are the only places where the sampler depends on the
- *          prior of the means and of the precisions of the two components. They
- *          are kept apart because the identifying restriction mu_1 < mu_2 is
- *          imposed between them: the precisions are drawn first, the labels are
- *          permuted if need be, and only then is the auxiliary variable of each
- *          slot refreshed, from the precision that ended up in it.
- */
-typedef struct {
-  const char *name;
-  /**
-   * @brief Draws the mean and the precision of one component.
-   * @param[in]     spec Model specification.
-   * @param[in]     y    Observed mixture of length n.
-   * @param[in]     z    Allocation variables of length n.
-   * @param[in]     n    Sample size.
-   * @param[in]     k    Component whose parameters are drawn, 0 or 1.
-   * @param[in]     aux  Current auxiliary variable of the component, ignored by
-   *                     a prior that carries none.
-   * @param[out]    mu   The drawn mean.
-   * @param[in,out] tau2 On entry the current precision, which the mean is drawn
-   *                     given; on exit the drawn one.
-   */
-  void (*draw)(const WBRegimeSpec *spec, const double *y, const int *z, int n,
-               int k, double aux, double *mu, double *tau2);
-  /**
-   * @brief Refreshes the auxiliary variable of one component.
-   * @param[in] spec Model specification.
-   * @param[in] k    Component whose auxiliary variable is refreshed, 0 or 1.
-   * @param[in] tau2 Precision that occupies that slot.
-   * @param[in] aux  Current auxiliary variable.
-   * @return The refreshed auxiliary variable, which is @p aux itself, drawn from
-   *         nothing, when the prior carries no auxiliary variable.
-   */
-  double (*refresh)(const WBRegimeSpec *spec, int k, double tau2, double aux);
-} WBComponent;
 
 /**
  * @brief Runs the Gibbs sampler for the dynamic mixture weights.
