@@ -31,7 +31,7 @@
  *   of the wavelet coefficients: the draw of the hyperparameters of a
  *   resolution level, the Bayes factor of the slab against the spike, and the
  *   draw of a coefficient. The Gaussian and the Laplace slabs of the article
- *   are two instances of it, registered in WBSlabTable(). A further slab is a
+ *   are two instances of it, registered in WBSlabGet(). A further slab is a
  *   further instance, and nothing else.
  *
  * - **The link.** Only the probit link of Albert and Chib is implemented, and
@@ -43,11 +43,16 @@
  *   general scale @c sigma, and never assumes the unit scale that the probit
  *   link happens to impose.
  *
- * - **The component parameters.** They are drawn by WBDrawComponent(), selected
- *   by the @c cprior code of WBRegimeSpec. A heavier tailed prior for the
- *   component scales, such as a half-t through its scale mixture
- *   representation, is a sibling of that routine plus one auxiliary variable
- *   per component, held in the spec.
+ * - **The component parameters.** WBComponent collects the two operations that
+ *   depend on their prior: the draw of the mean and of the precision of one
+ *   component, and the refresh of the auxiliary variable that a scale mixture
+ *   carries. The normal-gamma prior of the article and the half-t prior of the
+ *   component standard deviations are two instances of it, registered in
+ *   WBComponentGet(). The two operations are separate because the sweep permutes
+ *   the labels between them, and each auxiliary must end the sweep paired with
+ *   the precision that occupies its slot, under the prior of that slot. A prior
+ *   without an auxiliary variable leaves the refresh returning what it is
+ *   given, which is what the normal-gamma instance does.
  *
  * The R entry point takes the model codes and the hyperparameters as coded
  * vectors and named lists, and not as positional arguments, so that new options
@@ -70,6 +75,7 @@
 #define WB_SLAB_GAUSSIAN 1  /**< Spike and slab with Gaussian slab (SSG).  */
 #define WB_SLAB_LAPLACE  2  /**< Spike and slab with Laplace slab (SSL).   */
 #define WB_CPRIOR_GAMMA  1  /**< Normal-gamma prior of the components.     */
+#define WB_CPRIOR_HALFT  2  /**< Half-t prior of the component scales.     */
 /**@}*/
 
 /**
@@ -90,6 +96,8 @@ typedef struct {
   double B0[2];       /**< Prior variances of mu_1 and mu_2.                */
   double v0[2];       /**< Prior shapes of tau_1^2 and tau_2^2.             */
   double V0[2];       /**< Prior rates of tau_1^2 and tau_2^2.              */
+  double nu0[2];      /**< Degrees of freedom of the half-t priors.         */
+  double A0[2];       /**< Scales of the half-t priors.                     */
   double zeta;        /**< First shape of the beta prior of pi_j.           */
   double rho;         /**< Second shape of the beta prior of pi_j.          */
   double kappa;       /**< Shape of the gamma prior of v_j^-2 or of a_j.    */
@@ -140,10 +148,50 @@ typedef struct {
 } WBSlab;
 
 /**
+ * @brief The prior of the component parameters, seen by the sweep.
+ *
+ * @details The two members are the only places where the sampler depends on the
+ *          prior of the means and of the precisions of the two components. They
+ *          are kept apart because the identifying restriction mu_1 < mu_2 is
+ *          imposed between them: the precisions are drawn first, the labels are
+ *          permuted if need be, and only then is the auxiliary variable of each
+ *          slot refreshed, from the precision that ended up in it.
+ */
+typedef struct {
+  const char *name;
+  /**
+   * @brief Draws the mean and the precision of one component.
+   * @param[in]     spec Model specification.
+   * @param[in]     y    Observed mixture of length n.
+   * @param[in]     z    Allocation variables of length n.
+   * @param[in]     n    Sample size.
+   * @param[in]     k    Component whose parameters are drawn, 0 or 1.
+   * @param[in]     aux  Current auxiliary variable of the component, ignored by
+   *                     a prior that carries none.
+   * @param[out]    mu   The drawn mean.
+   * @param[in,out] tau2 On entry the current precision, which the mean is drawn
+   *                     given; on exit the drawn one.
+   */
+  void (*draw)(const WBRegimeSpec *spec, const double *y, const int *z, int n,
+               int k, double aux, double *mu, double *tau2);
+  /**
+   * @brief Refreshes the auxiliary variable of one component.
+   * @param[in] spec Model specification.
+   * @param[in] k    Component whose auxiliary variable is refreshed, 0 or 1.
+   * @param[in] tau2 Precision that occupies that slot.
+   * @param[in] aux  Current auxiliary variable.
+   * @return The refreshed auxiliary variable, which is @p aux itself, drawn from
+   *         nothing, when the prior carries no auxiliary variable.
+   */
+  double (*refresh)(const WBRegimeSpec *spec, int k, double tau2, double aux);
+} WBComponent;
+
+/**
  * @brief Runs the Gibbs sampler for the dynamic mixture weights.
  *
  * @details Each sweep draws the component parameters, permutes the labels
- *          whenever the identifying restriction mu_1 < mu_2 is violated, draws
+ *          whenever the identifying restriction mu_1 < mu_2 is violated,
+ *          refreshes the auxiliary variables of their prior, draws
  *          the allocation variables, the latent variables of the augmentation,
  *          the hyperparameters of each resolution level, the inclusion
  *          indicators and the wavelet coefficients, and rebuilds the mixture
@@ -162,12 +210,16 @@ typedef struct {
  *                    the family is custom).
  * @param[in] model   Integer SEXP with the components 'link', 'slab' and
  *                    'cprior', holding the codes of the model.
- * @param[in] hyper   List SEXP with the real components 'mean', 'var', 'shape'
- *                    and 'rate', of length two, holding the priors of the
- *                    component parameters, and the scalars 'zeta', 'rho',
+ * @param[in] hyper   List SEXP with the real components 'mean' and 'var', of
+ *                    length two, holding the normal priors of the component
+ *                    means, 'shape' and 'rate', of length two, holding the gamma
+ *                    priors of the component precisions, 'df' and 'scale', of
+ *                    length two, holding the half-t priors of the component
+ *                    standard deviations, and the scalars 'zeta', 'rho',
  *                    'kappa' and 'xi', holding the priors of the sparsity and
  *                    of the slab parameters, and 'cut', the smallest posterior
  *                    inclusion probability that is not rounded down to zero.
+ *                    Only the pair the 'cprior' code selects is read.
  * @param[in] init    List SEXP with the real components 'mu' and 'tau2', of
  *                    length two, holding the initial values of the chains.
  * @param[in] mcmc    Integer SEXP of length 4: number of draws to keep,

@@ -40,10 +40,13 @@
  *
  *          The component parameters of the dynamic mixture do not depend on how
  *          the mixture weights are built, so this routine is shared with the
- *          regime sampler of C_BayesRegime(). A different prior for the
- *          component scales (a half-t, say, through its scale mixture
- *          representation) belongs beside this function, and not inside the
- *          samplers that call it.
+ *          regime sampler of C_BayesRegime(). It also serves the half-t prior
+ *          of the component scales, which is a gamma full conditional of the
+ *          same shape: it is enough to call this function with the shape
+ *          nu/2 and the rate nu*b, where b is the auxiliary variable of the
+ *          scale mixture drawn by WBDrawHalfTAux(). A prior of the component
+ *          scales that is not of that form belongs beside these two functions,
+ *          and not inside the samplers that call them.
  *
  * @param[in]     y     Observed values of length n.
  * @param[in]     z     Allocation variables of length n.
@@ -59,6 +62,42 @@
 void WBDrawComponent(const double *y, const int *z, int n, int grp,
                      double b0, double B0, double v0, double V0,
                      double *mu, double *tau2);
+
+/**
+ * @brief Draws the auxiliary variable of a half-t prior of a component scale.
+ *
+ * @details A half-t prior of the standard deviation of a component,
+ *          \f$\tau_k^{-1} \sim \mathrm{half}\mathrm{-}t(\nu, A)\f$, is
+ *          written as the inverse gamma scale mixture of Wand et al. (2011),
+ *          \f[ \tau_k^{-2} \mid a_k \sim \mathrm{IG}(\nu/2, \nu/a_k),
+ *              \qquad a_k \sim \mathrm{IG}(1/2, 1/A^2), \f]
+ *          which leaves every full conditional of the sampler in closed form.
+ *          Only the reciprocal \f$b_k = 1/a_k\f$ is ever needed, and its full
+ *          conditional is
+ *          \f[ b_k \mid \tau_k^2 \sim
+ *              \Gamma\left(\frac{\nu + 1}{2},\ \nu\tau_k^2 +
+ *              \frac{1}{A^2}\right), \f]
+ *          an exponential distribution when \f$\nu = 1\f$, which is the
+ *          half-Cauchy prior of Gelman (2006).
+ *
+ *          The precision itself is drawn by WBDrawComponent(), called with the
+ *          shape \f$\nu/2\f$ and the rate \f$\nu b_k\f$; together with this
+ *          function that is the whole of the half-t step.
+ *
+ * @param[in] tau2  Current precision of the component, that is, the reciprocal
+ *                  of its variance.
+ * @param[in] df    Degrees of freedom of the half-t prior; one is the
+ *                  half-Cauchy.
+ * @param[in] scale Scale of the half-t prior.
+ * @return The drawn auxiliary variable, floored at the machine epsilon.
+ *
+ * @see Gelman, A. (2006). Prior distributions for variance parameters in
+ *      hierarchical models. Bayesian Analysis, 1(3), 515-534.
+ * @see Wand, M. P., Ormerod, J. T., Padoan, S. A. and Fruhwirth, R. (2011).
+ *      Mean field variational Bayes for elaborate distributions. Bayesian
+ *      Analysis, 6(4), 847-900.
+ */
+double WBDrawHalfTAux(double tau2, double df, double scale);
 
 /**
  * @brief Draws the allocation variables from their full conditionals.
