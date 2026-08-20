@@ -146,8 +146,9 @@ test_that("the half-t prior of the component scales follows the scale mixture", 
                   rate = rep(0.01, 2), df = df, scale = rep(sd(y), 2))
 
     set.seed(2024)
-    got <- bwmixreg(y, cprior = cprior,
-                    prior = if(cprior == "halft") list(df = df) else list(),
+    got <- bwmixreg(y, scale.prior = cprior,
+                    components = if(cprior == "halft") list(df = df)
+                                 else list(),
                     nchain = 20, burn = 10, lag = 2, plot = FALSE)
 
     set.seed(2024)
@@ -159,9 +160,9 @@ test_that("the half-t prior of the component scales follows the scale mixture", 
     expect_equal(unname(got$draws$tau2), ref$tau2, tolerance = 1e-10)
     expect_equal(got$draws$alpha, ref$alpha, tolerance = 1e-10)
 
-    expect_equal(got$cprior, cprior)
-    expect_equal(got$prior$df, df)
-    expect_equal(got$prior$scale, rep(sd(y), 2))
+    expect_equal(got$scale.prior, cprior)
+    expect_equal(got$components$df, df)
+    expect_equal(got$components$scale, rep(sd(y), 2))
     expect_true(all(got$draws$tau2 > 0))
   }
 
@@ -169,7 +170,7 @@ test_that("the half-t prior of the component scales follows the scale mixture", 
   set.seed(2024)
   gam <- bwmixreg(y, nchain = 20, burn = 10, lag = 2, plot = FALSE)
 
-  expect_equal(gam$cprior, "gamma")
+  expect_equal(gam$scale.prior, "gamma")
   expect_false(isTRUE(all.equal(gam$draws$tau2, got$draws$tau2)))
 })
 
@@ -186,10 +187,10 @@ test_that("the half-t prior recovers the mixture as the gamma prior does", {
   y <- z*rnorm(n, mean = 2, sd = 0.5) + (1 - z)*rnorm(n, mean = 0, sd = 0.5)
 
   set.seed(11)
-  fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 300, burn = 300,
+  fit_hc <- bwmixreg(y, scale.prior = "halfcauchy", nchain = 300, burn = 300,
                      plot = FALSE)
   set.seed(11)
-  fit_ht <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)),
+  fit_ht <- bwmixreg(y, scale.prior = "halft", components = list(df = c(4, 4)),
                      nchain = 300, burn = 300, plot = FALSE)
 
   for(fit in list(fit_hc, fit_ht)){
@@ -202,7 +203,7 @@ test_that("the half-t prior recovers the mixture as the gamma prior does", {
     expect_true(mean((fit$alpha - a)^2) < 0.06)
   }
 
-  expect_equal(fit_ht$prior$df, c(4, 4))
+  expect_equal(fit_ht$components$df, c(4, 4))
 })
 
 
@@ -210,26 +211,28 @@ test_that("the prior of the component scales validates its settings", {
 
   y <- mix_data(n = 64)$y
 
-  expect_error(bwmixreg(y, cprior = "inverse-gamma", plot = FALSE),
+  expect_error(bwmixreg(y, scale.prior = "inverse-gamma", plot = FALSE),
                "should be one of")
-  expect_error(bwmixreg(y, prior = list(df = c(0, 1)), plot = FALSE),
+  expect_error(bwmixreg(y, components = list(df = c(0, 1)), plot = FALSE),
                "must be positive")
-  expect_error(bwmixreg(y, prior = list(scale = c(1, -1)), plot = FALSE),
+  expect_error(bwmixreg(y, components = list(scale = c(1, -1)), plot = FALSE),
                "must be positive")
-  expect_error(bwmixreg(y, prior = list(scale = 1), plot = FALSE),
+  expect_error(bwmixreg(y, components = list(scale = 1), plot = FALSE),
                "two finite values")
 
   # The half-Cauchy prior has a single degree of freedom by definition, so
   # asking for another number of them is a contradiction and not a preference.
-  expect_error(bwmixreg(y, cprior = "halfcauchy", prior = list(df = c(3, 3)),
-                        plot = FALSE),
+  expect_error(bwmixreg(y, scale.prior = "halfcauchy",
+                        components = list(df = c(3, 3)), plot = FALSE),
                "fixed at one")
-  expect_silent(bwmixreg(y, cprior = "halfcauchy", prior = list(df = c(1, 1)),
-                         nchain = 5, burn = 2, lag = 1, plot = FALSE))
+  expect_silent(bwmixreg(y, scale.prior = "halfcauchy",
+                         components = list(df = c(1, 1)), nchain = 5, burn = 2,
+                         lag = 1, plot = FALSE))
 
   # The printout names the prior in use.
   set.seed(3)
-  fit <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)), nchain = 5,
+  fit <- bwmixreg(y, scale.prior = "halft", components = list(df = c(4, 4)),
+                  nchain = 5,
                   burn = 2, lag = 1, plot = FALSE)
 
   expect_output(print(fit), "half-t prior of the standard deviations \\(df = 4, 4\\)")
@@ -422,9 +425,9 @@ test_that("bwmixreg validates its arguments", {
   expect_error(bwmixreg(y, level = 1, plot = FALSE), "between 0 and 1")
   expect_error(bwmixreg(y, thresholding = list(j0 = 6), plot = FALSE),
                "smaller than 6")
-  expect_error(bwmixreg(y, prior = list(nonsense = 1), plot = FALSE),
+  expect_error(bwmixreg(y, components = list(nonsense = 1), plot = FALSE),
                "Unknown component")
-  expect_error(bwmixreg(y, prior = list(var = c(-1, 1)), plot = FALSE),
+  expect_error(bwmixreg(y, components = list(var = c(-1, 1)), plot = FALSE),
                "must be positive")
   expect_error(bwmixreg(y, init = list(mu = c(3, 1)), plot = FALSE),
                "mu\\[1\\] < mu\\[2\\]")

@@ -19,23 +19,23 @@
 #' @param lag Every \code{lag}-th sweep after the burn-in is retained, which
 #'   reduces the autocorrelation of the chains. The sampler therefore performs
 #'   \code{burn + lag*nchain} sweeps.
-#' @param cprior The prior of the scales of the two Gaussian components, either
-#'   \code{"gamma"} (the default), the conjugate gamma prior of the precisions
-#'   \eqn{\tau_k^2} used by the paper, or a half-t prior of the standard
-#'   deviations \eqn{\tau_k^{-1}}, which is the weakly informative choice of
-#'   Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its one
-#'   degree of freedom special case, and as \code{"halft"}, whose degrees of
-#'   freedom are the entry \code{df} of \code{prior}. It is the option of the same
-#'   name of \command{\link{bwregime}}. See Details.
-#' @param prior A list with the hyperparameters of the priors of the component
-#'   parameters, any of which may be omitted. The entries are \code{mean} and
-#'   \code{var}, the means and the variances of the normal priors of
-#'   \eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
+#' @param scale.prior The prior of the scales of the two Gaussian components,
+#'   either \code{"gamma"} (the default), the conjugate gamma prior of the
+#'   precisions \eqn{\tau_k^2} used by the paper, or a half-t prior of the
+#'   standard deviations \eqn{\tau_k^{-1}}, which is the weakly informative
+#'   choice of Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its
+#'   one degree of freedom special case, and as \code{"halft"}, whose degrees of
+#'   freedom are the entry \code{df} of \code{components}. It is the option of
+#'   the same name of \command{\link{bwregime}}. See Details.
+#' @param components A list with the hyperparameters of the priors of the
+#'   component parameters, any of which may be omitted. The entries are
+#'   \code{mean} and \code{var}, the means and the variances of the normal
+#'   priors of \eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
 #'   parameters of the gamma priors of \eqn{\tau_1^2} and \eqn{\tau_2^2}, and
 #'   \code{df} and \code{scale}, the degrees of freedom and the scales of the
 #'   half-t priors of \eqn{\tau_1^{-1}} and \eqn{\tau_2^{-1}}, each of them of
-#'   length two. Only the pair that \code{cprior} selects is used. The defaults
-#'   are the choices of Section 5 of the paper, described in Details.
+#'   length two. Only the pair that \code{scale.prior} selects is used. The
+#'   defaults are the choices of Section 5 of the paper, described in Details.
 #' @param init A list with the initial values \code{mu} and \code{tau2} of the
 #'   chains, each of length two. The defaults are the means of the priors of
 #'   \eqn{\mu_k}, and the reciprocal of the sample variance for both
@@ -99,12 +99,12 @@
 #' the absolute loss, and they are reported together with highest posterior
 #' density intervals computed by \command{\link{hpdi}}.
 #'
-#' The alternative \code{cprior} places the weakly informative prior of Gelman
-#' (2006) on the standard deviation of each component,
+#' The alternative \code{scale.prior} places the weakly informative prior of
+#' Gelman (2006) on the standard deviation of each component,
 #' \deqn{\tau_k^{-1} \sim \mathrm{half-}t(\nu_k, A_k),}
 #' with \eqn{\nu_k} degrees of freedom and scale \eqn{A_k}, the entries
-#' \code{df} and \code{scale} of \code{prior}. One degree of freedom gives the
-#' half-Cauchy prior, and the density approaches a half-normal one as the
+#' \code{df} and \code{scale} of \code{components}. One degree of freedom gives
+#' the half-Cauchy prior, and the density approaches a half-normal one as the
 #' degrees of freedom grow. It is a prior of a scale, and not of a precision:
 #' it is flat near the origin instead of vanishing there, and its tail is heavy,
 #' so that neither a small nor a large component variance is ruled out by the
@@ -179,7 +179,7 @@
 #' \item{nobs, npad, padding}{The sample size, the padded sample size and the
 #'   padding scheme.}
 #' \item{nchain, burn, lag, level}{The settings of the sampler.}
-#' \item{cprior}{The prior of the component scales used.}
+#' \item{scale.prior}{The prior of the component scales used.}
 #' \item{prior, init, thresholding}{The priors, the initial values and the
 #'   thresholding settings actually used.}
 #' \item{family, filter.size, wavelet.filter}{The wavelet basis used.}
@@ -244,8 +244,8 @@
 #'   # standard deviations of the components, in place of the gamma prior of
 #'   # their precisions used by the paper.
 #'   set.seed(123)
-#'   fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 1000, burn = 1000,
-#'                      lag = 5, plot = FALSE)
+#'   fit_hc <- bwmixreg(y, scale.prior = "halfcauchy", nchain = 1000,
+#'                      burn = 1000, lag = 5, plot = FALSE)
 #'
 #'   # The two priors agree here: the amplifications are the same ones, and the
 #'   # component parameters barely move. The weights are built from the
@@ -279,9 +279,9 @@
 #' # half-Cauchy and half-t priors of Gelman (2006) on the standard deviations.
 #' #
 #' fit_g <- bwmixreg(y, nchain = 500, burn = 500, plot = FALSE)
-#' fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 500, burn = 500,
+#' fit_hc <- bwmixreg(y, scale.prior = "halfcauchy", nchain = 500, burn = 500,
 #'                    plot = FALSE)
-#' fit_ht <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)),
+#' fit_ht <- bwmixreg(y, scale.prior = "halft", components = list(df = c(4, 4)),
 #'                    nchain = 500, burn = 500, plot = FALSE)
 #'
 #' # The standard deviations of the two components, whose true value is 0.5.
@@ -297,8 +297,8 @@
 #' @export
 bwmixreg <- function(y, x = seq_along(y)/length(y),
                      nchain = 1000, burn = 1000, lag = 5,
-                     cprior = c("gamma", "halfcauchy", "halft"),
-                     prior = list(), init = list(), thresholding = list(),
+                     scale.prior = c("gamma", "halfcauchy", "halft"),
+                     components = list(), init = list(), thresholding = list(),
                      family = "Coiflets", filter.size = 30,
                      wavelet.filter = NULL,
                      padding = c("reflect", "periodic", "none"),
@@ -359,37 +359,41 @@ bwmixreg <- function(y, x = seq_along(y)/length(y),
   q <- stats::quantile(y, probs = c(0.25, 0.75), names = FALSE)
   s2 <- stats::var(y)
 
-  cprior <- match.arg(tolower(cprior[1L]), c("gamma", "halfcauchy", "halft"))
+  scale.prior <- match.arg(tolower(scale.prior[1L]),
+                           c("gamma", "halfcauchy", "halft"))
 
   # Whether the degrees of freedom were asked for decides whether a half-Cauchy
   # prior is a contradiction, and it has to be read before they are defaulted.
-  df.set <- !is.null(prior$df)
+  df.set <- !is.null(components$df)
 
-  prior <- .wb_merge(prior, list(mean = q, var = c(s2, s2),
+  components <- .wb_merge(components, list(mean = q, var = c(s2, s2),
                                  shape = c(0.01, 0.01), rate = c(0.01, 0.01),
                                  df = c(1, 1), scale = rep(sqrt(s2), 2)),
-                     "prior")
-  init <- .wb_merge(init, list(mu = prior$mean, tau2 = c(1/s2, 1/s2)), "init")
+                     "components")
+  init <- .wb_merge(init, list(mu = components$mean, tau2 = c(1/s2, 1/s2)),
+                    "init")
   thresholding <- .wb_merge(thresholding,
                             list(j0 = 3, alpha = 0.5, beta = 1, C1 = NA,
                                  C2 = NA, C1.start = 100), "thresholding")
 
   for(nm in c("mean", "var", "shape", "rate", "df", "scale"))
-    if(length(prior[[nm]]) != 2L || any(!is.finite(prior[[nm]])))
+    if(length(components[[nm]]) != 2L || any(!is.finite(components[[nm]])))
       stop("The component '", nm, "' of 'prior' must hold two finite values.")
-  if(any(prior$var <= 0) || any(prior$shape <= 0) || any(prior$rate <= 0))
+  if(any(components$var <= 0) || any(components$shape <= 0) ||
+     any(components$rate <= 0))
     stop("The prior variances, shapes and rates must be positive.")
-  if(any(prior$df <= 0) || any(prior$scale <= 0))
+  if(any(components$df <= 0) || any(components$scale <= 0))
     stop("The degrees of freedom and the scales of the half-t priors must be positive.")
 
   # The half-Cauchy prior is the half-t prior with a single degree of freedom,
   # so asking for another number of them is a contradiction, and not a
   # preference to be honoured silently.
-  if(cprior == "halfcauchy"){
-    if(df.set && !isTRUE(all.equal(unname(prior$df), c(1, 1))))
-      stop("With cprior = \"halfcauchy\" the degrees of freedom are fixed at one. ",
-           "Use cprior = \"halft\" to choose the component 'df' of 'prior'.")
-    prior$df <- c(1, 1)
+  if(scale.prior == "halfcauchy"){
+    if(df.set && !isTRUE(all.equal(unname(components$df), c(1, 1))))
+      stop("With scale.prior = \"halfcauchy\" the degrees of freedom are ",
+           "fixed at one. Use scale.prior = \"halft\" to choose the ",
+           "component 'df' of 'components'.")
+    components$df <- c(1, 1)
   }
 
   for(nm in c("mu", "tau2"))
@@ -422,11 +426,12 @@ bwmixreg <- function(y, x = seq_along(y)/length(y),
                  as.double(c(thresholding$alpha, thresholding$beta,
                              thresholding$C1, thresholding$C2,
                              thresholding$C1.start)),
-                 switch(cprior, gamma = 1L, halfcauchy = 2L, halft = 2L),
+                 switch(scale.prior, gamma = 1L, halfcauchy = 2L, halft = 2L),
                  # The six hyperparameters of each component in turn, which is
                  # the layout the compiled sampler reads them in.
-                 as.double(rbind(prior$mean, prior$var, prior$shape,
-                                 prior$rate, prior$df, prior$scale)),
+                 as.double(rbind(components$mean, components$var,
+                                 components$shape, components$rate,
+                                 components$df, components$scale)),
                  as.double(c(init$mu, init$tau2)),
                  c(nchain, burn, lag, nverb))
 
@@ -459,8 +464,8 @@ bwmixreg <- function(y, x = seq_along(y)/length(y),
               x = x, y = y,
               nobs = n, npad = npad, padding = padding,
               nchain = nchain, burn = burn, lag = lag, level = level,
-              cprior = cprior,
-              prior = prior, init = init, thresholding = thresholding,
+              scale.prior = scale.prior,
+              components = components, init = init, thresholding = thresholding,
               family = fam$name, fam = fam$fam, filter.size = filter.size,
               wavelet.filter = if(fam$fam == 4L) wavelet.filter else NULL)
 
@@ -493,11 +498,12 @@ print.bwmixreg <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
       round(log2(x$npad)) - 1L, "| alpha =", x$thresholding$alpha,
       "| beta =", x$thresholding$beta, "\n")
   cat("  Components     :",
-      switch(x$cprior,
+      switch(x$scale.prior,
              gamma = "gamma prior of the precisions",
              halfcauchy = "half-Cauchy prior of the standard deviations",
              halft = paste0("half-t prior of the standard deviations (df = ",
-                            paste(signif(x$prior$df, digits), collapse = ", "),
+                            paste(signif(x$components$df, digits),
+                                  collapse = ", "),
                             ")")),
       "\n")
   cat("  Data           : n =", x$nobs,

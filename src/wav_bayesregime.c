@@ -221,7 +221,7 @@ static double WBDrawThetaLaplace(double d, double sigma, double par, int gam){
   return gam ? x : 0.0;
 }
 
-/* --- The registry ---------------------------------------------------------- */
+/* --- The registry of slabs ------------------------------------------------- */
 
 /**
  * @brief Returns the slab requested by a model code.
@@ -241,6 +241,157 @@ static const WBSlab *WBSlabGet(int code){
   if(code == WB_SLAB_LAPLACE)  return &table[1];
 
   error("Unknown slab code.");
+  return NULL;
+}
+
+/**
+ * @brief Draws one resolution level under the spike and slab prior.
+ *
+ * @details Expressions (14) to (16) of the article. The hyperparameters of the
+ *          level are drawn from its previous state, and each coefficient then
+ *          receives its inclusion indicator and its value. The local scales
+ *          @p loc are not part of this prior and are left untouched.
+ *
+ * @copydetails WBWavPrior::draw_level
+ */
+static void WBDrawLevelSS(const WBRegimeSpec *spec, const double *d,
+                          double sigma, int m, double *theta, int *gam,
+                          double *loc, double *w, double *pi, double *par){
+
+  const WBSlab *slab = WBSlabGet(spec->slab);
+  double lodds, prob;
+  int k;
+
+  (void) loc;
+
+  slab->level_pars(spec, theta, gam, m, pi, par);
+
+  lodds = log(*pi) - log1p(-(*pi));
+
+  for(k = 0; k < m; k++){
+
+    /* Expression (16), on the logarithmic scale. Coefficients whose inclusion
+     * probability does not reach the cut are excluded outright, which keeps the
+     * sparsity parameters from drifting upwards: a coefficient of pure noise
+     * carries a Bayes factor of about one, so that the beta full conditional of
+     * pi_j would raise it by about one coefficient at every sweep, level after
+     * level, until nothing is shrunk any more. The uniform variate is consumed
+     * either way, so that the stream of the sampler does not depend on the
+     * data. */
+    prob = WBCut(1.0/(1.0 + exp(-lodds - slab->log_bf(d[k], sigma, *par))),
+                 spec->cut);
+    gam[k] = (unif_rand() < prob);
+    theta[k] = slab->draw_theta(d[k], sigma, *par, gam[k]);
+
+    /* The indicator itself, and not the probability it was drawn from, so that
+     * the summary is the posterior mean of what the sweep visits. */
+    w[k] = (double) gam[k];
+  }
+}
+
+/* --- The horseshoe prior --------------------------------------------------- */
+
+/**
+ * @brief Draws one resolution level under the horseshoe prior.
+ *
+ * @details The prior of Carvalho, Polson and Scott (2010) written level by
+ *          level,
+ *          \f[ \theta_k \mid \lambda_k, \tau_j \sim
+ *              N(0, \sigma^2\lambda_k^2\tau_j^2), \qquad
+ *              \lambda_k \sim C^+(0, 1), \qquad
+ *              \tau_j \sim C^+(0, A), \f]
+ *          so that each level keeps a global scale of its own, as the sparsity
+ *          parameter pi_j of the spike and slab prior does, and the amount of
+ *          shrinkage is learnt separately at every resolution.
+ *
+ *          Every full conditional is closed form under the inverse gamma scale
+ *          mixture of Makalic and Schmidt (2016), which is the representation
+ *          the sampler of the component scales already uses: a half-Cauchy
+ *          variable x with scale A satisfies
+ *          \f[ x^2 \mid a \sim \mathrm{IG}(1/2, 1/a), \qquad
+ *              a \sim \mathrm{IG}(1/2, 1/A^2), \f]
+ *          the two shapes being half the single degree of freedom of the
+ *          half-Cauchy distribution. The full conditionals of the auxiliary
+ *          variables therefore have shape one, that half joined by the half a
+ *          single Gaussian observation contributes. The auxiliary variables are
+ *          drawn afresh from the scales they belong to, so nothing but the
+ *          scales themselves has to be carried between sweeps.
+ *
+ *          Nothing is set to zero: the shrinkage is continuous, and it is the
+ *          weight
+ *          \f$\kappa_k = \lambda_k^2\tau_j^2/(1 + \lambda_k^2\tau_j^2)\f$
+ *          given to the empirical coefficient that plays the part of the
+ *          inclusion indicator. The indicators are held at one for that reason,
+ *          and the cut has nothing to act on.
+ *
+ * @copydetails WBWavPrior::draw_level
+ *
+ * @see Carvalho, C. M., Polson, N. G. and Scott, J. G. (2010). The horseshoe
+ *      estimator for sparse signals. Biometrika, 97(2), 465-480.
+ * @see Makalic, E. and Schmidt, D. F. (2016). A simple sampler for the
+ *      horseshoe estimator. IEEE Signal Processing Letters, 23(1), 179-182.
+ */
+static void WBDrawLevelHS(const WBRegimeSpec *spec, const double *d,
+                          double sigma, int m, double *theta, int *gam,
+                          double *loc, double *w, double *pi, double *par){
+
+  double s2 = sigma*sigma, tau2 = *par, aux, ss = 0.0, kap, sw = 0.0;
+  int k;
+
+  /* The coefficients of the level, standardized by their local scales, which
+   * is what the rate of the full conditional of the global scale is built
+   * from. Its shape is (m + 1)/2: one half from the prior, and one half for
+   * each coefficient the level holds. */
+  for(k = 0; k < m; k++)
+    ss += theta[k]*theta[k]/loc[k];
+
+  aux = 1.0/rgamma(1.0, 1.0/(1.0/(spec->hscale*spec->hscale) + 1.0/tau2));
+  tau2 = 1.0/rgamma(0.5*(m + 1.0), 1.0/(1.0/aux + 0.5*ss/s2));
+
+  for(k = 0; k < m; k++){
+
+    /* The local scale of the coefficient, and then the coefficient itself. The
+     * full conditional is the one of the Gaussian slab of variance
+     * sigma^2*lambda_k^2*tau_j^2, which is where the two priors meet. */
+    aux = 1.0/rgamma(1.0, 1.0/(1.0 + 1.0/loc[k]));
+    loc[k] = 1.0/rgamma(1.0, 1.0/(1.0/aux + 0.5*theta[k]*theta[k]/(tau2*s2)));
+
+    kap = loc[k]*tau2/(1.0 + loc[k]*tau2);
+    theta[k] = kap*d[k] + sigma*sqrt(kap)*norm_rand();
+
+    gam[k] = 1;
+    w[k] = kap;
+    sw += kap;
+  }
+
+  *par = tau2;
+
+  /* The reading that pi_j receives under this prior: the average weight the
+   * coefficients of the level give the data, which is what the proportion of
+   * non-null coefficients is under the spike and slab prior. */
+  *pi = sw/m;
+}
+
+/* --- The registry of coefficient priors ------------------------------------ */
+
+/**
+ * @brief Returns the prior of the wavelet coefficients requested by a code.
+ *
+ * @param[in] code One of the WB_WPRIOR_* constants.
+ * @return Pointer to the corresponding interface. The function does not return
+ *         when the code is unknown.
+ */
+static const WBWavPrior *WBWavPriorGet(int code){
+
+  static const WBWavPrior table[] = {
+    {"spikeslab", WBDrawLevelSS},
+    {"horseshoe", WBDrawLevelHS}
+  };
+
+  if(code == WB_WPRIOR_SS) return &table[0];
+  if(code == WB_WPRIOR_HS) return &table[1];
+
+  error("Unknown code for the prior of the wavelet coefficients.");
   return NULL;
 }
 
@@ -305,15 +456,15 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   int lag = INTEGER(mcmc)[2], nverb = INTEGER(mcmc)[3];
   int *idx = INTEGER(padidx), *z, *gam;
   double *ry = REAL(y), *rwfilter, *work, *lat, *dstar, *theta, *fit, *alpha;
-  double *pilev, *parlev;
+  double *pilev, *parlev, *loc, *wgt;
   double *rmu, *rtau2, *ralpha, *rpi, *rpar, *rzbar, *rincl;
-  double mu[2], tau2[2], sd[2], aux[2], tmp, lodds;
+  double mu[2], tau2[2], sd[2], aux[2], tmp;
   /* The probit augmentation leaves the latent regression with a unit scale.
-   * The slabs are written for a general one, which is what a link with a
-   * heteroscedastic augmentation would supply. */
+   * The priors of the coefficients are written for a general one, which is what
+   * a link with a heteroscedastic augmentation would supply. */
   const double sigma = 1.0;
   WBRegimeSpec spec;
-  const WBSlab *slab;
+  const WBWavPrior *wprior;
   const WBComponent *comp;
   SEXP out, nms, wutils;
 
@@ -333,13 +484,14 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   spec.npad = npad;
   spec.J = J;
   spec.link = WBInt(model, "link");
+  spec.wprior = WBInt(model, "wprior");
   spec.slab = WBInt(model, "slab");
   spec.cprior = WBInt(model, "cprior");
 
   if(spec.link != WB_LINK_PROBIT)
     error("Only the probit link is available.");
 
-  slab = WBSlabGet(spec.slab);
+  wprior = WBWavPriorGet(spec.wprior);
   comp = WBComponentGet(spec.cprior);
 
   for(k = 0; k < 2; k++){
@@ -356,11 +508,14 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   spec.kappa = WBReal(hyper, "kappa", 0);
   spec.xi = WBReal(hyper, "xi", 0);
   spec.cut = WBReal(hyper, "cut", 0);
+  spec.hscale = WBReal(hyper, "hscale", 0);
 
   if(spec.zeta <= 0.0 || spec.rho <= 0.0 || spec.kappa <= 0.0 || spec.xi <= 0.0)
     error("The hyperparameters of the spike and slab prior must be positive.");
   if(spec.cut < 0.0 || spec.cut >= 1.0)
     error("The cut of the inclusion probabilities must lie in the unit interval.");
+  if(spec.hscale <= 0.0)
+    error("The scale of the horseshoe prior must be positive.");
 
   wutils = PROTECT(WavUtilities(VECTOR_ELT(wavelet, WBWhich(wavelet, "family")),
                                 VECTOR_ELT(wavelet, WBWhich(wavelet, "filter.size")),
@@ -377,6 +532,8 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   alpha  = (double *) R_alloc(n, sizeof(double));
   pilev  = (double *) R_alloc(J, sizeof(double));
   parlev = (double *) R_alloc(J, sizeof(double));
+  loc    = (double *) R_alloc(npad, sizeof(double));
+  wgt    = (double *) R_alloc(npad, sizeof(double));
   z      = (int *)    R_alloc(n, sizeof(int));
   gam    = (int *)    R_alloc(npad, sizeof(int));
 
@@ -416,8 +573,21 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
     theta[t] = 0.0;
     fit[t] = 0.0;
     gam[t] = 0;
+    loc[t] = 1.0;
+    wgt[t] = 0.0;
   }
   gam[0] = 1;
+  wgt[0] = 1.0;
+
+  /* The global scale of a level starts at one, the median of a standard
+   * half-Cauchy variable, which is the state the horseshoe prior is handed at
+   * the first sweep. The sparsity parameter beside it is a placeholder: the
+   * spike and slab prior draws both before it reads them, and is left
+   * untouched by this. */
+  for(j = 0; j < J; j++){
+    pilev[j] = 0.5;
+    parlev[j] = 1.0;
+  }
 
   for(t = 0; t < n; t++)
     alpha[t] = WBProbitMean(0.0);
@@ -486,25 +656,8 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
       m = 1 << j;
       lo = m;
 
-      slab->level_pars(&spec, theta + lo, gam + lo, m, &pilev[j], &parlev[j]);
-
-      lodds = log(pilev[j]) - log1p(-pilev[j]);
-
-      for(k = lo; k < lo + m; k++){
-
-        /* Expression (16), on the logarithmic scale. Coefficients whose
-         * inclusion probability does not reach the cut are excluded outright,
-         * which keeps the sparsity parameters from drifting upwards: a
-         * coefficient of pure noise carries a Bayes factor of about one, so
-         * that the beta full conditional of pi_j would raise it by about one
-         * coefficient at every sweep, level after level, until nothing is
-         * shrunk any more. The uniform variate is consumed either way, so that
-         * the stream of the sampler does not depend on the data. */
-        gam[k] = (unif_rand() < WBCut(1.0/(1.0 + exp(-lodds
-                                    - slab->log_bf(dstar[k], sigma, parlev[j]))),
-                                      spec.cut));
-        theta[k] = slab->draw_theta(dstar[k], sigma, parlev[j], gam[k]);
-      }
+      wprior->draw_level(&spec, dstar + lo, sigma, m, theta + lo, gam + lo,
+                         loc + lo, wgt + lo, &pilev[j], &parlev[j]);
     }
 
     /* --- The mixture weights --------------------------------------------- */
@@ -532,7 +685,7 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
       }
 
       for(t = 0; t < npad; t++)
-        rincl[t] += gam[t];
+        rincl[t] += wgt[t];
 
       keep++;
     }

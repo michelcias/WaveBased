@@ -4,7 +4,8 @@
 # Transcription of Algorithm 1 of the paper, drawing the same variates in the
 # same order as the compiled sampler, so that the two chains must coincide.
 ref_regime <- function(y, padidx, nchain, burn, lag, slab, prior, shr, init,
-                       cprior = "gamma", family = "Daublets", filter.size = 20){
+                       cprior = "gamma", wprior = "spikeslab",
+                       family = "Daublets", filter.size = 20){
 
   n <- length(y)
   npad <- length(padidx)
@@ -57,6 +58,11 @@ ref_regime <- function(y, padidx, nchain, burn, lag, slab, prior, shr, init,
   gam <- integer(npad)
   alpha <- rep(pnorm(0), n)
   aux <- c(0, 0)
+
+  # The state the horseshoe prior carries between sweeps: the local scales of
+  # the coefficients and the global scale of each level, both starting at one.
+  lam2 <- rep(1, npad)
+  tau2l <- rep(1, J)
 
   if(cprior != "gamma")
     aux <- vapply(1:2, function(k) halft_aux(init$tau2[k], k), 0)
@@ -112,6 +118,37 @@ ref_regime <- function(y, padidx, nchain, burn, lag, slab, prior, shr, init,
 
       m <- 2^j
       idx <- (m + 1L):(2L*m)
+
+      if(wprior == "horseshoe"){
+
+        # The inverse gamma scale mixture of Makalic and Schmidt (2016): the
+        # auxiliary of a half-Cauchy scale is drawn from the scale itself, so
+        # only the scales are carried from the previous sweep.
+        ax <- 1/rgamma(1, shape = 1, rate = 1/shr$scale^2 + 1/tau2l[j + 1L])
+        tau2l[j + 1L] <- 1/rgamma(1, shape = (m + 1)/2,
+                                  rate = 1/ax + sum(theta[idx]^2/lam2[idx])/
+                                                (2*sigma^2))
+
+        kap <- numeric(m)
+
+        for(u in seq_along(idx)){
+          k <- idx[u]
+          ax <- 1/rgamma(1, shape = 1, rate = 1 + 1/lam2[k])
+          lam2[k] <- 1/rgamma(1, shape = 1,
+                              rate = 1/ax +
+                                     theta[k]^2/(2*tau2l[j + 1L]*sigma^2))
+
+          kap[u] <- lam2[k]*tau2l[j + 1L]/(1 + lam2[k]*tau2l[j + 1L])
+          theta[k] <- kap[u]*dstar[k] + sigma*sqrt(kap[u])*rnorm(1)
+          gam[k] <- 1L
+        }
+
+        pil[j + 1L] <- mean(kap)
+        parl[j + 1L] <- tau2l[j + 1L]
+
+        next
+      }
+
       n1 <- sum(gam[idx])
 
       pil[j + 1L] <- rbeta(1, shr$zeta + n1, shr$rho + m - n1)
@@ -173,7 +210,7 @@ ref_settings <- function(y)
                     scale = rep(sd(y), 2)),
        init = list(mu = unname(quantile(y, c(0.25, 0.75))),
                    tau2 = rep(1/var(y), 2)),
-       shr = list(zeta = 1, rho = 1, kappa = 1, xi = 100, cut = 0))
+       shr = list(zeta = 1, rho = 1, kappa = 1, xi = 100, cut = 0, scale = 1))
 
 mix_data <- function(n = 128, seed = 99){
   set.seed(seed)
@@ -209,6 +246,101 @@ test_that("the compiled sampler reproduces a transcription of Algorithm 1", {
 })
 
 
+test_that("the horseshoe prior reproduces its transcription", {
+
+  y <- mix_data()$y
+  n <- length(y)
+  s <- ref_settings(y)
+
+  set.seed(2024)
+  got <- bwregime(y, wavelet.prior = "horseshoe", nchain = 20, burn = 10,
+                  lag = 2, plot = FALSE)
+
+  set.seed(2024)
+  ref <- ref_regime(y, padidx = seq_len(n), nchain = 20, burn = 10, lag = 2,
+                    slab = "laplace", prior = s$prior, shr = s$shr,
+                    init = s$init, wprior = "horseshoe")
+
+  expect_equal(unname(got$draws$mu), ref$mu, tolerance = 1e-10)
+  expect_equal(unname(got$draws$tau2), ref$tau2, tolerance = 1e-10)
+  expect_equal(unname(got$draws$alpha), ref$alpha, tolerance = 1e-10)
+  expect_equal(unname(got$draws$kappa), ref$pi, tolerance = 1e-10)
+  expect_equal(unname(got$draws$scale), ref$slab, tolerance = 1e-10)
+
+  # The slab is not consulted, so choosing another one changes nothing.
+  set.seed(2024)
+  other <- bwregime(y, wavelet.prior = "horseshoe", slab = "gaussian",
+                    nchain = 20, burn = 10, lag = 2, plot = FALSE)
+
+  expect_equal(other$draws$alpha, got$draws$alpha)
+})
+
+
+test_that("the horseshoe prior shrinks without selecting", {
+
+  y <- mix_data(n = 256)$y
+
+  set.seed(7)
+  hs <- bwregime(y, wavelet.prior = "horseshoe", nchain = 40, burn = 100,
+                 lag = 2, plot = FALSE)
+  set.seed(7)
+  ss <- bwregime(y, nchain = 40, burn = 100, lag = 2, plot = FALSE)
+
+  expect_equal(hs$wavelet.prior, "horseshoe")
+  expect_equal(ss$wavelet.prior, "spikeslab")
+
+  # Nothing is set to zero: the weights are shrinkage factors in the open unit
+  # interval, and not the frequencies of an indicator.
+  expect_true(all(hs$inclusion > 0 & hs$inclusion <= 1))
+  expect_false(any(hs$inclusion[-1L]*40 == round(hs$inclusion[-1L]*40)))
+  expect_true(all(ss$inclusion*40 == round(ss$inclusion*40)))
+  expect_true(any(ss$inclusion < 1))
+
+  # The scaling coefficient carries a diffuse prior under either prior, and is
+  # never shrunk.
+  expect_equal(unname(hs$inclusion[1L]), 1)
+  expect_equal(unname(ss$inclusion[1L]), 1)
+
+  # The level summaries are named after what they hold, and the mean shrinkage
+  # weight of a level is the average of the weights of its coefficients.
+  expect_named(hs$draws, c("mu", "tau2", "alpha", "kappa", "scale"))
+  expect_named(ss$draws, c("mu", "tau2", "alpha", "pi", "slab"))
+  expect_true(all(hs$draws$kappa > 0 & hs$draws$kappa < 1))
+  expect_true(all(hs$draws$scale > 0))
+  expect_equal(colnames(hs$draws$kappa), paste0("j", 0:(log2(256) - 1)))
+
+  # The two summaries are averages of the same weights, over the coefficients
+  # of a level and over the sweeps, so they must agree level by level.
+  for(j in 0:(log2(256) - 1)){
+    idx <- (2^j + 1L):(2^(j + 1L))
+    expect_equal(mean(hs$inclusion[idx]), mean(hs$draws$kappa[, j + 1L]))
+  }
+
+  # The finest levels hold noise, and are shrunk harder than the coarsest ones.
+  kap <- colMeans(hs$draws$kappa)
+  expect_lt(kap[length(kap)], kap[1L])
+
+  # The printout names the prior that was used.
+  expect_output(print(hs), "horseshoe prior")
+  expect_output(print(hs), "left unshrunk")
+  expect_output(print(ss), "laplace slab")
+})
+
+
+test_that("the horseshoe prior recovers a two-regime weight function", {
+
+  d <- mix_data(n = 256, seed = 11)
+
+  set.seed(3)
+  fit <- bwregime(d$y, wavelet.prior = "horseshoe", nchain = 200, burn = 500,
+                  lag = 2, plot = FALSE)
+
+  expect_lt(mean((fit$alpha - d$alpha)^2), 0.05)
+  expect_lt(fit$mu[1L], fit$mu[2L])
+  expect_true(mean(fit$alpha[1:128]) < mean(fit$alpha[129:256]))
+})
+
+
 test_that("the half-t prior of the component scales follows the scale mixture", {
 
   y <- mix_data()$y
@@ -224,8 +356,9 @@ test_that("the half-t prior of the component scales follows the scale mixture", 
     prior$df <- df
 
     set.seed(2024)
-    got <- bwregime(y, cprior = cprior,
-                    prior = if(cprior == "halft") list(df = df) else list(),
+    got <- bwregime(y, scale.prior = cprior,
+                    components = if(cprior == "halft") list(df = df)
+                                 else list(),
                     nchain = 20, burn = 10, lag = 2, plot = FALSE)
 
     set.seed(2024)
@@ -237,9 +370,9 @@ test_that("the half-t prior of the component scales follows the scale mixture", 
     expect_equal(unname(got$draws$tau2), ref$tau2, tolerance = 1e-10)
     expect_equal(unname(got$draws$alpha), ref$alpha, tolerance = 1e-10)
 
-    expect_equal(got$cprior, cprior)
-    expect_equal(got$prior$df, df)
-    expect_equal(got$prior$scale, rep(sd(y), 2))
+    expect_equal(got$scale.prior, cprior)
+    expect_equal(got$components$df, df)
+    expect_equal(got$components$scale, rep(sd(y), 2))
     expect_true(all(got$draws$tau2 > 0))
   }
 
@@ -247,7 +380,7 @@ test_that("the half-t prior of the component scales follows the scale mixture", 
   set.seed(2024)
   gam <- bwregime(y, nchain = 20, burn = 10, lag = 2, plot = FALSE)
 
-  expect_equal(gam$cprior, "gamma")
+  expect_equal(gam$scale.prior, "gamma")
   expect_false(isTRUE(all.equal(gam$draws$tau2, got$draws$tau2)))
 })
 
@@ -265,7 +398,8 @@ test_that("the half-t prior leaves the component variances freer", {
   y <- z*rnorm(n, mean = 3, sd = 0.4) + (1 - z)*rnorm(n, mean = 0, sd = 0.4)
 
   set.seed(11)
-  fit <- bwregime(y, cprior = "halfcauchy", nchain = 500, burn = 500, lag = 2,
+  fit <- bwregime(y, scale.prior = "halfcauchy", nchain = 500, burn = 500,
+                  lag = 2,
                   plot = FALSE)
 
   expect_equal(unname(fit$mu[1]), 0, tolerance = 0.15)
@@ -280,10 +414,10 @@ test_that("the half-t prior leaves the component variances freer", {
   # large number of them approaches a half-normal prior, which is lighter
   # tailed and therefore shrinks the standard deviations more.
   set.seed(11)
-  heavy <- bwregime(y, cprior = "halft", prior = list(df = c(50, 50)),
+  heavy <- bwregime(y, scale.prior = "halft", components = list(df = c(50, 50)),
                     nchain = 200, burn = 200, lag = 2, plot = FALSE)
 
-  expect_equal(heavy$prior$df, c(50, 50))
+  expect_equal(heavy$components$df, c(50, 50))
   expect_true(all(heavy$draws$tau2 > 0))
 })
 
@@ -292,26 +426,28 @@ test_that("the prior of the component scales validates its settings", {
 
   y <- mix_data(n = 64)$y
 
-  expect_error(bwregime(y, cprior = "inverse-gamma", plot = FALSE),
+  expect_error(bwregime(y, scale.prior = "inverse-gamma", plot = FALSE),
                "should be one of")
-  expect_error(bwregime(y, prior = list(df = c(0, 1)), plot = FALSE),
+  expect_error(bwregime(y, components = list(df = c(0, 1)), plot = FALSE),
                "must be positive")
-  expect_error(bwregime(y, prior = list(scale = c(1, -1)), plot = FALSE),
+  expect_error(bwregime(y, components = list(scale = c(1, -1)), plot = FALSE),
                "must be positive")
-  expect_error(bwregime(y, prior = list(scale = 1), plot = FALSE),
+  expect_error(bwregime(y, components = list(scale = 1), plot = FALSE),
                "two finite values")
 
   # The half-Cauchy prior has a single degree of freedom by definition, so
   # asking for another number of them is a contradiction and not a preference.
-  expect_error(bwregime(y, cprior = "halfcauchy", prior = list(df = c(3, 3)),
-                        plot = FALSE),
+  expect_error(bwregime(y, scale.prior = "halfcauchy",
+                        components = list(df = c(3, 3)), plot = FALSE),
                "fixed at one")
-  expect_silent(bwregime(y, cprior = "halfcauchy", prior = list(df = c(1, 1)),
-                         nchain = 5, burn = 2, lag = 1, plot = FALSE))
+  expect_silent(bwregime(y, scale.prior = "halfcauchy",
+                         components = list(df = c(1, 1)), nchain = 5, burn = 2,
+                         lag = 1, plot = FALSE))
 
   # The printout names the prior in use.
   set.seed(3)
-  fit <- bwregime(y, cprior = "halft", prior = list(df = c(4, 4)), nchain = 5,
+  fit <- bwregime(y, scale.prior = "halft", components = list(df = c(4, 4)),
+                  nchain = 5,
                   burn = 2, lag = 1, plot = FALSE)
 
   expect_output(print(fit), "half-t prior of the standard deviations \\(df = 4, 4\\)")
@@ -561,9 +697,9 @@ test_that("bwregime validates its arguments", {
   expect_error(bwregime(y, level = 1, plot = FALSE), "between 0 and 1")
   expect_error(bwregime(y, slab = "cauchy", plot = FALSE), "should be one of")
   expect_error(bwregime(y, link = "logit", plot = FALSE), "should be .*probit")
-  expect_error(bwregime(y, prior = list(nonsense = 1), plot = FALSE),
+  expect_error(bwregime(y, components = list(nonsense = 1), plot = FALSE),
                "Unknown component")
-  expect_error(bwregime(y, prior = list(var = c(-1, 1)), plot = FALSE),
+  expect_error(bwregime(y, components = list(var = c(-1, 1)), plot = FALSE),
                "must be positive")
   expect_error(bwregime(y, init = list(mu = c(3, 1)), plot = FALSE),
                "mu\\[1\\] < mu\\[2\\]")
