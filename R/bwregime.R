@@ -4,7 +4,7 @@
 #' parameters of a two-component Gaussian mixture, by the Gibbs sampling
 #' algorithm of Motta and Montoril (2026b). The weights are written as a probit
 #' transformation of a wavelet expansion, which is estimated by data
-#' augmentation under a spike and slab prior, so that regime switches are
+#' augmentation under a shrinkage prior, so that regime switches are
 #' identified without a functional form being imposed on the weights.
 #'
 #' @param y Vector with the observed mixture. At each index the process behaves
@@ -22,43 +22,54 @@
 #'   reduces the autocorrelation of the chains. The sampler therefore performs
 #'   \code{burn + lag*nchain} sweeps. The default is the thinning used in the
 #'   applications of the paper.
-#' @param slab The slab component of the prior of the wavelet coefficients,
-#'   either \code{"laplace"} (the default), the heavy tailed slab of Johnstone
+#' @param wavelet.prior The prior of the wavelet coefficients of the weights,
+#'   either \code{"spikeslab"} (the default), the spike and slab prior of the
+#'   paper, which sets a coefficient to zero outright, or \code{"horseshoe"},
+#'   the continuous shrinkage prior of Carvalho, Polson and Scott (2010), which
+#'   shrinks every coefficient instead of selecting among them. The entries of
+#'   \code{shrinkage} that are read, and the reading of the level draws that are
+#'   returned, follow from this choice. See Details.
+#' @param slab The slab component of the spike and slab prior, either
+#'   \code{"laplace"} (the default), the heavy tailed slab of Johnstone
 #'   and Silverman (2005), or \code{"gaussian"}. They are the priors called SSL
 #'   and SSG in the paper, which found the former to separate close probability
-#'   peaks better in both applications.
+#'   peaks better in both applications. It is read only when
+#'   \code{wavelet.prior = "spikeslab"}.
 #' @param link The link between the wavelet expansion and the mixture weights.
 #'   Only the probit link of Albert and Chib (1993), used by the paper, is
 #'   currently available.
-#' @param cprior The prior of the scales of the two Gaussian components, either
-#'   \code{"gamma"} (the default), the conjugate gamma prior of the precisions
-#'   \eqn{\tau_k^2} used by the paper, or a half-t prior of the standard
-#'   deviations \eqn{\tau_k^{-1}}, which is the weakly informative choice of
-#'   Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its one
-#'   degree of freedom special case, and as \code{"halft"}, whose degrees of
-#'   freedom are the entry \code{df} of \code{prior}. See Details.
-#' @param prior A list with the hyperparameters of the priors of the component
-#'   parameters, any of which may be omitted. The entries are \code{mean} and
-#'   \code{var}, the means and the variances of the normal priors of
-#'   \eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
+#' @param scale.prior The prior of the scales of the two Gaussian components,
+#'   either \code{"gamma"} (the default), the conjugate gamma prior of the
+#'   precisions \eqn{\tau_k^2} used by the paper, or a half-t prior of the
+#'   standard deviations \eqn{\tau_k^{-1}}, which is the weakly informative
+#'   choice of Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its
+#'   one degree of freedom special case, and as \code{"halft"}, whose degrees of
+#'   freedom are the entry \code{df} of \code{components}. See Details.
+#' @param components A list with the hyperparameters of the priors of the
+#'   component parameters, any of which may be omitted. The entries are
+#'   \code{mean} and \code{var}, the means and the variances of the normal
+#'   priors of \eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
 #'   parameters of the gamma priors of \eqn{\tau_1^2} and \eqn{\tau_2^2}, and
 #'   \code{df} and \code{scale}, the degrees of freedom and the scales of the
 #'   half-t priors of \eqn{\tau_1^{-1}} and \eqn{\tau_2^{-1}}, each of them of
-#'   length two. Only the pair that \code{cprior} selects is used. The defaults
-#'   are the choices of Section 4 of the paper, described in Details.
+#'   length two. Only the pair that \code{scale.prior} selects is used. The
+#'   defaults are the choices of Section 4 of the paper, described in Details.
 #' @param init A list with the initial values \code{mu} and \code{tau2} of the
 #'   chains, each of length two. The defaults are the means of the priors of
 #'   \eqn{\mu_k}, and the reciprocal of the sample variance for both
 #'   \eqn{\tau_k^2}.
-#' @param shrinkage A list with the settings of the spike and slab prior of the
-#'   wavelet coefficients, any of which may be omitted. The entries are
-#'   \code{zeta} and \code{rho}, the parameters of the beta prior of the
-#'   sparsity parameters \eqn{\pi_j}, \code{kappa} and \code{xi}, the shape and
-#'   the rate of the gamma prior of the slab parameter of each level, and
-#'   \code{cut}, the smallest posterior probability of being non-null that does
-#'   not exclude a coefficient outright. The default \code{cut = 0} is the
-#'   method of the paper, and a positive value may improve the estimates
-#'   considerably. See Details.
+#' @param shrinkage A list with the settings of the prior of the wavelet
+#'   coefficients, any of which may be omitted. Under the spike and slab prior
+#'   the entries are \code{zeta} and \code{rho}, the parameters of the beta
+#'   prior of the sparsity parameters \eqn{\pi_j}, \code{kappa} and \code{xi},
+#'   the shape and the rate of the gamma prior of the slab parameter of each
+#'   level, and \code{cut}, the smallest posterior probability of being non-null
+#'   that does not exclude a coefficient outright. The default \code{cut = 0} is
+#'   the method of the paper, and a positive value may improve the estimates
+#'   considerably. Under the horseshoe prior the single entry is \code{scale},
+#'   the scale \eqn{A} of the half-Cauchy prior of the global scale of a level,
+#'   which defaults to one. Only the entries that \code{wavelet.prior} selects
+#'   are used. See Details.
 #' @param family The family of wavelets to use, as in \command{\link{wavedec}}.
 #'   The default follows the applications of the paper, which use a Daubechies
 #'   extremal phase basis.
@@ -133,12 +144,12 @@
 #' loss, and they are reported together with highest posterior density intervals
 #' computed by \command{\link{hpdi}}.
 #'
-#' The alternative \code{cprior} places the weakly informative prior of Gelman
-#' (2006) on the standard deviation of each component,
+#' The alternative \code{scale.prior} places the weakly informative prior of
+#' Gelman (2006) on the standard deviation of each component,
 #' \deqn{\tau_k^{-1} \sim \mathrm{half-}t(\nu_k, A_k),}
 #' with \eqn{\nu_k} degrees of freedom and scale \eqn{A_k}, the entries
-#' \code{df} and \code{scale} of \code{prior}. One degree of freedom gives the
-#' half-Cauchy prior, and the density approaches a half-normal one as the
+#' \code{df} and \code{scale} of \code{components}. One degree of freedom gives
+#' the half-Cauchy prior, and the density approaches a half-normal one as the
 #' degrees of freedom grow. It is a prior of a scale, and not of a precision:
 #' it is flat near the origin instead of vanishing there, and its tail is heavy,
 #' so that neither a small nor a large component variance is ruled out by the
@@ -184,6 +195,59 @@
 #' \code{rho = 50}). The choice does not change the regimes identified in the
 #' example below.
 #'
+#' The alternative \code{wavelet.prior} replaces the spike and slab prior by the
+#' horseshoe prior of Carvalho, Polson and Scott (2010), written level by level,
+#' \deqn{\theta_{jk} \mid \lambda_{jk}, \tau_j \sim
+#'       N(0, \lambda_{jk}^2\tau_j^2), \qquad
+#'       \lambda_{jk} \sim C^+(0, 1), \qquad \tau_j \sim C^+(0, A),}
+#' where \eqn{C^+} is the half-Cauchy distribution and \eqn{A} is the entry
+#' \code{scale} of \code{shrinkage}. Each resolution level keeps a global scale
+#' \eqn{\tau_j} of its own, in the same way that the spike and slab prior keeps
+#' a sparsity parameter \eqn{\pi_j} of its own, so that the amount of shrinkage
+#' is learnt separately at every resolution; the scaling coefficient of the
+#' coarsest level again carries a diffuse prior and is never shrunk.
+#'
+#' The difference between the two priors is what they do to a coefficient. The
+#' spike and slab prior selects: a coefficient is either drawn from the slab or
+#' set exactly to zero, and \code{inclusion} counts how often each of them was
+#' kept. The horseshoe prior shrinks: nothing is set to zero, and the posterior
+#' mean of a coefficient is \eqn{\kappa_{jk}} times the empirical one, where
+#' \deqn{\kappa_{jk} = \frac{\lambda_{jk}^2\tau_j^2}
+#'                          {1 + \lambda_{jk}^2\tau_j^2}}
+#' is the weight the data receive. The half-Cauchy prior of \eqn{\lambda_{jk}}
+#' is what makes the weight useful: it is unbounded at the origin, which shrinks
+#' noise almost to zero, and heavy tailed, which leaves a large coefficient
+#' essentially untouched. That weight plays the part of the inclusion indicator,
+#' and it is what \code{inclusion} holds under this prior, so that the two
+#' summaries are read on the same scale. The entry \code{cut} has nothing to act
+#' on and is ignored, as is \code{slab}.
+#'
+#' Every full conditional stays closed form under the inverse gamma scale
+#' mixture of Makalic and Schmidt (2016), which is the representation the
+#' half-t prior of the component scales already uses: a half-Cauchy variable
+#' \eqn{x} of scale \eqn{A} satisfies
+#' \deqn{x^2 \mid a \sim \mathrm{IG}(1/2, 1/a), \qquad
+#'       a \sim \mathrm{IG}(1/2, 1/A^2),}
+#' both shapes being half the single degree of freedom of the half-Cauchy
+#' distribution. Every scale of the sweep is then drawn from an inverse gamma
+#' distribution, of shape one for the local scales and the auxiliary variables,
+#' and of shape \eqn{(2^j + 1)/2} for the global scale of a level, and every
+#' coefficient exactly as under a Gaussian slab of variance
+#' \eqn{\lambda_{jk}^2\tau_j^2}. The sweep therefore gains two auxiliary
+#' variables per coefficient and no Metropolis step, and it costs the same two
+#' wavelet transforms as before.
+#'
+#' Which prior to prefer depends on what the weights look like. The spike and
+#' slab prior is the method of the paper, and its estimates are the ones of
+#' Figures 7 and 9. The horseshoe prior has no sparsity parameter, so the
+#' upwards drift that the \code{cut} corrects cannot occur, and it recovers a
+#' smooth weight function without anything having to be tuned; a well chosen
+#' \code{cut}, on the other hand, may still do better than it on such a
+#' function, as the example below shows. The price of the horseshoe prior is
+#' that no coefficient is ever exactly zero: it shrinks rather than selects, so
+#' \code{inclusion} reports a weight where it used to report a frequency, and
+#' there is no sparse representation of the weights to be read off it.
+#'
 #' The whole sampler runs in compiled code, including the wavelet transforms and
 #' the shrinkage, so that no memory is allocated during the sweeps and only two
 #' wavelet transforms are performed by sweep. It uses the random number
@@ -228,21 +292,27 @@
 #' \item{mu, tau2}{The posterior medians of the component parameters.}
 #' \item{z}{The posterior means of the allocation variables, that is, the
 #'   probability that each observation belongs to the second component.}
-#' \item{inclusion}{The posterior probability that each wavelet coefficient is
-#'   non-null, in the order of the transform. Its first entry is the scaling
-#'   coefficient, which is always included.}
+#' \item{inclusion}{The weight given to each wavelet coefficient, in the order
+#'   of the transform: the posterior probability that it is non-null under the
+#'   spike and slab prior, and the posterior mean of its shrinkage weight
+#'   \eqn{\kappa_{jk}} under the horseshoe prior. Its first entry is the scaling
+#'   coefficient, which is never shrunk.}
 #' \item{draws}{List with the retained draws of \code{mu} and \code{tau2}
 #'   (\code{nchain} by 2 matrices), of \code{alpha} (a \code{nchain} by
 #'   \eqn{n} matrix, whose columns are ready for \command{\link{hpdi}}), and of
-#'   the level hyperparameters \code{pi} and \code{slab}, the latter holding
-#'   \eqn{v_j^2} or \eqn{a_j} according to the slab used.}
+#'   the hyperparameters of each level, which are named after what they hold:
+#'   \code{pi} and \code{slab} under the spike and slab prior, the latter
+#'   holding \eqn{v_j^2} or \eqn{a_j} according to the slab used, and
+#'   \code{kappa} and \code{scale} under the horseshoe prior, the mean
+#'   shrinkage weight of the level and its squared global scale \eqn{\tau_j^2}.}
 #' \item{x, y}{The observation times and the observed mixture.}
 #' \item{nobs, npad, padding}{The sample size, the padded sample size and the
 #'   padding scheme.}
 #' \item{nchain, burn, lag, level}{The settings of the sampler.}
-#' \item{slab, link, cprior}{The prior of the wavelet coefficients, the link and
-#'   the prior of the component scales used.}
-#' \item{prior, init, shrinkage}{The priors, the initial values and the
+#' \item{wavelet.prior, slab, link, scale.prior}{The prior of the wavelet
+#'   coefficients, its slab, the link and the prior of the component scales
+#'   used.}
+#' \item{components, init, shrinkage}{The priors, the initial values and the
 #'   hyperparameters actually used.}
 #' \item{family, filter.size, wavelet.filter}{The wavelet basis used.}
 #'
@@ -250,6 +320,10 @@
 #' Albert, J. H. and Chib, S. (1993). Bayesian analysis of binary and
 #' polychotomous response data. \emph{Journal of the American Statistical
 #' Association}, 88(422), 669--679, \doi{10.1080/01621459.1993.10476321}.
+#'
+#' Carvalho, C. M., Polson, N. G. and Scott, J. G. (2010). The horseshoe
+#' estimator for sparse signals. \emph{Biometrika}, 97(2), 465--480,
+#' \doi{10.1093/biomet/asq017}.
 #'
 #' Gelman, A. (2006). Prior distributions for variance parameters in
 #' hierarchical models. \emph{Bayesian Analysis}, 1(3), 515--534,
@@ -263,6 +337,10 @@
 #' Comparative analysis of algorithms for identifying amplifications and
 #' deletions in array CGH data. \emph{Bioinformatics}, 21(19), 3763--3770,
 #' \doi{10.1093/bioinformatics/bti611}.
+#'
+#' Makalic, E. and Schmidt, D. F. (2016). A simple sampler for the horseshoe
+#' estimator. \emph{IEEE Signal Processing Letters}, 23(1), 179--182,
+#' \doi{10.1109/LSP.2015.2503725}.
 #'
 #' Motta, F. C. and Montoril, M. H. (2026a). A Bayesian estimation approach for
 #' the wavelet-based mixture regression. \emph{Communications in Statistics -
@@ -312,8 +390,8 @@
 #'   # standard deviations of the components, in place of the gamma prior of
 #'   # their precisions used by the paper.
 #'   set.seed(123)
-#'   fit_hc <- bwregime(y, cprior = "halfcauchy", nchain = 1000, burn = 1000,
-#'                      lag = 5, plot = FALSE)
+#'   fit_hc <- bwregime(y, scale.prior = "halfcauchy", nchain = 1000,
+#'                      burn = 1000, lag = 5, plot = FALSE)
 #'
 #'   # The regions of alteration are the ones of the paper under either prior,
 #'   # up to a single probe.
@@ -362,6 +440,31 @@
 #' c(default = mean((fit$alpha - a)^2), cut = mean((cut$alpha - a)^2))
 #'
 #' #
+#' # The same weight function under the horseshoe prior, which shrinks every
+#' # coefficient instead of selecting among them. It has no sparsity parameter
+#' # to drift, so it recovers the smooth function without a cut having to be
+#' # chosen, and it lands between the two spike and slab fits above.
+#' #
+#' hs <- bwregime(y, wavelet.prior = "horseshoe", nchain = 500, burn = 500,
+#'                lag = 5, plot = FALSE)
+#'
+#' plot(hs, band = FALSE)
+#' lines(t, fit$alpha, col = "grey60")
+#' lines(t, a, col = 2, lwd = 2, lty = 2)
+#' legend("topright", bty = "n", col = c(1, "grey60", 2), lty = c(1, 1, 2),
+#'        lwd = c(1, 1, 2),
+#'        legend = c("Horseshoe", "Spike and slab", "Real function"))
+#'
+#' c(spikeslab = mean((fit$alpha - a)^2), cut = mean((cut$alpha - a)^2),
+#'   horseshoe = mean((hs$alpha - a)^2))
+#'
+#' # Nothing is set to zero under the horseshoe prior: what 'inclusion' holds is
+#' # the weight given to each coefficient, and its sum is the number of them the
+#' # posterior leaves essentially unshrunk.
+#' c(spikeslab = sum(fit$inclusion[-1]), horseshoe = sum(hs$inclusion[-1]))
+#' range(hs$inclusion)
+#'
+#' #
 #' # The three priors of the component scales, on the same data and at the same
 #' # settings: the gamma prior of the precisions used by the paper, and the
 #' # half-Cauchy and half-t priors of Gelman (2006) on the standard deviations.
@@ -371,9 +474,9 @@
 #' #
 #' fit_g <- bwregime(y, nchain = 500, burn = 500, lag = 5,
 #'                   shrinkage = list(cut = 0.05), plot = FALSE)
-#' fit_hc <- bwregime(y, cprior = "halfcauchy", nchain = 500, burn = 500,
+#' fit_hc <- bwregime(y, scale.prior = "halfcauchy", nchain = 500, burn = 500,
 #'                    lag = 5, shrinkage = list(cut = 0.05), plot = FALSE)
-#' fit_ht <- bwregime(y, cprior = "halft", prior = list(df = c(4, 4)),
+#' fit_ht <- bwregime(y, scale.prior = "halft", components = list(df = c(4, 4)),
 #'                    nchain = 500, burn = 500, lag = 5,
 #'                    shrinkage = list(cut = 0.05), plot = FALSE)
 #'
@@ -390,9 +493,10 @@
 #' @export
 bwregime <- function(y, x = seq_along(y)/length(y),
                      nchain = 1000, burn = 1000, lag = 50,
+                     wavelet.prior = c("spikeslab", "horseshoe"),
                      slab = c("laplace", "gaussian"), link = "probit",
-                     cprior = c("gamma", "halfcauchy", "halft"),
-                     prior = list(), init = list(), shrinkage = list(),
+                     scale.prior = c("gamma", "halfcauchy", "halft"),
+                     components = list(), init = list(), shrinkage = list(),
                      family = "Daublets", filter.size = 20,
                      wavelet.filter = NULL,
                      padding = c("reflect", "periodic", "none"),
@@ -432,13 +536,21 @@ bwregime <- function(y, x = seq_along(y)/length(y),
     stop("'level' must be a single value strictly between 0 and 1.")
 
   # --- The model ----------------------------------------------------------
+  wavelet.prior <- match.arg(tolower(wavelet.prior[1L]),
+                             c("spikeslab", "horseshoe"))
   slab <- match.arg(tolower(slab[1L]), c("laplace", "gaussian"))
   link <- match.arg(tolower(link[1L]), "probit")
-  cprior <- match.arg(tolower(cprior[1L]), c("gamma", "halfcauchy", "halft"))
+  scale.prior <- match.arg(tolower(scale.prior[1L]),
+                           c("gamma", "halfcauchy", "halft"))
 
+  # The codes the compiled sampler reads. Their names are the ones of the
+  # registries of the sampler, and not the ones of the arguments that choose
+  # them, which is why the two priors are 'wprior' and 'cprior' here.
   model <- c(link = switch(link, probit = 1L),
+             wprior = switch(wavelet.prior, spikeslab = 1L, horseshoe = 2L),
              slab = switch(slab, gaussian = 1L, laplace = 2L),
-             cprior = switch(cprior, gamma = 1L, halfcauchy = 2L, halft = 2L))
+             cprior = switch(scale.prior, gamma = 1L, halfcauchy = 2L,
+                             halft = 2L))
 
   # --- The dyadic extension of the sample ---------------------------------
   padding <- match.arg(tolower(padding[1L]), c("reflect", "periodic", "none"))
@@ -464,34 +576,38 @@ bwregime <- function(y, x = seq_along(y)/length(y),
 
   # Whether the degrees of freedom were asked for decides whether a half-Cauchy
   # prior is a contradiction, and it has to be read before they are defaulted.
-  df.set <- !is.null(prior$df)
+  df.set <- !is.null(components$df)
 
-  prior <- .wb_merge(prior, list(mean = q, var = c(s2, s2),
+  components <- .wb_merge(components, list(mean = q, var = c(s2, s2),
                                  shape = c(0.01, 0.01), rate = c(0.01, 0.01),
                                  df = c(1, 1), scale = rep(sqrt(s2), 2)),
-                     "prior")
-  init <- .wb_merge(init, list(mu = prior$mean, tau2 = c(1/s2, 1/s2)), "init")
+                     "components")
+  init <- .wb_merge(init, list(mu = components$mean, tau2 = c(1/s2, 1/s2)),
+                    "init")
   shrinkage <- .wb_merge(shrinkage,
                          list(zeta = 1, rho = 1, kappa = 1, xi = 100,
-                              cut = 0),
+                              cut = 0, scale = 1),
                          "shrinkage")
 
   for(nm in c("mean", "var", "shape", "rate", "df", "scale"))
-    if(length(prior[[nm]]) != 2L || any(!is.finite(prior[[nm]])))
-      stop("The component '", nm, "' of 'prior' must hold two finite values.")
-  if(any(prior$var <= 0) || any(prior$shape <= 0) || any(prior$rate <= 0))
+    if(length(components[[nm]]) != 2L || any(!is.finite(components[[nm]])))
+      stop("The component '", nm, "' of 'components' must hold two finite ",
+           "values.")
+  if(any(components$var <= 0) || any(components$shape <= 0) ||
+     any(components$rate <= 0))
     stop("The prior variances, shapes and rates must be positive.")
-  if(any(prior$df <= 0) || any(prior$scale <= 0))
+  if(any(components$df <= 0) || any(components$scale <= 0))
     stop("The degrees of freedom and the scales of the half-t priors must be positive.")
 
   # The half-Cauchy prior is the half-t prior with a single degree of freedom,
   # so asking for another number of them is a contradiction, and not a
   # preference to be honoured silently.
-  if(cprior == "halfcauchy"){
-    if(df.set && !isTRUE(all.equal(unname(prior$df), c(1, 1))))
-      stop("With cprior = \"halfcauchy\" the degrees of freedom are fixed at one. ",
-           "Use cprior = \"halft\" to choose the component 'df' of 'prior'.")
-    prior$df <- c(1, 1)
+  if(scale.prior == "halfcauchy"){
+    if(df.set && !isTRUE(all.equal(unname(components$df), c(1, 1))))
+      stop("With scale.prior = \"halfcauchy\" the degrees of freedom are ",
+           "fixed at one. Use scale.prior = \"halft\" to choose the ",
+           "component 'df' of 'components'.")
+    components$df <- c(1, 1)
   }
 
   for(nm in c("mu", "tau2"))
@@ -502,7 +618,7 @@ bwregime <- function(y, x = seq_along(y)/length(y),
   if(init$mu[1L] >= init$mu[2L])
     stop("The initial values must satisfy mu[1] < mu[2].")
 
-  for(nm in c("zeta", "rho", "kappa", "xi"))
+  for(nm in c("zeta", "rho", "kappa", "xi", "scale"))
     if(length(shrinkage[[nm]]) != 1L || !is.finite(shrinkage[[nm]]) ||
        shrinkage[[nm]] <= 0)
       stop("The component '", nm, "' of 'shrinkage' must be a single positive value.")
@@ -524,12 +640,12 @@ bwregime <- function(y, x = seq_along(y)/length(y),
                       filter.size = as.integer(filter.size),
                       filter = fam$filter),
                  model,
-                 lapply(list(mean = prior$mean, var = prior$var,
-                             shape = prior$shape, rate = prior$rate,
-                             df = prior$df, scale = prior$scale,
+                 lapply(list(mean = components$mean, var = components$var,
+                             shape = components$shape, rate = components$rate,
+                             df = components$df, scale = components$scale,
                              zeta = shrinkage$zeta, rho = shrinkage$rho,
                              kappa = shrinkage$kappa, xi = shrinkage$xi,
-                             cut = shrinkage$cut),
+                             cut = shrinkage$cut, hscale = shrinkage$scale),
                         as.double),
                  lapply(init[c("mu", "tau2")], as.double),
                  c(nchain, burn, lag, nverb))
@@ -539,6 +655,12 @@ bwregime <- function(y, x = seq_along(y)/length(y),
   dimnames(draws$tau2) <- list(NULL, c("tau2.1", "tau2.2"))
   dimnames(draws$pi) <- list(NULL, paste0("j", seq_len(J) - 1L))
   dimnames(draws$slab) <- dimnames(draws$pi)
+
+  # The sampler returns the two matrices of level draws in the same slots
+  # whatever the prior, and they are named after what they hold under the one
+  # that was used, so that a summary is never read as something it is not.
+  if(wavelet.prior == "horseshoe")
+    names(draws)[match(c("pi", "slab"), names(draws))] <- c("kappa", "scale")
 
   # --- Posterior summaries -------------------------------------------------
   # The point estimates are posterior medians, which minimize the absolute
@@ -563,12 +685,15 @@ bwregime <- function(y, x = seq_along(y)/length(y),
               tau2 = estimates[c("tau2.1", "tau2.2"), "median"],
               z = draws$z,
               inclusion = draws$inclusion,
-              draws = draws[c("mu", "tau2", "alpha", "pi", "slab")],
+              draws = draws[c("mu", "tau2", "alpha",
+                              if(wavelet.prior == "horseshoe")
+                                c("kappa", "scale") else c("pi", "slab"))],
               x = x, y = y,
               nobs = n, npad = npad, padding = padding,
               nchain = nchain, burn = burn, lag = lag, level = level,
-              slab = slab, link = link, cprior = cprior,
-              prior = prior, init = init, shrinkage = shrinkage,
+              wavelet.prior = wavelet.prior,
+              slab = slab, link = link, scale.prior = scale.prior,
+              components = components, init = init, shrinkage = shrinkage,
               family = fam$name, fam = fam$fam, filter.size = filter.size,
               wavelet.filter = if(fam$fam == 4L) wavelet.filter else NULL)
 
@@ -597,13 +722,16 @@ print.bwregime <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
       else
         paste0("own filter (size ", length(x$wavelet.filter), ")"),
       "\n")
-  cat("  Weights        :", x$link, "link with a", x$slab, "slab\n")
+  cat("  Weights        :", x$link, "link with a",
+      if(x$wavelet.prior == "horseshoe") "horseshoe prior"
+      else paste(x$slab, "slab"), "\n")
   cat("  Components     :",
-      switch(x$cprior,
+      switch(x$scale.prior,
              gamma = "gamma prior of the precisions",
              halfcauchy = "half-Cauchy prior of the standard deviations",
              halft = paste0("half-t prior of the standard deviations (df = ",
-                            paste(signif(x$prior$df, digits), collapse = ", "),
+                            paste(signif(x$components$df, digits),
+                                  collapse = ", "),
                             ")")),
       "\n")
   cat("  Data           : n =", x$nobs,
@@ -630,7 +758,9 @@ print.bwregime <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
       paste(signif(range(x$alpha), digits), collapse = ", "), "]\n", sep = "")
   cat("  Sparsity       :",
       signif(sum(x$inclusion[-1L]), digits), "of", x$npad - 1L,
-      "detail coefficients non-null, on average\n\n")
+      if(x$wavelet.prior == "horseshoe")
+        "detail coefficients left unshrunk, on average\n\n"
+      else "detail coefficients non-null, on average\n\n")
 
   invisible(x)
 }

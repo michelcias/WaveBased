@@ -27,12 +27,21 @@
  * The sampler is written against three interfaces, so that the model can grow
  * without the driver being rewritten.
  *
- * - **The slab.** WBSlab collects the three operations that depend on the prior
- *   of the wavelet coefficients: the draw of the hyperparameters of a
- *   resolution level, the Bayes factor of the slab against the spike, and the
- *   draw of a coefficient. The Gaussian and the Laplace slabs of the article
- *   are two instances of it, registered in WBSlabGet(). A further slab is a
- *   further instance, and nothing else.
+ * - **The prior of the wavelet coefficients.** WBWavPrior holds the single
+ *   operation the sweep asks of it: draw one whole resolution level, that is,
+ *   its hyperparameters and its coefficients. The spike and slab prior of the
+ *   article and the horseshoe prior are two instances of it, registered in
+ *   WBWavPriorGet(). A level is the unit of the interface because a prior is
+ *   free to share information among the coefficients of a level, which the
+ *   sparsity parameter of the one and the global scale of the other both do.
+ *
+ * - **The slab.** Within the spike and slab prior, WBSlab collects the three
+ *   operations that depend on the slab itself: the draw of the hyperparameters
+ *   of a resolution level, the Bayes factor of the slab against the spike, and
+ *   the draw of a coefficient. The Gaussian and the Laplace slabs of the
+ *   article are two instances of it, registered in WBSlabGet(). It is the inner
+ *   interface of one instance of WBWavPrior, and the horseshoe never consults
+ *   it.
  *
  * - **The link.** Only the probit link of Albert and Chib is implemented, and
  *   it enters through WBDrawLatentProbit(), which returns the latent variable,
@@ -76,6 +85,8 @@
 /** @name Model codes, shared with the R interface. */
 /**@{*/
 #define WB_LINK_PROBIT   1  /**< Probit link, by data augmentation.        */
+#define WB_WPRIOR_SS     1  /**< Spike and slab prior of the coefficients.  */
+#define WB_WPRIOR_HS     2  /**< Horseshoe prior of the coefficients.       */
 #define WB_SLAB_GAUSSIAN 1  /**< Spike and slab with Gaussian slab (SSG).  */
 #define WB_SLAB_LAPLACE  2  /**< Spike and slab with Laplace slab (SSL).   */
 /**@}*/
@@ -94,6 +105,7 @@ typedef struct {
   int npad;           /**< Padded sample size, a power of two.              */
   int J;              /**< Number of resolution levels, log2(npad).         */
   int link;           /**< Link code, one of the WB_LINK_* constants.       */
+  int wprior;         /**< Coefficient prior code, a WB_WPRIOR_* constant.  */
   int slab;           /**< Slab code, one of the WB_SLAB_* constants.       */
   int cprior;         /**< Component prior code, a WB_CPRIOR_* constant.    */
   WBCompPrior comp[2];/**< Priors of the parameters of the two components.  */
@@ -102,10 +114,11 @@ typedef struct {
   double kappa;       /**< Shape of the gamma prior of v_j^-2 or of a_j.    */
   double xi;          /**< Rate of the gamma prior of v_j^-2 or of a_j.     */
   double cut;         /**< Inclusion probabilities below it are set to zero.*/
+  double hscale;      /**< Scale of the half-Cauchy prior of tau_j.         */
 } WBRegimeSpec;
 
 /**
- * @brief The prior of the wavelet coefficients, seen by the sweep.
+ * @brief The slab of the spike and slab prior.
  *
  * @details The three members are the only places where the sampler depends on
  *          the slab. Both draws consume the same number of variates whatever
@@ -147,6 +160,52 @@ typedef struct {
 } WBSlab;
 
 /**
+ * @brief The prior of the wavelet coefficients, seen by the sweep.
+ *
+ * @details The single member is the only place where the sampler depends on how
+ *          the coefficients are shrunk. It is handed one resolution level and
+ *          leaves it complete: the hyperparameters of the level and every
+ *          coefficient of it are drawn from their full conditionals, given the
+ *          state the level is handed in.
+ *
+ *          The two priors keep different states between sweeps, and the
+ *          interface carries the union of them. A prior writes into what it
+ *          keeps and leaves the rest untouched: the spike and slab prior uses
+ *          @p gam and ignores @p loc, and the horseshoe prior does the reverse.
+ *          What both must fill is @p w, the per-coefficient weight that the
+ *          sweep averages into the 'inclusion' output, so that the summary has
+ *          the same reading under either prior: the posterior probability that
+ *          a coefficient is in the model, and the posterior mean of the
+ *          shrinkage weight it receives.
+ */
+typedef struct {
+  const char *name;
+  /**
+   * @brief Draws the hyperparameters and the coefficients of one level.
+   * @param[in]     spec  Model specification.
+   * @param[in]     d     Empirical wavelet coefficients of the level, length m.
+   * @param[in]     sigma Scale of the latent regression at the level.
+   * @param[in]     m     Number of coefficients of the level.
+   * @param[in,out] theta Coefficients, handed in at their previous draw.
+   * @param[in,out] gam   Inclusion indicators of the level.
+   * @param[in,out] loc   Local scales of the level, the squared lambda_k of the
+   *                      horseshoe prior.
+   * @param[out]    w     Weight of each coefficient, in the unit interval.
+   * @param[in,out] pi    Sparsity parameter pi_j, or the mean shrinkage weight
+   *                      of the level.
+   * @param[in,out] par   Slab parameter (the variance v_j^2 of the Gaussian
+   *                      slab or the scale a_j of the Laplace one), or the
+   *                      squared global scale tau_j^2 of the horseshoe prior.
+   *                      It is handed in at its previous draw, which the
+   *                      horseshoe prior needs and the spike and slab one
+   *                      overwrites.
+   */
+  void (*draw_level)(const WBRegimeSpec *spec, const double *d, double sigma,
+                     int m, double *theta, int *gam, double *loc, double *w,
+                     double *pi, double *par);
+} WBWavPrior;
+
+/**
  * @brief Runs the Gibbs sampler for the dynamic mixture weights.
  *
  * @details Each sweep draws the component parameters, permutes the labels
@@ -168,18 +227,22 @@ typedef struct {
  *                    1 = Daublets, 2 = Symmlets, 3 = Coiflets, 4 = custom),
  *                    'filter.size' (integer) and 'filter' (real, used only when
  *                    the family is custom).
- * @param[in] model   Integer SEXP with the components 'link', 'slab' and
- *                    'cprior', holding the codes of the model.
+ * @param[in] model   Integer SEXP with the components 'link', 'wprior', 'slab'
+ *                    and 'cprior', holding the codes of the model. The 'slab'
+ *                    code is read only when 'wprior' selects the spike and slab
+ *                    prior.
  * @param[in] hyper   List SEXP with the real components 'mean' and 'var', of
  *                    length two, holding the normal priors of the component
  *                    means, 'shape' and 'rate', of length two, holding the gamma
  *                    priors of the component precisions, 'df' and 'scale', of
  *                    length two, holding the half-t priors of the component
- *                    standard deviations, and the scalars 'zeta', 'rho',
- *                    'kappa' and 'xi', holding the priors of the sparsity and
- *                    of the slab parameters, and 'cut', the smallest posterior
- *                    inclusion probability that is not rounded down to zero.
- *                    Only the pair the 'cprior' code selects is read.
+ *                    standard deviations, the scalars 'zeta', 'rho', 'kappa'
+ *                    and 'xi', holding the priors of the sparsity and of the
+ *                    slab parameters, 'cut', the smallest posterior inclusion
+ *                    probability that is not rounded down to zero, and
+ *                    'hscale', the scale of the half-Cauchy prior of the global
+ *                    scale of a level. Only the entries the 'cprior' and
+ *                    'wprior' codes select are read.
  * @param[in] init    List SEXP with the real components 'mu' and 'tau2', of
  *                    length two, holding the initial values of the chains.
  * @param[in] mcmc    Integer SEXP of length 4: number of draws to keep,
@@ -189,7 +252,12 @@ typedef struct {
  * @return SEXP list with the retained draws of mu (nchain x 2), tau2
  *         (nchain x 2), alpha (nchain x n), pi (nchain x J) and the slab
  *         parameter (nchain x J), together with the posterior means of the
- *         allocation variables and of the inclusion indicators.
+ *         allocation variables and of the weight of each coefficient. The last
+ *         three carry the reading that the 'wprior' code gives them: the
+ *         sparsity parameter, the slab parameter and the inclusion indicator
+ *         under the spike and slab prior, and the mean shrinkage weight of a
+ *         level, its squared global scale and the shrinkage weight of a
+ *         coefficient under the horseshoe prior.
  */
 SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
                    SEXP init, SEXP mcmc);

@@ -11,8 +11,8 @@ bwmixreg(
   nchain = 1000,
   burn = 1000,
   lag = 5,
-  cprior = c("gamma", "halfcauchy", "halft"),
-  prior = list(),
+  scale.prior = c("gamma", "halfcauchy", "halft"),
+  components = list(),
   init = list(),
   thresholding = list(),
   family = "Coiflets",
@@ -47,24 +47,24 @@ spaced. See Details.}
 reduces the autocorrelation of the chains. The sampler therefore performs
 \code{burn + lag*nchain} sweeps.}
 
-\item{cprior}{The prior of the scales of the two Gaussian components, either
-\code{"gamma"} (the default), the conjugate gamma prior of the precisions
-\eqn{\tau_k^2} used by the paper, or a half-t prior of the standard
-deviations \eqn{\tau_k^{-1}}, which is the weakly informative choice of
-Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its one
-degree of freedom special case, and as \code{"halft"}, whose degrees of
-freedom are the entry \code{df} of \code{prior}. It is the option of the same
-name of \command{\link{bwregime}}. See Details.}
+\item{scale.prior}{The prior of the scales of the two Gaussian components,
+either \code{"gamma"} (the default), the conjugate gamma prior of the
+precisions \eqn{\tau_k^2} used by the paper, or a half-t prior of the
+standard deviations \eqn{\tau_k^{-1}}, which is the weakly informative
+choice of Gelman (2006). The half-t prior comes as \code{"halfcauchy"}, its
+one degree of freedom special case, and as \code{"halft"}, whose degrees of
+freedom are the entry \code{df} of \code{components}. It is the option of
+the same name of \command{\link{bwregime}}. See Details.}
 
-\item{prior}{A list with the hyperparameters of the priors of the component
-parameters, any of which may be omitted. The entries are \code{mean} and
-\code{var}, the means and the variances of the normal priors of
-\eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
+\item{components}{A list with the hyperparameters of the priors of the
+component parameters, any of which may be omitted. The entries are
+\code{mean} and \code{var}, the means and the variances of the normal
+priors of \eqn{\mu_1} and \eqn{\mu_2}, \code{shape} and \code{rate}, the
 parameters of the gamma priors of \eqn{\tau_1^2} and \eqn{\tau_2^2}, and
 \code{df} and \code{scale}, the degrees of freedom and the scales of the
 half-t priors of \eqn{\tau_1^{-1}} and \eqn{\tau_2^{-1}}, each of them of
-length two. Only the pair that \code{cprior} selects is used. The defaults
-are the choices of Section 5 of the paper, described in Details.}
+length two. Only the pair that \code{scale.prior} selects is used. The
+defaults are the choices of Section 5 of the paper, described in Details.}
 
 \item{init}{A list with the initial values \code{mu} and \code{tau2} of the
 chains, each of length two. The defaults are the means of the priors of
@@ -131,7 +131,7 @@ An object of class \code{"bwmixreg"}, that is, a list with components
 \item{nobs, npad, padding}{The sample size, the padded sample size and the
   padding scheme.}
 \item{nchain, burn, lag, level}{The settings of the sampler.}
-\item{cprior}{The prior of the component scales used.}
+\item{scale.prior}{The prior of the component scales used.}
 \item{prior, init, thresholding}{The priors, the initial values and the
   thresholding settings actually used.}
 \item{family, filter.size, wavelet.filter}{The wavelet basis used.}
@@ -174,12 +174,12 @@ paper, the point estimates are posterior medians, which are optimal under
 the absolute loss, and they are reported together with highest posterior
 density intervals computed by \command{\link{hpdi}}.
 
-The alternative \code{cprior} places the weakly informative prior of Gelman
-(2006) on the standard deviation of each component,
+The alternative \code{scale.prior} places the weakly informative prior of
+Gelman (2006) on the standard deviation of each component,
 \deqn{\tau_k^{-1} \sim \mathrm{half-}t(\nu_k, A_k),}
 with \eqn{\nu_k} degrees of freedom and scale \eqn{A_k}, the entries
-\code{df} and \code{scale} of \code{prior}. One degree of freedom gives the
-half-Cauchy prior, and the density approaches a half-normal one as the
+\code{df} and \code{scale} of \code{components}. One degree of freedom gives
+the half-Cauchy prior, and the density approaches a half-normal one as the
 degrees of freedom grow. It is a prior of a scale, and not of a precision:
 it is flat near the origin instead of vanishing there, and its tail is heavy,
 so that neither a small nor a large component variance is ruled out by the
@@ -258,8 +258,8 @@ if(requireNamespace("changepoint", quietly = TRUE)){
   # standard deviations of the components, in place of the gamma prior of
   # their precisions used by the paper.
   set.seed(123)
-  fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 1000, burn = 1000,
-                     lag = 5, plot = FALSE)
+  fit_hc <- bwmixreg(y, scale.prior = "halfcauchy", nchain = 1000,
+                     burn = 1000, lag = 5, plot = FALSE)
 
   # The two priors agree here: the amplifications are the same ones, and the
   # component parameters barely move. The weights are built from the
@@ -293,9 +293,9 @@ legend("topright", legend = c("Estimate", "Real function"), col = 1:2,
 # half-Cauchy and half-t priors of Gelman (2006) on the standard deviations.
 #
 fit_g <- bwmixreg(y, nchain = 500, burn = 500, plot = FALSE)
-fit_hc <- bwmixreg(y, cprior = "halfcauchy", nchain = 500, burn = 500,
+fit_hc <- bwmixreg(y, scale.prior = "halfcauchy", nchain = 500, burn = 500,
                    plot = FALSE)
-fit_ht <- bwmixreg(y, cprior = "halft", prior = list(df = c(4, 4)),
+fit_ht <- bwmixreg(y, scale.prior = "halft", components = list(df = c(4, 4)),
                    nchain = 500, burn = 500, plot = FALSE)
 
 # The standard deviations of the two components, whose true value is 0.5.
