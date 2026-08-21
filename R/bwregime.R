@@ -599,6 +599,8 @@ bwregime <- function(y, x = seq_along(y)/length(y),
 
   cl <- match.call()
 
+  .wb_check_dots(list(...), plot.bwregime)
+
   if(is.complex(y)){
     y <- Re(y)
     warning("Sorry, we don't work with complex data. Only the real part was considered.")
