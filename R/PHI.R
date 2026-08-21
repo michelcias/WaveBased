@@ -113,7 +113,7 @@
 #'
 #' Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
 #' PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
-#' Source Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
+#' Source Software}, 4(36), 1237, \doi{10.21105/joss.01237}.
 #'
 #' @seealso \code{\link{PSI}}, \code{\link{wbasis}}, \code{\link{wtable}}
 #'

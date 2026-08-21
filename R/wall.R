@@ -157,7 +157,7 @@
 #' Cohen, A., Daubechies, I. and Vial, P. (1993). Wavelets on the Interval and
 #' Fast Wavelet Transforms. \emph{Applied and Computational Harmonic
 #' Analysis}, 1(1), 54--81,
-#' \url{https://doi.org/10.1006/acha.1993.1005}.
+#' \doi{10.1006/acha.1993.1005}.
 #'
 #' Friedman, J., Hastie, T. and Tibshirani, R. (2010). Regularization Paths
 #' for Generalized Linear Models via Coordinate Descent. \emph{Journal of
