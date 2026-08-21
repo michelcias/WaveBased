@@ -302,14 +302,20 @@
 #' choice of link is therefore a modelling one and not a computational one, and
 #' the regimes identified are the same under either.
 #'
-#' One caveat of the logit link is worth stating. The completed scale is larger
-#' than the unit scale of the probit link, by a factor that the weights decide
-#' and that was around 1.4 in the fits above, while the slab parameters of the
-#' spike and slab prior are given priors on an absolute scale through
-#' \code{kappa} and \code{xi}. The same \code{shrinkage} therefore shrinks
-#' somewhat less under the logit link than under the probit one. The horseshoe
-#' prior does not have that asymmetry, being written relative to the scale of
-#' the working response.
+#' One caveat of the logit link is worth stating. The linear predictor lives on a
+#' wider scale under it, by a factor of about 1.7 on the fits of the examples
+#' below, while the hyperparameters of \code{shrinkage} are absolute:
+#' \code{kappa} and \code{xi} describe the slab itself, and \code{scale} the
+#' global scale of a level. The same settings therefore shrink less under the
+#' logit link, and on the smooth weight function of the examples the posterior
+#' kept some four times as many coefficients under the spike and slab prior, and
+#' half as many again under the horseshoe one. The horseshoe prior is the less
+#' exposed of the two, its variance being written relative to the scale of the
+#' working response, so that the shrinkage weight itself does not depend on it;
+#' but it is not free of the effect, the scale of its half-Cauchy prior being
+#' absolute like the others. What did not change on those fits is the estimate,
+#' the mean squared error of the weights being the same under either link. A
+#' change of link is nevertheless a reason to look at \code{shrinkage} again.
 #'
 #' The whole sampler runs in compiled code, including the wavelet transforms and
 #' the shrinkage, so that no memory is allocated during the sweeps and only two
