@@ -85,6 +85,7 @@
 /** @name Model codes, shared with the R interface. */
 /**@{*/
 #define WB_LINK_PROBIT   1  /**< Probit link, by data augmentation.        */
+#define WB_LINK_LOGIT    2  /**< Logit link, by Polya-Gamma augmentation.  */
 #define WB_WPRIOR_SS     1  /**< Spike and slab prior of the coefficients.  */
 #define WB_WPRIOR_HS     2  /**< Horseshoe prior of the coefficients.       */
 #define WB_SLAB_GAUSSIAN 1  /**< Spike and slab with Gaussian slab (SSG).  */
@@ -93,29 +94,15 @@
 /* The codes of the prior of the component parameters, WB_CPRIOR_*, are shared
  * with C_BayesMixReg() and live in wav_bayesmix.h. */
 
-/**
- * @brief Everything the sweep needs to know about the model being fitted.
- *
- * @details Filled once from the arguments of C_BayesRegime() and passed around
- *          by pointer, so that a new hyperparameter is a new field and not a
- *          new argument of every routine.
- */
-typedef struct {
-  int n;              /**< Sample size.                                     */
-  int npad;           /**< Padded sample size, a power of two.              */
-  int J;              /**< Number of resolution levels, log2(npad).         */
-  int link;           /**< Link code, one of the WB_LINK_* constants.       */
-  int wprior;         /**< Coefficient prior code, a WB_WPRIOR_* constant.  */
-  int slab;           /**< Slab code, one of the WB_SLAB_* constants.       */
-  int cprior;         /**< Component prior code, a WB_CPRIOR_* constant.    */
-  WBCompPrior comp[2];/**< Priors of the parameters of the two components.  */
-  double zeta;        /**< First shape of the beta prior of pi_j.           */
-  double rho;         /**< Second shape of the beta prior of pi_j.          */
-  double kappa;       /**< Shape of the gamma prior of v_j^-2 or of a_j.    */
-  double xi;          /**< Rate of the gamma prior of v_j^-2 or of a_j.     */
-  double cut;         /**< Inclusion probabilities below it are set to zero.*/
-  double hscale;      /**< Scale of the half-Cauchy prior of tau_j.         */
-} WBRegimeSpec;
+/* The specification holds the interfaces that the model codes select, and the
+ * interfaces are written against the specification, so both are declared before
+ * either is defined. Every registry is read once, before the first sweep, and
+ * what the sweep sees from then on is a pointer: no code is compared and no
+ * table is searched while the chain runs. */
+typedef struct WBRegimeSpec WBRegimeSpec;
+typedef struct WBSlab WBSlab;
+typedef struct WBWavPrior WBWavPrior;
+typedef struct WBLink WBLink;
 
 /**
  * @brief The slab of the spike and slab prior.
@@ -125,7 +112,7 @@ typedef struct {
  *          the value of the inclusion indicator, which keeps the stream of the
  *          sampler independent of the data.
  */
-typedef struct {
+struct WBSlab {
   const char *name;
   /**
    * @brief Draws the hyperparameters of one resolution level.
@@ -157,7 +144,7 @@ typedef struct {
    * @return The draw, which is zero whenever @p gam is zero.
    */
   double (*draw_theta)(double d, double sigma, double par, int gam);
-} WBSlab;
+};
 
 /**
  * @brief The prior of the wavelet coefficients, seen by the sweep.
@@ -178,7 +165,7 @@ typedef struct {
  *          a coefficient is in the model, and the posterior mean of the
  *          shrinkage weight it receives.
  */
-typedef struct {
+struct WBWavPrior {
   const char *name;
   /**
    * @brief Draws the hyperparameters and the coefficients of one level.
@@ -203,7 +190,78 @@ typedef struct {
   void (*draw_level)(const WBRegimeSpec *spec, const double *d, double sigma,
                      int m, double *theta, int *gam, double *loc, double *w,
                      double *pi, double *par);
-} WBWavPrior;
+};
+
+/**
+ * @brief The link between the wavelet expansion and the mixture weights.
+ *
+ * @details The two members are the only places where the sampler depends on the
+ *          link, and both are called once per sweep and not once per
+ *          observation, so that the choice costs one indirect call and never a
+ *          comparison inside a loop.
+ *
+ *          What separates the two links is homoscedasticity. The probit
+ *          augmentation of Albert and Chib (1993) leaves the latent regression
+ *          with a common scale, and the wavelet coefficients of the working
+ *          response are therefore independent. The logit augmentation does not,
+ *          under the Polya-Gamma scheme of Polson, Scott and Windle (2013) or
+ *          under any other: the working response carries a precision of its
+ *          own at every observation, the posterior precision of the
+ *          coefficients stops being diagonal, and none of the coefficient-wise
+ *          formulas of the priors apply. The diagonal is restored by the
+ *          orthogonal data augmentation of Ghosh and Clyde (2011), described in
+ *          WBDrawWorkingLogit(), and the common scale it completes the data to
+ *          is what the first member returns.
+ */
+struct WBLink {
+  const char *name;
+  /**
+   * @brief Draws the working response of one sweep.
+   * @param[in]  spec  Model specification.
+   * @param[in]  fit   Linear predictor at each position of the padded grid.
+   * @param[in]  z     Allocation variables, on the grid of the sample.
+   * @param[in]  idx   Padding index, gathering z onto the padded grid.
+   * @param[in]  npad  Padded sample size.
+   * @param[out] v     Working response.
+   * @param[out] omega Scratch of length npad, which a heteroscedastic
+   *                   augmentation uses for its weights and the probit link
+   *                   leaves untouched.
+   * @return The common scale of the working response.
+   */
+  double (*draw_working)(const WBRegimeSpec *spec, const double *fit,
+                         const int *z, const int *idx, int npad, double *v,
+                         double *omega);
+  /**
+   * @brief Maps the linear predictor to the mixture weights of the sample.
+   * @param[in]  fit   Linear predictor, of which the first n entries are read.
+   * @param[in]  n     Sample size.
+   * @param[out] alpha Mixture weights.
+   */
+  void (*weights)(const double *fit, int n, double *alpha);
+};
+
+/**
+ * @brief Everything the sweep needs to know about the model being fitted.
+ *
+ * @details Filled once from the arguments of C_BayesRegime() and passed around
+ *          by pointer, so that a new hyperparameter is a new field and not a
+ *          new argument of every routine. The interfaces the model codes select
+ *          are resolved into it before the first sweep.
+ */
+struct WBRegimeSpec {
+  int n;              /**< Sample size.                                     */
+  int npad;           /**< Padded sample size, a power of two.              */
+  int J;              /**< Number of resolution levels, log2(npad).         */
+  const WBLink *link; /**< The link, resolved.                              */
+  const WBSlab *slab; /**< The slab of the spike and slab prior, resolved.  */
+  WBCompPrior comp[2];/**< Priors of the parameters of the two components.  */
+  double zeta;        /**< First shape of the beta prior of pi_j.           */
+  double rho;         /**< Second shape of the beta prior of pi_j.          */
+  double kappa;       /**< Shape of the gamma prior of v_j^-2 or of a_j.    */
+  double xi;          /**< Rate of the gamma prior of v_j^-2 or of a_j.     */
+  double cut;         /**< Inclusion probabilities below it are set to zero.*/
+  double hscale;      /**< Scale of the half-Cauchy prior of tau_j.         */
+};
 
 /**
  * @brief Runs the Gibbs sampler for the dynamic mixture weights.

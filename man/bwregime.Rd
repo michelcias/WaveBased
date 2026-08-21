@@ -13,7 +13,7 @@ bwregime(
   lag = 50,
   wavelet.prior = c("spikeslab", "horseshoe"),
   slab = c("laplace", "gaussian"),
-  link = "probit",
+  link = c("probit", "logit"),
   scale.prior = c("gamma", "halfcauchy", "halft"),
   components = list(),
   init = list(),
@@ -66,9 +66,14 @@ and SSG in the paper, which found the former to separate close probability
 peaks better in both applications. It is read only when
 \code{wavelet.prior = "spikeslab"}.}
 
-\item{link}{The link between the wavelet expansion and the mixture weights.
-Only the probit link of Albert and Chib (1993), used by the paper, is
-currently available.}
+\item{link}{The link between the wavelet expansion and the mixture weights,
+either \code{"probit"} (the default, the link of the paper) or
+\code{"logit"}. The probit link is estimated by the data augmentation of
+Albert and Chib (1993), and the logit link by the Polya-Gamma augmentation
+of Polson, Scott and Windle (2013), completed to a common scale by the
+orthogonal data augmentation of Ghosh and Clyde (2011). Both are exact, and
+they identify the same regimes; what separates them is the tail of the
+link and the cost of a sweep. See Details.}
 
 \item{scale.prior}{The prior of the scales of the two Gaussian components,
 either \code{"gamma"} (the default), the conjugate gamma prior of the
@@ -292,7 +297,11 @@ horseshoe prior of Carvalho, Polson and Scott (2010), written level by level,
       N(0, \lambda_{jk}^2\tau_j^2), \qquad
       \lambda_{jk} \sim C^+(0, 1), \qquad \tau_j \sim C^+(0, A),}
 where \eqn{C^+} is the half-Cauchy distribution and \eqn{A} is the entry
-\code{scale} of \code{shrinkage}. Each resolution level keeps a global scale
+\code{scale} of \code{shrinkage}. The variance is written relative to the
+scale of the working response, which is one under the probit link and the
+completed scale of the augmentation under the logit one, so the shrinkage
+weight below is free of it and the prior means the same thing under either
+link. Each resolution level keeps a global scale
 \eqn{\tau_j} of its own, in the same way that the spike and slab prior keeps
 a sparsity parameter \eqn{\pi_j} of its own, so that the amount of shrinkage
 is learnt separately at every resolution; the scaling coefficient of the
@@ -339,9 +348,66 @@ that no coefficient is ever exactly zero: it shrinks rather than selects, so
 \code{inclusion} reports a weight where it used to report a frequency, and
 there is no sparse representation of the weights to be read off it.
 
+The alternative \code{link} replaces the probit transformation by the
+logistic one, \eqn{\alpha = (1 + e^{-W^T\theta})^{-1}}. The augmentation
+that estimates it is the Polya-Gamma scheme of Polson, Scott and Windle
+(2013): with \eqn{\omega_t \sim PG(1, \eta_t)} and
+\eqn{\kappa_t = z_t - 1/2}, the logistic likelihood becomes the Gaussian
+one of a working response \eqn{\kappa_t/\omega_t} of precision
+\eqn{\omega_t}. The variables \eqn{\omega_t} are drawn exactly, by
+Devroye's method, and not from a truncation of the series that represents
+them.
+
+That precision varies with the observation, and this is what makes the
+logit link cost more than a change of one function. The whole sampler rests
+on the wavelet coefficients being conditionally independent, which they are
+whenever the latent regression is homoscedastic, because the transform is
+orthogonal. Under a working precision \eqn{\Omega} the posterior precision
+of the coefficients is \eqn{W^T\Omega W + D^{-1}}, which is not diagonal,
+and none of the coefficient-wise formulas of the priors above apply. It is
+not a peculiarity of this scheme: every augmentation of the logit link is
+heteroscedastic, and the probit link is the one whose augmentation happens
+not to be.
+
+The diagonal is restored by the orthogonal data augmentation of Ghosh and
+Clyde (2011). Writing \eqn{c} for the largest of the weights, pseudo
+observations are added at the same rows of the design, carrying the weights
+\eqn{c - \omega_t} and values drawn from their conditional predictive
+distribution given the current coefficients. The completed cross product is
+\eqn{cW^TW = cI}, so the coefficients are conditionally independent again,
+with the common scale \eqn{1/\sqrt{c}} in place of the unit scale of the
+probit link. Every prior of the coefficients is written in terms of that
+scale, so none of them is a special case. The augmentation is exact and not
+an approximation: the pseudo observations are missing data whose
+distribution depends only on the coefficients, so integrating them out
+returns the posterior untouched.
+
+What the second augmentation costs is mixing, since the wider the spread of
+the weights, the more of the completed information is drawn rather than
+observed. Measured as effective sample size per second of the estimated
+weights, the logit link cost about 10 percent more than the probit one on
+the data of the example below and on a smooth weight function, and about
+twice as much on a sharply switching one, where the weights sit near zero
+and one and the spread of \eqn{\omega_t} is widest. A sweep itself takes
+some 15 percent longer, which is the price of the Polya-Gamma draws. The
+choice of link is therefore a modelling one and not a computational one, and
+the regimes identified are the same under either.
+
+One caveat of the logit link is worth stating. The completed scale is larger
+than the unit scale of the probit link, by a factor that the weights decide
+and that was around 1.4 in the fits above, while the slab parameters of the
+spike and slab prior are given priors on an absolute scale through
+\code{kappa} and \code{xi}. The same \code{shrinkage} therefore shrinks
+somewhat less under the logit link than under the probit one. The horseshoe
+prior does not have that asymmetry, being written relative to the scale of
+the working response.
+
 The whole sampler runs in compiled code, including the wavelet transforms and
 the shrinkage, so that no memory is allocated during the sweeps and only two
-wavelet transforms are performed by sweep. It uses the random number
+wavelet transforms are performed by sweep. The prior of the coefficients, its
+slab, the prior of the component scales and the link are each resolved into a
+pair of function pointers before the first sweep, so that a sweep never
+compares a code nor searches a table. It uses the random number
 generator of R, and the chains are therefore reproducible through
 \command{\link{set.seed}}.
 
@@ -474,6 +540,19 @@ c(spikeslab = sum(fit$inclusion[-1]), horseshoe = sum(hs$inclusion[-1]))
 range(hs$inclusion)
 
 #
+# The same weights under the logit link, estimated by the Polya-Gamma
+# augmentation. The two links are different models, and where the weights
+# stay away from zero and one, as they do here, the two functions are close
+# enough that the estimates and the regions agree.
+
+#
+lg <- bwregime(y, link = "logit", nchain = 500, burn = 500, lag = 5,
+               shrinkage = list(cut = 0.05), plot = FALSE)
+
+c(probit = mean((cut$alpha - a)^2), logit = mean((lg$alpha - a)^2))
+mean((lg$alpha > 0.5) == (cut$alpha > 0.5))
+
+#
 # The three priors of the component scales, on the same data and at the same
 # settings: the gamma prior of the precisions used by the paper, and the
 # half-Cauchy and half-t priors of Gelman (2006) on the standard deviations.
@@ -507,9 +586,18 @@ Carvalho, C. M., Polson, N. G. and Scott, J. G. (2010). The horseshoe
 estimator for sparse signals. \emph{Biometrika}, 97(2), 465--480,
 \doi{10.1093/biomet/asq017}.
 
+Devroye, L. (2009). On exact simulation algorithms for some distributions
+related to Jacobi theta functions. \emph{Statistics and Probability
+Letters}, 79(21), 2251--2259, \doi{10.1016/j.spl.2009.07.028}.
+
 Gelman, A. (2006). Prior distributions for variance parameters in
 hierarchical models. \emph{Bayesian Analysis}, 1(3), 515--534,
 \doi{10.1214/06-BA117A}.
+
+Ghosh, J. and Clyde, M. A. (2011). Rao-Blackwellization for Bayesian variable
+selection and model averaging in linear and binary regression: a novel data
+augmentation approach. \emph{Journal of the American Statistical
+Association}, 106(495), 1041--1052, \doi{10.1198/jasa.2011.tm10518}.
 
 Johnstone, I. M. and Silverman, B. W. (2005). Empirical Bayes selection of
 wavelet thresholds. \emph{The Annals of Statistics}, 33(4), 1700--1752,
@@ -532,6 +620,11 @@ Simulation and Computation}, 55(6), 2426--2434,
 Motta, F. C. and Montoril, M. H. (2026b). Identifying regime switches through
 Bayesian wavelet estimation: application to environmental and genetic data.
 \emph{Journal of Applied Statistics}, \doi{10.1080/02664763.2025.2612551}.
+
+Polson, N. G., Scott, J. G. and Windle, J. (2013). Bayesian inference for
+logistic models using Polya-Gamma latent variables. \emph{Journal of the
+American Statistical Association}, 108(504), 1339--1349,
+\doi{10.1080/01621459.2013.829001}.
 
 Wand, M. P., Ormerod, J. T., Padoan, S. A. and Fruhwirth, R. (2011). Mean
 field variational Bayes for elaborate distributions. \emph{Bayesian

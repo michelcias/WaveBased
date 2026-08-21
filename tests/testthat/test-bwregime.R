@@ -1,17 +1,107 @@
 # Unit tests for the identification of regime switches of Motta and Montoril
 # (2026b).
 
+# Transcription of Devroye's sampler for PG(1, z), consuming the same variates
+# in the same order as the compiled one, so that a logit chain can be followed
+# draw by draw. It is the sampler of src/wav_polyagamma.c, line by line.
+ref_pg1 <- function(z){
+
+  trunc <- 0.64
+  half <- 0.5*abs(z)
+  fz <- 0.125*pi^2 + 0.5*half^2
+
+  coef <- function(n, x){
+    k <- (n + 0.5)*pi
+    if(x > trunc) return(k*exp(-0.5*k*k*x))
+    if(x > 0) return(exp(-1.5*(log(0.5*pi) + log(x)) + log(k)
+                         - 2*(n + 0.5)^2/x))
+    0
+  }
+
+  # Probability that the proposal is the truncated exponential one.
+  b <- sqrt(1/trunc)*(trunc*half - 1)
+  a <- -sqrt(1/trunc)*(trunc*half + 1)
+  x0 <- log(fz) + fz*trunc
+  p <- 1/(1 + 4/pi*(exp(x0 - half + pnorm(b, log.p = TRUE))
+                    + exp(x0 + half + pnorm(a, log.p = TRUE))))
+
+  # Inverse Gaussian truncated to (0, trunc).
+  rtigauss <- function(){
+    x <- trunc + 1
+    if(half < 1/trunc){
+      alpha <- 0
+      repeat{
+        if(runif(1) <= alpha) break
+        e1 <- rexp(1); e2 <- rexp(1)
+        while(e1*e1 > 2*e2/trunc){ e1 <- rexp(1); e2 <- rexp(1) }
+        x <- 1 + e1*trunc
+        x <- trunc/(x*x)
+        alpha <- exp(-0.5*half*half*x)
+      }
+    }
+    else{
+      mu <- 1/half
+      while(x > trunc){
+        y <- rnorm(1)^2
+        x <- mu + 0.5*mu*mu*y - 0.5*mu*sqrt(4*mu*y + (mu*y)^2)
+        if(runif(1) > mu/(mu + x)) x <- mu*mu/x
+      }
+    }
+    x
+  }
+
+  repeat{
+    x <- if(runif(1) < p) trunc + rexp(1)/fz else rtigauss()
+
+    s <- coef(0, x)
+    u <- runif(1)*s
+    n <- 0
+
+    repeat{
+      n <- n + 1
+      if(n %% 2 == 1){
+        s <- s - coef(n, x)
+        if(u <= s) return(0.25*x)
+      }
+      else{
+        s <- s + coef(n, x)
+        if(u > s) break
+      }
+    }
+  }
+}
+
+# The working response of one sweep, which is where the two links differ. The
+# logit branch is the Polya-Gamma augmentation completed to a common scale by
+# the orthogonal data augmentation, and it returns that scale.
+ref_working <- function(link, fit, zt, tnorm){
+
+  npad <- length(fit)
+
+  if(link == "probit")
+    return(list(v = tnorm(fit, zt == 1L, runif(npad)), sigma = 1))
+
+  om <- vapply(fit, ref_pg1, 0)
+  cc <- max(om)
+  d <- cc - om
+
+  list(v = (zt - 0.5 + d*fit + sqrt(d)*rnorm(npad))/cc, sigma = 1/sqrt(cc))
+}
+
+
 # Transcription of Algorithm 1 of the paper, drawing the same variates in the
 # same order as the compiled sampler, so that the two chains must coincide.
 ref_regime <- function(y, padidx, nchain, burn, lag, slab, prior, shr, init,
                        cprior = "gamma", wprior = "spikeslab",
-                       family = "Daublets", filter.size = 20){
+                       link = "probit", family = "Daublets", filter.size = 20){
 
   n <- length(y)
   npad <- length(padidx)
   J <- round(log2(npad))
   mu <- init$mu
   tau2 <- init$tau2
+
+  # The scale of the working response, which the link supplies at every sweep.
   sigma <- 1
 
   allocate <- function(alpha, mu, tau2){
@@ -106,8 +196,9 @@ ref_regime <- function(y, padidx, nchain, burn, lag, slab, prior, shr, init,
 
     z <- allocate(alpha, mu, tau2)
 
-    lat <- tnorm(fit, z[padidx] == 1L, runif(npad))
-    dstar <- wavedec(lat, j0 = 0, family = family, filter.size = filter.size)
+    wrk <- ref_working(link, fit, z[padidx], tnorm)
+    sigma <- wrk$sigma
+    dstar <- wavedec(wrk$v, j0 = 0, family = family, filter.size = filter.size)
 
     theta[1L] <- dstar[1L] + sigma*rnorm(1)
 
@@ -186,7 +277,8 @@ ref_regime <- function(y, padidx, nchain, burn, lag, slab, prior, shr, init,
     }
 
     fit <- waverec(theta, j0 = 0, family = family, filter.size = filter.size)
-    alpha <- pnorm(fit[seq_len(n)])
+    alpha <- if(link == "probit") pnorm(fit[seq_len(n)])
+             else plogis(fit[seq_len(n)])
 
     if(i > burn && (i - burn) %% lag == 0){
       keep <- keep + 1L
@@ -243,6 +335,105 @@ test_that("the compiled sampler reproduces a transcription of Algorithm 1", {
     expect_equal(unname(got$draws$pi), ref$pi, tolerance = 1e-10)
     expect_equal(unname(got$draws$slab), ref$slab, tolerance = 1e-10)
   }
+})
+
+
+test_that("the logit link reproduces its transcription", {
+
+  y <- mix_data()$y
+  n <- length(y)
+  s <- ref_settings(y)
+
+  for(wp in c("spikeslab", "horseshoe")){
+
+    set.seed(31)
+    got <- bwregime(y, link = "logit", wavelet.prior = wp, nchain = 15,
+                    burn = 5, lag = 2, plot = FALSE)
+
+    set.seed(31)
+    ref <- ref_regime(y, padidx = seq_len(n), nchain = 15, burn = 5, lag = 2,
+                      slab = "laplace", prior = s$prior, shr = s$shr,
+                      init = s$init, wprior = wp, link = "logit")
+
+    expect_equal(unname(got$draws$mu), ref$mu, tolerance = 1e-10)
+    expect_equal(unname(got$draws$tau2), ref$tau2, tolerance = 1e-10)
+    expect_equal(unname(got$draws$alpha), ref$alpha, tolerance = 1e-10)
+    expect_equal(unname(got$draws[[4L]]), ref$pi, tolerance = 1e-10)
+    expect_equal(unname(got$draws[[5L]]), ref$slab, tolerance = 1e-10)
+  }
+})
+
+
+test_that("the orthogonal augmentation targets the exact posterior", {
+
+  # The algebra of the logit branch of ref_working(), with the weights held
+  # fixed so that the posterior of the coefficients is available in closed
+  # form. Together with the transcription test above, which ties the compiled
+  # sampler to that reference variate by variate, this is what says that the
+  # compiled logit chain has the right stationary distribution.
+  set.seed(41)
+  m <- 16
+
+  X <- vapply(seq_len(m), function(k){
+    e <- numeric(m); e[k] <- 1
+    waverec(e, j0 = 0, family = "Daublets", filter.size = 8)
+  }, numeric(m))
+
+  expect_equal(crossprod(X), diag(m), tolerance = 1e-10)
+
+  # Weights deliberately spread over two orders of magnitude, which is the case
+  # the augmentation is least comfortable with.
+  omega <- runif(m, 0.02, 1.2)
+  yw <- rnorm(m)
+  dvar <- runif(m, 0.1, 4)
+
+  prec <- crossprod(X, omega*X) + diag(1/dvar)
+  covar <- solve(prec)
+  mean0 <- covar %*% crossprod(X, omega*yw)
+
+  cc <- max(omega)
+  kap <- dvar/(dvar + 1/cc)
+  theta <- numeric(m)
+  keep <- matrix(NA_real_, 20000, m)
+
+  for(i in seq_len(20000)){
+    eta <- as.vector(X %*% theta)
+    d <- cc - omega
+    v <- (omega*yw + d*eta + sqrt(d)*rnorm(m))/cc
+    theta <- kap*wavedec(v, j0 = 0, family = "Daublets", filter.size = 8) +
+             sqrt(kap/cc)*rnorm(m)
+    keep[i, ] <- theta
+  }
+
+  # Within the Monte Carlo error of a chain of this length.
+  expect_lt(max(abs(colMeans(keep) - mean0)/apply(keep, 2, sd)), 0.1)
+  expect_lt(max(abs(apply(keep, 2, sd)/sqrt(diag(covar)) - 1)), 0.05)
+})
+
+
+test_that("the logit link estimates the same regimes as the probit one", {
+
+  d <- mix_data(n = 256, seed = 11)
+
+  set.seed(5)
+  pr <- bwregime(d$y, nchain = 300, burn = 500, lag = 2, plot = FALSE)
+  set.seed(5)
+  lg <- bwregime(d$y, link = "logit", nchain = 300, burn = 500, lag = 2,
+                 plot = FALSE)
+
+  expect_equal(lg$link, "logit")
+  expect_equal(pr$link, "probit")
+
+  # The link is a modelling choice, not a different estimand: what the two must
+  # agree on is the answer the method gives, which is where the weights cross
+  # one half, and the components behind it. The weights themselves differ by
+  # more than the chain error at this length, since the two links map the same
+  # expansion through different functions.
+  expect_lt(mean((lg$alpha - d$alpha)^2), 0.15)
+  expect_gt(mean((lg$alpha > 0.5) == (pr$alpha > 0.5)), 0.9)
+  expect_equal(lg$mu, pr$mu, tolerance = 0.1)
+
+  expect_output(print(lg), "logit link")
 })
 
 
@@ -696,7 +887,7 @@ test_that("bwregime validates its arguments", {
   expect_error(bwregime(y, lag = 0, plot = FALSE), "positive")
   expect_error(bwregime(y, level = 1, plot = FALSE), "between 0 and 1")
   expect_error(bwregime(y, slab = "cauchy", plot = FALSE), "should be one of")
-  expect_error(bwregime(y, link = "logit", plot = FALSE), "should be .*probit")
+  expect_error(bwregime(y, link = "cloglog", plot = FALSE), "should be one of")
   expect_error(bwregime(y, components = list(nonsense = 1), plot = FALSE),
                "Unknown component")
   expect_error(bwregime(y, components = list(var = c(-1, 1)), plot = FALSE),
