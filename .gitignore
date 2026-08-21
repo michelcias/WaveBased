@@ -11,3 +11,4 @@ WaveBased.Rproj
 # Build artefacts
 *.Rcheck/
 *.tar.gz
+Rplots.pdf

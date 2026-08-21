@@ -306,6 +306,8 @@ bwmixreg <- function(y, x = seq_along(y)/length(y),
 
   cl <- match.call()
 
+  .wb_check_dots(list(...), plot.bwmixreg)
+
   if(is.complex(y)){
     y <- Re(y)
     warning("Sorry, we don't work with complex data. Only the real part was considered.")
@@ -728,6 +730,59 @@ fitted.bwmixreg <- function(object, estimate = c("median", "mean"), ...){
 #' @keywords internal
 #' @importFrom utils modifyList
 #' @noRd
+# The arguments of '...' reach the plot method, and from it the graphics
+# engine, which accepts what it knows and ignores the rest. A misspelled
+# argument of the sampler therefore lands there and is silently dropped, and the
+# fit that comes back is the one of the defaults. This stops it, in the way that
+# .wb_merge() stops an unknown component of a list: the names of '...' are
+# checked against what the plot method and the graphics engine can use, and an
+# argument that is neither is an error, and not a preference to be discarded.
+.wb_check_dots <- function(dots, method){
+
+  if(!length(dots))
+    return(invisible(NULL))
+
+  nms <- names(dots)
+
+  if(is.null(nms) || any(nms == ""))
+    stop("The arguments of '...' must be named.")
+
+  # The graphical parameters that par() documents, which are not formals of
+  # anything and so have to be named here.
+  pars <- c("adj", "ann", "ask", "bg", "bty", "cex", "cex.axis", "cex.lab",
+            "cex.main", "cex.sub", "col", "col.axis", "col.lab", "col.main",
+            "col.sub", "family", "fg", "fig", "font", "font.axis", "font.lab",
+            "font.main", "font.sub", "las", "lend", "lheight", "ljoin", "lty",
+            "lwd", "mai", "mar", "mgp", "mkh", "new", "oma", "omd", "omi",
+            "pch", "pin", "plt", "ps", "pty", "srt", "tck", "tcl", "usr",
+            "xaxp", "xaxs", "xaxt", "xpd", "yaxp", "yaxs", "yaxt")
+
+  ok <- unique(c(names(formals(method)), names(formals(graphics::plot.default)),
+                 pars))
+
+  unknown <- setdiff(nms, setdiff(ok, "..."))
+
+  if(!length(unknown))
+    return(invisible(NULL))
+
+  # The two arguments that were renamed are worth naming, since a call written
+  # against an earlier version of the package reaches exactly this point.
+  gone <- c(cprior = "scale.prior", prior = "components")
+  hit <- intersect(unknown, names(gone))
+
+  stop("Unknown argument", if(length(unknown) > 1L) "s" else "", ": ",
+       paste(unknown, collapse = ", "), ". ",
+       if(length(hit))
+         paste0("The argument", if(length(hit) > 1L) "s " else " ",
+                paste(sQuote(hit), collapse = " and "),
+                if(length(hit) > 1L) " were " else " was ", "renamed to ",
+                paste(sQuote(gone[hit]), collapse = " and "), ". ")
+       else "",
+       "Only graphical parameters, which the plot method receives, may be ",
+       "passed through '...'.")
+}
+
+
 .wb_merge <- function(user, default, what){
 
   if(is.null(user))

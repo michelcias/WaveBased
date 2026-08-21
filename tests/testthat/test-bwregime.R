@@ -899,4 +899,13 @@ test_that("bwregime validates its arguments", {
   expect_error(bwregime(y, shrinkage = list(cut = 1), plot = FALSE),
                "in \\[0, 1\\)")
   expect_error(bwregime(y, verbose = -1, plot = FALSE), "non-negative integer")
+
+  # An argument that the sampler does not have reaches the plot method through
+  # '...', where the graphics engine would drop it without a word, and the fit
+  # that came back would be the one of the defaults.
+  expect_error(bwregime(y, nonsense = 1, plot = FALSE), "Unknown argument")
+  expect_error(bwregime(y, cprior = "halft", plot = FALSE), "renamed to")
+  expect_error(bwregime(y, prior = list(), plot = FALSE), "renamed to")
+  expect_silent(bwregime(y, col = 2, lwd = 3, nchain = 5, burn = 0, lag = 1,
+                   plot = FALSE))
 })

@@ -432,6 +432,15 @@ test_that("bwmixreg validates its arguments", {
   expect_error(bwmixreg(y, init = list(mu = c(3, 1)), plot = FALSE),
                "mu\\[1\\] < mu\\[2\\]")
   expect_error(bwmixreg(y, verbose = -1, plot = FALSE), "non-negative integer")
+
+  # An argument that the sampler does not have reaches the plot method through
+  # '...', where the graphics engine would drop it without a word, and the fit
+  # that came back would be the one of the defaults.
+  expect_error(bwmixreg(y, nonsense = 1, plot = FALSE), "Unknown argument")
+  expect_error(bwmixreg(y, cprior = "halft", plot = FALSE), "renamed to")
+  expect_error(bwmixreg(y, prior = list(), plot = FALSE), "renamed to")
+  expect_silent(bwmixreg(y, col = 2, lwd = 3, nchain = 5, burn = 0, lag = 1,
+                   plot = FALSE))
 })
 
 
