@@ -19,6 +19,7 @@
 #include <R_ext/Utils.h>
 
 #include "wav_bayesregime.h"
+#include "wav_polyagamma.h"
 #include "wav_bayesmix.h"
 #include "wav_transform.h"
 #include "wav_utilities.h"
@@ -78,30 +79,149 @@ static double WBDrawTruncNorm(double m, double sigma, int positive){
 //==============================================================================
 
 /**
- * @brief Draws the latent variable of the probit augmentation.
+ * @brief Mixture weights of the sample under the probit link, expression (7).
  *
- * @details This is expression (12) of the article: the latent variable is
- *          normal with mean given by the linear predictor and unit variance,
- *          truncated to the half line indicated by the allocation variable.
- *
- * @param[in] eta Linear predictor at that index.
- * @param[in] z   Allocation variable at that index, 0 or 1.
- * @return The latent variable.
+ * @copydetails WBLink::weights
  */
-static double WBDrawLatentProbit(double eta, int z){
+static void WBProbitWeights(const double *fit, int n, double *alpha){
 
-  return WBDrawTruncNorm(eta, 1.0, z);
+  int t;
+
+  for(t = 0; t < n; t++)
+    alpha[t] = pnorm(fit[t], 0.0, 1.0, 1, 0);
 }
 
 /**
- * @brief Maps the linear predictor to a mixture weight, as in expression (7).
+ * @brief Mixture weights of the sample under the logit link.
  *
- * @param[in] eta Linear predictor.
- * @return The mixture weight.
+ * @copydetails WBLink::weights
  */
-static double WBProbitMean(double eta){
+static void WBLogitWeights(const double *fit, int n, double *alpha){
 
-  return pnorm(eta, 0.0, 1.0, 1, 0);
+  int t;
+
+  for(t = 0; t < n; t++)
+    alpha[t] = 1.0/(1.0 + exp(-fit[t]));
+}
+
+/**
+ * @brief Working response of one sweep under the probit link.
+ *
+ * @details Expression (12) of the article. The augmentation is homoscedastic,
+ *          so the common scale is one and the scratch of weights is not used.
+ *
+ * @copydetails WBLink::draw_working
+ */
+static double WBDrawWorkingProbit(const WBRegimeSpec *spec, const double *fit,
+                                  const int *z, const int *idx, int npad,
+                                  double *v, double *omega){
+
+  int t;
+
+  (void) spec;
+  (void) omega;
+
+  for(t = 0; t < npad; t++)
+    v[t] = WBDrawTruncNorm(fit[t], 1.0, z[idx[t]]);
+
+  return 1.0;
+}
+
+/**
+ * @brief Working response of one sweep under the logit link.
+ *
+ * @details Two augmentations, one on top of the other.
+ *
+ *          The first is the Polya-Gamma scheme of Polson, Scott and Windle
+ *          (2013): with \f$\omega_t \sim PG(1, \eta_t)\f$ and
+ *          \f$\kappa_t = z_t - 1/2\f$, the logistic likelihood becomes the
+ *          Gaussian one of a response \f$\kappa_t/\omega_t\f$ of precision
+ *          \f$\omega_t\f$. That precision varies with the observation, so
+ *          the transformed coefficients stop being independent: the posterior
+ *          precision W'(diag omega)W + D^-1 is dense, and none of the
+ *          coefficient-wise formulas of the priors apply. It is not a
+ *          peculiarity of this scheme. Every augmentation of the logit link is
+ *          heteroscedastic, and the probit link is the one whose augmentation
+ *          happens not to be.
+ *
+ *          The second restores the diagonal, by the orthogonal data
+ *          augmentation of Ghosh and Clyde (2011). With c the largest of the
+ *          weights, pseudo observations are added at the same rows of the
+ *          design, carrying the weights c - omega_t and values drawn from their
+ *          conditional predictive distribution given the current coefficients.
+ *          The completed cross product is then
+ *          \f$\sum_t c\,w_tw_t^T = cW^TW = cI\f$, the completed response is
+ *          \f[ v_t = \frac{\kappa_t + (c - \omega_t)\eta_t +
+ *                    \sqrt{c - \omega_t}\,\varepsilon_t}{c}, \qquad
+ *              \varepsilon_t \sim N(0, 1), \f]
+ *          and the common scale is \f$1/\sqrt{c}\f$, which is what the
+ *          shrinkage receives as its sigma.
+ *
+ *          The augmentation is exact, and not an approximation: the pseudo
+ *          observations are missing data whose distribution depends only on the
+ *          coefficients, so integrating them out returns the posterior
+ *          untouched. What it costs is mixing, since the wider the spread of
+ *          the weights, the more of the completed information is drawn rather
+ *          than observed.
+ *
+ *          Writing the contribution of a pseudo observation in the weighted
+ *          form above, and not as a draw of variance 1/(c - omega_t), is what
+ *          keeps the observation that attains the maximum well defined: its
+ *          weight is zero, and it contributes nothing. The product
+ *          \f$\omega_t\kappa_t/\omega_t\f$ is written as \f$\kappa_t\f$
+ *          for the same reason, so that no weight is ever divided by.
+ *
+ * @copydetails WBLink::draw_working
+ *
+ * @see Ghosh, J. and Clyde, M. A. (2011). Rao-Blackwellization for Bayesian
+ *      variable selection and model averaging in linear and binary regression:
+ *      a novel data augmentation approach. Journal of the American Statistical
+ *      Association, 106(495), 1041-1052.
+ */
+static double WBDrawWorkingLogit(const WBRegimeSpec *spec, const double *fit,
+                                 const int *z, const int *idx, int npad,
+                                 double *v, double *omega){
+
+  double c = 0.0, d;
+  int t;
+
+  (void) spec;
+
+  for(t = 0; t < npad; t++){
+    omega[t] = WBDrawPG1(fit[t]);
+    if(omega[t] > c)
+      c = omega[t];
+  }
+
+  for(t = 0; t < npad; t++){
+    d = c - omega[t];
+    v[t] = (z[idx[t]] - 0.5 + d*fit[t] + sqrt(d)*norm_rand())/c;
+  }
+
+  return 1.0/sqrt(c);
+}
+
+/* --- The registry of links ------------------------------------------------- */
+
+/**
+ * @brief Returns the link requested by a model code.
+ *
+ * @param[in] code One of the WB_LINK_* constants.
+ * @return Pointer to the corresponding interface. The function does not return
+ *         when the code is unknown.
+ */
+static const WBLink *WBLinkGet(int code){
+
+  static const WBLink table[] = {
+    {"probit", WBDrawWorkingProbit, WBProbitWeights},
+    {"logit",  WBDrawWorkingLogit,  WBLogitWeights}
+  };
+
+  if(code == WB_LINK_PROBIT) return &table[0];
+  if(code == WB_LINK_LOGIT)  return &table[1];
+
+  error("Unknown link code.");
+  return NULL;
 }
 
 //==============================================================================
@@ -258,7 +378,7 @@ static void WBDrawLevelSS(const WBRegimeSpec *spec, const double *d,
                           double sigma, int m, double *theta, int *gam,
                           double *loc, double *w, double *pi, double *par){
 
-  const WBSlab *slab = WBSlabGet(spec->slab);
+  const WBSlab *slab = spec->slab;
   double lodds, prob;
   int k;
 
@@ -456,16 +576,19 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   int lag = INTEGER(mcmc)[2], nverb = INTEGER(mcmc)[3];
   int *idx = INTEGER(padidx), *z, *gam;
   double *ry = REAL(y), *rwfilter, *work, *lat, *dstar, *theta, *fit, *alpha;
-  double *pilev, *parlev, *loc, *wgt;
+  double *pilev, *parlev, *loc, *wgt, *omega;
   double *rmu, *rtau2, *ralpha, *rpi, *rpar, *rzbar, *rincl;
   double mu[2], tau2[2], sd[2], aux[2], tmp;
-  /* The probit augmentation leaves the latent regression with a unit scale.
-   * The priors of the coefficients are written for a general one, which is what
-   * a link with a heteroscedastic augmentation would supply. */
-  const double sigma = 1.0;
+  /* The scale of the working response, which the link supplies at every sweep.
+   * The probit augmentation leaves it at one, and the Polya-Gamma one delivers
+   * the scale its orthogonal augmentation completes the data to. The priors of
+   * the coefficients are written for a general scale, so neither of them is a
+   * special case for the shrinkage. */
+  double sigma = 1.0;
   WBRegimeSpec spec;
   const WBWavPrior *wprior;
   const WBComponent *comp;
+  int codewp, codecp;
   SEXP out, nms, wutils;
 
   while((1 << (J + 1)) <= npad) J++;
@@ -483,16 +606,16 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   spec.n = n;
   spec.npad = npad;
   spec.J = J;
-  spec.link = WBInt(model, "link");
-  spec.wprior = WBInt(model, "wprior");
-  spec.slab = WBInt(model, "slab");
-  spec.cprior = WBInt(model, "cprior");
+  /* Every registry is read here, once, and the sweep sees only pointers: no
+   * code is compared and no table is searched while the chain runs. */
+  codewp = WBInt(model, "wprior");
+  codecp = WBInt(model, "cprior");
 
-  if(spec.link != WB_LINK_PROBIT)
-    error("Only the probit link is available.");
+  spec.link = WBLinkGet(WBInt(model, "link"));
+  spec.slab = WBSlabGet(WBInt(model, "slab"));
 
-  wprior = WBWavPriorGet(spec.wprior);
-  comp = WBComponentGet(spec.cprior);
+  wprior = WBWavPriorGet(codewp);
+  comp = WBComponentGet(codecp);
 
   for(k = 0; k < 2; k++){
     spec.comp[k].b0 = WBReal(hyper, "mean", k);
@@ -534,6 +657,7 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
   parlev = (double *) R_alloc(J, sizeof(double));
   loc    = (double *) R_alloc(npad, sizeof(double));
   wgt    = (double *) R_alloc(npad, sizeof(double));
+  omega  = (double *) R_alloc(npad, sizeof(double));
   z      = (int *)    R_alloc(n, sizeof(int));
   gam    = (int *)    R_alloc(npad, sizeof(int));
 
@@ -589,8 +713,7 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
     parlev[j] = 1.0;
   }
 
-  for(t = 0; t < n; t++)
-    alpha[t] = WBProbitMean(0.0);
+  spec.link->weights(fit, n, alpha);
 
   GetRNGstate();
 
@@ -635,11 +758,10 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
     sd[1] = 1.0/sqrt(tau2[1]);
     WBDrawAlloc(ry, alpha, n, mu, sd, z);
 
-    /* --- Latent variables of the augmentation ---------------------------- */
+    /* --- The working response of the augmentation ------------------------ */
     /* The regression lives on the padded grid, and so do the allocation
      * variables, which are gathered through the padding index. */
-    for(t = 0; t < npad; t++)
-      lat[t] = WBDrawLatentProbit(fit[t], z[idx[t]]);
+    sigma = spec.link->draw_working(&spec, fit, z, idx, npad, lat, omega);
 
     WaveDecP(lat, npad, 0, rwfilter, N, dstar, work);
 
@@ -663,8 +785,7 @@ SEXP C_BayesRegime(SEXP y, SEXP padidx, SEXP wavelet, SEXP model, SEXP hyper,
     /* --- The mixture weights --------------------------------------------- */
     WaveRecP(theta, npad, 0, rwfilter, N, fit, work);
 
-    for(t = 0; t < n; t++)
-      alpha[t] = WBProbitMean(fit[t]);
+    spec.link->weights(fit, n, alpha);
 
     /* --- Storage ---------------------------------------------------------- */
     if(i > burn && (i - burn) % lag == 0){

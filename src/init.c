@@ -22,6 +22,7 @@
 #include "wav_bayesregime.h"
 #include "wav_bayesthresh.h"
 #include "wav_mixreg.h"
+#include "wav_polyagamma.h"
 #include "wav_transform.h"
 #include "wav_utilities.h"
 #include "wav_table.h"
@@ -79,6 +80,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_BayesMixReg",  (DL_FUNC) &C_BayesMixReg,  11},
   {"_WaveBased_C_BayesRegime",  (DL_FUNC) &C_BayesRegime,  7},
   {"_WaveBased_C_hpdi",         (DL_FUNC) &C_hpdi,         2},
+  {"_WaveBased_C_rpg1",         (DL_FUNC) &C_rpg1,         1},
   {NULL, NULL, 0}
 };
 
