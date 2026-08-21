@@ -163,7 +163,7 @@
 #' Cohen, A., Daubechies, I. and Vial, P. (1993). Wavelets on the Interval and
 #' Fast Wavelet Transforms. \emph{Applied and Computational Harmonic
 #' Analysis}, 1(1), 54--81,
-#' \url{https://doi.org/10.1006/acha.1993.1005}.
+#' \doi{10.1006/acha.1993.1005}.
 #'
 #' Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II.
 #' Local Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM
@@ -172,7 +172,7 @@
 #'
 #' Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
 #' PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
-#' Source Software}, 4(36), 1237, \url{https://doi.org/10.21105/joss.01237}.
+#' Source Software}, 4(36), 1237, \doi{10.21105/joss.01237}.
 #'
 #' @seealso \command{\link{PHI}}, \command{\link{PSI}}, \command{\link{wtable}}
 #'

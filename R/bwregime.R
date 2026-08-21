@@ -544,12 +544,12 @@
 #' c(spikeslab = sum(fit$inclusion[-1]), horseshoe = sum(hs$inclusion[-1]))
 #' range(hs$inclusion)
 #'
+#' \donttest{
 #' #
 #' # The same weights under the logit link, estimated by the Polya-Gamma
 #' # augmentation. The two links are different models, and where the weights
 #' # stay away from zero and one, as they do here, the two functions are close
 #' # enough that the estimates and the regions agree.
-#'
 #' #
 #' lg <- bwregime(y, link = "logit", nchain = 500, burn = 500, lag = 5,
 #'                shrinkage = list(cut = 0.05), plot = FALSE)
@@ -580,6 +580,7 @@
 #' # And the mean squared errors of the estimated weights.
 #' c(g = mean((fit_g$alpha - a)^2), hc = mean((fit_hc$alpha - a)^2),
 #'   ht = mean((fit_ht$alpha - a)^2))
+#' }
 #'
 #' @keywords smooth
 #' @importFrom stats quantile var median
