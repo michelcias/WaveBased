@@ -13,7 +13,9 @@ points using the **Daubechies–Lagarias algorithm** (Daubechies and Lagarias,
 1992). On top of that it provides the discrete wavelet transform, Bayesian
 wavelet thresholding, and estimators built on them: a density estimator for
 size-biased data, a logistic classifier, and mixture models whose weights vary
-with the data index, which identify regime switches in bimodal data.
+with the data index, which identify regime switches in bimodal data. The
+shrinkage of those weights comes with a choice of prior, spike and slab or
+horseshoe, and a choice of link, probit or logit.
 
 The package ships with families **Daublets**, **Symmlets** and **Coiflets**
 (filters from PyWavelets, Lee et al., 2019), and also accepts user-supplied
@@ -95,6 +97,17 @@ which(fit$alpha > 0.5)   # the regions where a copy number alteration is present
 coef(fit)                # the two components: means and precisions
 ```
 
+The wavelet coefficients of the weights carry a spike and slab prior by
+default, and the horseshoe prior of Carvalho, Polson and Scott (2010) on
+request; the weights are read through a probit link by default, and through a
+logit link, estimated by Polya-Gamma augmentation, on request. Both priors and
+both links are exact, and they identify the same regimes:
+
+```r
+hs <- bwregime(y, wavelet.prior = "horseshoe", nchain = 1000, burn = 1000)
+lg <- bwregime(y, link = "logit", nchain = 1000, burn = 1000)
+```
+
 ### Fast evaluation with precomputed tables
 
 The Daubechies–Lagarias evaluation is exact but costly for large samples.
@@ -153,6 +166,9 @@ The full entries are in the references below.
 - Albert, J. H. and Chib, S. (1993). Bayesian analysis of binary and
   polychotomous response data. *Journal of the American Statistical
   Association*, 88(422), 669–679.
+- Carvalho, C. M., Polson, N. G. and Scott, J. G. (2010). The horseshoe
+  estimator for sparse signals. *Biometrika*, 97(2), 465–480.
+  [doi:10.1093/biomet/asq017](https://doi.org/10.1093/biomet/asq017)
 - Daubechies, I. and Lagarias, J. C. (1992). Two-Scale Difference Equations II.
   Local Regularity, Infinite Products of Matrices and Fractals.
   *SIAM Journal on Mathematical Analysis*, 24(4), 1031–1079.
@@ -175,6 +191,10 @@ The full entries are in the references below.
   Bayesian wavelet estimation: application to environmental and genetic data.
   *Journal of Applied Statistics*.
   [doi:10.1080/02664763.2025.2612551](https://doi.org/10.1080/02664763.2025.2612551)
+- Polson, N. G., Scott, J. G. and Windle, J. (2013). Bayesian inference for
+  logistic models using Polya-Gamma latent variables. *Journal of the American
+  Statistical Association*, 108(504), 1339–1349.
+  [doi:10.1080/01621459.2013.829001](https://doi.org/10.1080/01621459.2013.829001)
 
 ## License
 
