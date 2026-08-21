@@ -40,7 +40,7 @@
 #' @references
 #' Mallat, S.G. (1989). A theory for multiresolution signal decomposition:
 #' the wavelet representation. \emph{IEEE Trans. Patt. Anal. and Mach.
-#' Intell.}, 11, 674-693, \url{https://ieeexplore.ieee.org/document/192463}.
+#' Intell.}, 11, 674-693, \doi{10.1109/34.192463}.
 #'
 #' @seealso \code{\link{wavedec}}
 #'
