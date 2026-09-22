@@ -677,8 +677,14 @@ plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
 .wall_eps <- function(eps, J, j0, boundary, rescale){
   if(!rescale || boundary == "interval")
     return(rep_len(0, length(J)))
-  if(is.null(eps))
-    return(1.9^(-J))
+  if(is.null(eps)){
+    eps <- 1.9^(-J)
+    if(any(eps >= 0.5))
+      warning("With J = 1, the default 'eps' is 0.5 or more and the rescaling ",
+              "is degenerate; supply 'eps' in [0, 0.5) or use J >= 2.",
+              call. = FALSE)
+    return(eps)
+  }
   if(!is.numeric(eps) || any(!is.finite(eps)) || any(eps < 0) || any(eps >= 0.5))
     stop("'eps' must belong to the interval [0, 0.5).")
   if(length(eps) != 1L && length(eps) != length(J))

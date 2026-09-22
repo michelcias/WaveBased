@@ -1,3 +1,22 @@
+# WaveBased 2.6-1
+
+## Changes in defaults
+
+* The default grid of `J` in `cv.wall()` starts at `J = 2` (or at `j0 + 1`,
+  if larger), and is now `J1:max(J1 + 1, ceiling(log2(n)/2))` with
+  `J1 = max(j0 + 1, 2)`. At `J = 1`, the default boundary constant of the
+  periodized basis is `eps = 1.9^(-1) > 0.5`, outside the range of the
+  rescaling: the covariates were mapped, reversed, into a narrow band around
+  1/2, and the candidate was degenerate, never selected. A grid supplied
+  through `J` is used as given.
+
+## Bug fixes
+
+* `wall()` and `cv.wall()` warn when the default `eps` is 0.5 or more, which
+  happens at `J = 1` with the periodized basis. The fit is the same as before;
+  the rescaling it rests on is degenerate, and used to be applied silently. A
+  value of `eps` supplied by the user is still validated, as before.
+
 # WaveBased 2.6-0
 
 This file starts here. Earlier versions are described by the commit history.

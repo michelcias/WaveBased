@@ -14,7 +14,11 @@
 #' @param y Response with two classes, as in \command{\link{wall}}.
 #' @param J Vector with the grid of candidate resolution levels (single
 #'   integers, used for all the covariates). By default, the grid
-#'   \code{(j0+1):max(j0+2, ceiling(log2(n)/2))} is used.
+#'   \code{J1:max(J1+1, ceiling(log2(n)/2))} is used, with
+#'   \code{J1 = max(j0+1, 2)}. It starts at \code{J = 2} because, under the
+#'   default \code{eps} of the periodized basis, \eqn{1.9^{-1} > 0.5} falls
+#'   outside the range of the rescaling, and \code{J = 1} would be a
+#'   degenerate candidate.
 #' @param j0 The coarsest resolution level of the decomposed wavelet basis.
 #'   Default is \code{j0 = 0}. See \command{\link{wall}}.
 #' @param family,filter.size,prec.wavelet,wavelet.filter The wavelet basis
@@ -201,8 +205,10 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
     stop("The number of observations in 'y' must match the number of rows of 'x'.")
 
   j0 <- .wall_j0(j0)
-  if(is.null(J))
-    J <- seq(j0 + 1L, max(j0 + 2L, ceiling(log2(n)/2)))
+  if(is.null(J)){
+    J1 <- max(j0 + 1L, 2L)
+    J <- seq(J1, max(J1 + 1L, ceiling(log2(n)/2)))
+  }
   if(!is.numeric(J) || any(!is.finite(J)) || any(J != round(J)))
     stop("'J' must contain only integer values.")
   if(any(J <= j0))

@@ -45,7 +45,11 @@ object of class \code{"cv.wall"}.}
 
 \item{J}{Vector with the grid of candidate resolution levels (single
 integers, used for all the covariates). By default, the grid
-\code{(j0+1):max(j0+2, ceiling(log2(n)/2))} is used.}
+\code{J1:max(J1+1, ceiling(log2(n)/2))} is used, with
+\code{J1 = max(j0+1, 2)}. It starts at \code{J = 2} because, under the
+default \code{eps} of the periodized basis, \eqn{1.9^{-1} > 0.5} falls
+outside the range of the rescaling, and \code{J = 1} would be a
+degenerate candidate.}
 
 \item{j0}{The coarsest resolution level of the decomposed wavelet basis.
 Default is \code{j0 = 0}. See \command{\link{wall}}.}
