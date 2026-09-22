@@ -132,6 +132,15 @@ test_that("the interval boundary basis is supported", {
   expect_true(all(is.finite(pred)))
 })
 
+test_that("wall warns when the default eps is degenerate at J = 1", {
+  dat <- .wall_sim()
+
+  expect_warning(wall(dat$x, dat$y, J = 1, filter.size = 8),
+                 "default 'eps' is 0.5 or more")
+  expect_no_warning(wall(dat$x, dat$y, J = 1, filter.size = 8, eps = 0.1))
+  expect_no_warning(wall(dat$x, dat$y, J = 2, filter.size = 8))
+})
+
 test_that("wall validates its inputs", {
   dat <- .wall_sim()
 
@@ -151,10 +160,10 @@ test_that("cv.wall selects (J, lambda) and predicts", {
   dat <- .wall_sim(n = 300)
 
   set.seed(1)
-  cvfit <- cv.wall(dat$x, dat$y, J = 1:4, filter.size = 8, nfolds = 5)
+  cvfit <- cv.wall(dat$x, dat$y, J = 2:5, filter.size = 8, nfolds = 5)
 
   expect_s3_class(cvfit, "cv.wall")
-  expect_true(cvfit$J.min %in% 1:4)
+  expect_true(cvfit$J.min %in% 2:5)
   expect_s3_class(cvfit$wall.fit, "wall")
   expect_equal(cvfit$wall.fit$J, rep(cvfit$J.min, 2))
   expect_equal(nrow(cvtab <- cvfit$cvtab), 4L)
@@ -204,7 +213,9 @@ test_that("cv.wall builds a default grid of J and validates inputs", {
 
   set.seed(4)
   cvfit <- cv.wall(dat$x, dat$y, filter.size = 8, nfolds = 5)
-  expect_equal(cvfit$J, seq_len(max(2, ceiling(log2(nrow(dat$x))/2))))
+  expect_equal(cvfit$J, seq(2L, max(3L, ceiling(log2(nrow(dat$x))/2))))
+  # The default grid starts at J = 2, where 1.9^(-J) < 0.5 (j0 = 0).
+  expect_true(all(1.9^(-cvfit$J) < 0.5))
 
   expect_error(cv.wall(dat$x, dat$y, J = 0:2, filter.size = 8),
                "larger than 'j0'")
