@@ -188,9 +188,22 @@ object stores the transformation of each covariate, and
 rescaled values to \eqn{[\epsilon, 1 - \epsilon]} whenever new
 observations fall outside the range of the training data.
 
-Individual components \eqn{f_l} are generally not identifiable without
-further centering constraints (only their sum is); the classifier and its
-predictions are not affected by this. See Montoril (2026) for details.
+When the scaling functions are kept in the design, that is, with
+\code{boundary = "interval"} or with \code{j0 > 0}, the constant function
+lies in the span of the scaling functions of every covariate as well as in
+the (unpenalized) intercept. The design then has \eqn{d} linearly
+dependent directions (exactly for the periodized basis; up to the accuracy
+with which the boundary-corrected basis reproduces constants, for
+\code{boundary = "interval"}), and the level of the log-odds is split
+between the intercept and the scaling coefficients of the covariates in a
+way that the data do not determine. The fitted log-odds, the estimated
+probabilities and the classifier are not affected; the intercept, the
+scaling coefficients returned by \command{\link{coef.wall}} and the level
+of each estimated component \eqn{\hat{f}_l} are not individually
+interpretable in that case. With the default \code{j0 = 0} and the
+periodized basis, the scaling columns are dropped and each \eqn{\hat{f}_l}
+is a sum of wavelets, hence has zero integral over the rescaled unit
+interval, and the issue does not arise.
 
 For computational speed, the wavelet basis can be evaluated by table
 lookup (\code{use.table}, \command{\link{wtable}}) and the design matrix

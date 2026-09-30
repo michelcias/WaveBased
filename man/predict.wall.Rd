@@ -37,7 +37,10 @@ A matrix of predictions, with one row per observation of
   \code{type = "class"}, the matrix contains the class labels. For
   \code{coef.wall}, a sparse matrix of coefficients, whose row names
   identify the basis functions: e.g., \code{X2.psi3.5} is the wavelet
-  \eqn{\psi_{3,5}} of the second covariate.
+  \eqn{\psi_{3,5}} of the second covariate. With
+  \code{boundary = "interval"} or \code{j0 > 0}, the intercept and the
+  scaling coefficients (rows such as \code{X2.phi4.0}) are not
+  individually identified; see the Details of \command{\link{wall}}.
 }
 \description{
 Obtains the estimated log-odds, class probabilities, class

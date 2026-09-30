@@ -141,7 +141,9 @@ of the covariate. They are expressed in the log-odds scale, and only their
 sum is identifiable (see \command{\link{wall}}); with
 \code{center = TRUE}, each of them is centered over the grid, which makes
 the panels comparable and puts the (arbitrary) constants into the
-intercept.
+intercept. With \code{boundary = "interval"} or \code{j0 > 0}, the vertical
+level of each panel is arbitrary when \code{center = FALSE}; see the
+Details of \command{\link{wall}}.
 
 Both displays remain readable when the number of covariates is large. In
 \code{type = "path"}, only the \code{max.vars} most important covariates

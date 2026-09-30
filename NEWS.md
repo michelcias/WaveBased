@@ -1,3 +1,18 @@
+# WaveBased 2.6-2
+
+## Documentation
+
+* The help of `wall()` now warns that, when the scaling functions are kept in
+  the design (`boundary = "interval"`, or `j0 > 0`), the constant enters once
+  per covariate and once more through the intercept: the design has `d`
+  linearly dependent directions, and the intercept, the scaling coefficients
+  returned by `coef()` and the level of each fitted component are not
+  individually identified. The fitted log-odds, the probabilities and the
+  classifier are not affected, and nothing changes in the fit. The help of
+  `coef()` and of `plot(type = "components")` points to it, and a test checks
+  the rank deficiency. With the defaults (periodized basis, `j0 = 0`) the
+  scaling columns are dropped and the issue does not arise.
+
 # WaveBased 2.6-1
 
 ## Changes in defaults
