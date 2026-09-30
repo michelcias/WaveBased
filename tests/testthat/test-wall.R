@@ -132,6 +132,23 @@ test_that("the interval boundary basis is supported", {
   expect_true(all(is.finite(pred)))
 })
 
+test_that("scaling columns kept: d non-identified directions, predictions unaffected", {
+  set.seed(1); n <- 400; d <- 3
+  x <- matrix(runif(n * d), n, d)
+  y <- rbinom(n, 1, plogis(3 * sin(2 * pi * x[, 1])))
+  rank_def <- function(fit) {
+    X1 <- cbind(1, as.matrix(WaveBased:::.wall_design(x, fit, clip = FALSE)))
+    ncol(X1) - qr(X1, tol = 1e-8)$rank
+  }
+  expect_equal(rank_def(wall(x, y, J = 3, filter.size = 8)), 0)
+  f1 <- wall(x, y, J = 3, j0 = 1, filter.size = 8)
+  expect_equal(rank_def(f1), d)
+  X1 <- cbind(1, as.matrix(WaveBased:::.wall_design(x, f1, clip = FALSE)))
+  v  <- svd(X1)$v[, ncol(X1)]
+  b  <- as.numeric(coef(f1, s = min(f1$lambda)))
+  expect_lt(max(abs(X1 %*% (b + v) - X1 %*% b)), 1e-8)
+})
+
 test_that("wall warns when the default eps is degenerate at J = 1", {
   dat <- .wall_sim()
 
