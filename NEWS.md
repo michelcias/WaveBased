@@ -12,6 +12,12 @@
   `coef()` and of `plot(type = "components")` points to it, and a test checks
   the rank deficiency. With the defaults (periodized basis, `j0 = 0`) the
   scaling columns are dropped and the issue does not arise.
+* The help of `plot.wall()` says which of its displays depend on the scaling
+  coefficients in that case: the ranking of the covariates, the curves of
+  `type = "path"`, the widths of the edges of `type = "network"` and, with
+  `newx`, the values of the scaling nodes, of the components and of the
+  intercept. It no longer says that only the sum of the components is
+  identifiable, which does not hold for the defaults.
 
 # WaveBased 2.6-1
 

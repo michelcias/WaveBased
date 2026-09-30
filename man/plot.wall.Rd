@@ -137,13 +137,14 @@ nonzero coefficient, is reported on the top axis.
 
 The components are evaluated on an equally spaced grid of the range of
 each covariate observed in the fit, and are plotted on the original scale
-of the covariate. They are expressed in the log-odds scale, and only their
-sum is identifiable (see \command{\link{wall}}); with
+of the covariate. They are expressed in the log-odds scale. With
 \code{center = TRUE}, each of them is centered over the grid, which makes
-the panels comparable and puts the (arbitrary) constants into the
-intercept. With \code{boundary = "interval"} or \code{j0 > 0}, the vertical
-level of each panel is arbitrary when \code{center = FALSE}; see the
-Details of \command{\link{wall}}.
+the panels comparable and puts the constants into the intercept. With
+\code{center = FALSE}, each panel shows the component as it enters the
+fitted log-odds; its level is determined with the default \code{j0 = 0}
+and the periodized basis, where each component has zero integral over the
+rescaled unit interval, and is arbitrary with \code{boundary = "interval"}
+or \code{j0 > 0} (see the Details of \command{\link{wall}}).
 
 Both displays remain readable when the number of covariates is large. In
 \code{type = "path"}, only the \code{max.vars} most important covariates
@@ -193,6 +194,17 @@ are the ones actually used by \command{\link{predict.wall}} -- they are
 not centered, so that they add up to \eqn{\hat{h}(x)} -- and the display
 shows which covariates and which resolution levels drove the
 classification of that observation.
+
+With \code{boundary = "interval"} or \code{j0 > 0}, the coefficients of
+each covariate include its scaling coefficients, which are unpenalized and
+not identified (see the Details of \command{\link{wall}}). The norms that
+rank the covariates in the three displays, the curves of
+\code{type = "path"} and the widths of the edges of \code{type = "network"}
+then depend on an arbitrary split of the level of the log-odds, and so do,
+with \code{newx}, the values of the scaling nodes, of the components and of
+the intercept, and the dashed edges; the detail nodes, \eqn{\hat{h}(x)} and
+\eqn{\hat{\eta}(x)} are not affected. Every covariate also has, in general,
+nonzero coefficients at every \eqn{\lambda}.
 }
 \examples{
 set.seed(123)
