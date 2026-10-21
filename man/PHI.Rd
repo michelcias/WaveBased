@@ -110,13 +110,15 @@ The argument \code{filter.size} is associated with the number of vanishing
 moments (\eqn{N}) of each wavelet family. For \emph{Daublets} and
 \emph{Symmlets}, one has \eqn{\int x^n \psi(x) dx = 0, n = 0, \ldots, N - 1},
 satisfying the relation \code{N = filter.size/2}. In the case of
-\emph{Coiflets}, both scaling function \eqn{\phi} and wavelet \eqn{\psi} have
-\eqn{N} vanishing moments satisfying the relation \code{N = filter.size/6}.
+\emph{Coiflets}, \eqn{\psi} has \eqn{N} vanishing moments, with
+\code{N = filter.size/3}, and the scaling function, supported on
+\eqn{[0, L - 1]} with \eqn{L} = \code{filter.size}, has vanishing moments
+about the point \eqn{N}: \eqn{\int (x - N)^n \phi(x) dx = 0, n = 1, \ldots, N}.
 
 This function accepects wavelet filters provided by the user. In this case,
 the filter is given in the argument \code{wavelet filter}, while setting
 \code{family = "Own"}. If the filter is provided and \code{family} is not
-\code{"Other"}, a warning is released and the function will still consider the
+\code{"Own"}, a warning is released and the function will still consider the
 wavelet filter given. \bold{Caution: the function does not check if the filter
 provided is in fact a wavelet filter. Therefore, do not use
 \code{wavelet.filter}, unless you know what you are doing.}
