@@ -1,3 +1,20 @@
+# WaveBased 2.7-1
+
+## Bug fixes
+
+* `boundary = "interval"` now stops when the filter is user-supplied
+  (`family = "Own"`, or a `wavelet.filter` given alongside a built-in family),
+  in `PHI()`, `PSI()`, `wbasis()`, `wavedec()` and `waverec()`, and through
+  them in `wdensity()`, `wall()` and `cv.wall()`. The documentation already
+  required a Daublet or Symmlet filter, since the Cohen-Daubechies-Vial
+  construction needs the minimal-length filters of Daubechies, but the code
+  accepted any filter and derived the boundary blocks from it at run time.
+  With the filters of fewer than `L/2` vanishing moments that we tried (a
+  Coiflet, and random orthonormal filters of lengths 4 to 12), the
+  construction stopped with a message that blamed the length of the filter.
+  The message now names the family. The paragraph of `wbasis()` that described the run-time
+  construction for `family = "Own"` was corrected.
+
 # WaveBased 2.7-0
 
 ## New features

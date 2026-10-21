@@ -393,18 +393,22 @@ NULL
 # .cdv_min_level, with the same meaning of the level: j0 for a decomposed
 # basis or transform, J for PHI/PSI). The boundary blocks come from the
 # precomputed high-precision tables (C_GetCDVBlocks) whenever the filter is
-# tabulated, and are derived at run time otherwise (user-provided filters
-# and non-tabulated sizes). check.range is disabled by wavedec/waverec,
-# whose input is a coefficient vector rather than data on [0, 1]. Returns
-# the CDV block list to be passed to C.
-.cdv_prepare <- function(x, fam, filter.size, wavelet.filter, level, what,
+# tabulated, and are derived at run time otherwise (non-tabulated sizes).
+# User-provided filters (family "Own") are refused, as are the Coiflets:
+# the construction is that of the Daubechies filters. check.range is
+# disabled by wavedec/waverec, whose input is a coefficient vector rather
+# than data on [0, 1]. Returns the CDV block list to be passed to C.
+.cdv_prepare <- function(x, fam, filter.size, level, what,
                          check.range = TRUE) {
   if (fam == 3)
     stop("boundary = \"interval\" is not available for Coiflets: the ",
          "Cohen-Daubechies-Vial construction requires minimal-length ",
          "filters. Use Daublets or Symmlets.")
-  h <- if (fam == 4) as.double(wavelet.filter)
-       else .wb_filter(fam, filter.size)
+  if (fam == 4)
+    stop("boundary = \"interval\" is not available for family = \"Own\": ",
+         "the Cohen-Daubechies-Vial construction is implemented for the ",
+         "Daubechies filters only. Use Daublets or Symmlets.")
+  h <- .wb_filter(fam, filter.size)
   if (check.range) {
     xf <- x[is.finite(x)]
     if (length(xf) && (min(xf) < 0 || max(xf) > 1))
