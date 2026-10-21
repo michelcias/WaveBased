@@ -1,3 +1,16 @@
+# WaveBased 2.6-4
+
+## Bug fixes
+
+* `wavedec()` and `waverec()` now stop when `x` is a matrix, or an array, with
+  more than one dimension of extent greater than one. Before, it was flattened
+  by columns and transformed as a single vector, which is neither the
+  transform of its rows nor that of its columns, and the result was returned
+  as a vector without an error. The message points to
+  `t(apply(x, 1, wavedec, ...))` for the rows. A matrix with a single row or
+  a single column is still taken as a vector, and a data frame now stops with
+  an informative message.
+
 # WaveBased 2.6-3
 
 ## Bug fixes
