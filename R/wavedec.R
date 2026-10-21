@@ -4,7 +4,8 @@
 #' (Mallat, 1989).
 #'
 #' @param x Vector containing the data to be decomposed. Its length must be
-#'   power of 2.
+#'   power of 2. A matrix is not accepted: to decompose its rows, use
+#'   \code{t(apply(x, 1, wavedec, ...))}.
 #' @param j0 The coarsest resolution level where the signal is to be decomposed.
 #' @param family The family of wavelets to use. It can be \emph{Daublets},
 #'   \emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
@@ -68,6 +69,13 @@
 #' @export
 wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
                     wavelet.filter, boundary = c("periodic", "interval")){
+
+  if(is.list(x))
+    stop("'x' must be a numeric vector.")
+
+  if(sum(dim(x) > 1L) > 1L)
+    stop("'x' must be a vector, not a matrix or an array. To decompose the ",
+         "rows of a matrix, use t(apply(x, 1, wavedec, ...)).")
 
   if(is.complex(x)){
     x <- Re(x)

@@ -14,7 +14,9 @@ waverec(
 )
 }
 \arguments{
-\item{x}{Vector containing the decomposed data. Its length must be power of 2.}
+\item{x}{Vector containing the decomposed data. Its length must be power of 2.
+A matrix is not accepted: to reconstruct its rows, use
+\code{t(apply(x, 1, waverec, ...))}.}
 
 \item{j0}{The coarsest resolution level where the signal is decomposed.}
 

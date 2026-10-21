@@ -15,7 +15,8 @@ wavedec(
 }
 \arguments{
 \item{x}{Vector containing the data to be decomposed. Its length must be
-power of 2.}
+power of 2. A matrix is not accepted: to decompose its rows, use
+\code{t(apply(x, 1, wavedec, ...))}.}
 
 \item{j0}{The coarsest resolution level where the signal is to be decomposed.}
 

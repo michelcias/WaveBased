@@ -4,6 +4,8 @@
 #' the reconstruction stage (Mallat, 1989).
 #'
 #' @param x Vector containing the decomposed data. Its length must be power of 2.
+#'   A matrix is not accepted: to reconstruct its rows, use
+#'   \code{t(apply(x, 1, waverec, ...))}.
 #' @param j0 The coarsest resolution level where the signal is decomposed.
 #' @param family The family of wavelets to use. It can be \emph{Daublets},
 #'   \emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
@@ -70,6 +72,13 @@
 #' @export
 waverec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
                     wavelet.filter, boundary = c("periodic", "interval")){
+
+  if(is.list(x))
+    stop("'x' must be a numeric vector.")
+
+  if(sum(dim(x) > 1L) > 1L)
+    stop("'x' must be a vector, not a matrix or an array. To reconstruct the ",
+         "rows of a matrix, use t(apply(x, 1, waverec, ...)).")
 
   if(is.complex(x)){
     x <- Re(x)
