@@ -273,25 +273,32 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   matvals <- mbasis[seq_len(n),]*dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
   coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)
 
+  # The thresholding transforms use the filter of the projection. A filter
+  # given by the user goes as "Own": PHI has already warned if the family
+  # was a built-in one.
+  wargs <- if(missing(wavelet.filter))
+             list(family = family, filter.size = filter.size)
+           else
+             list(family = "Own", wavelet.filter = wavelet.filter)
+
+  dec <- function(v) do.call(wavedec, c(list(x = v, j0 = J0, boundary = boundary), wargs))
+  rec <- function(v) do.call(waverec, c(list(x = v, j0 = J0, boundary = boundary), wargs))
+
   if(thresh == "h"){
-    coefs <- wavedec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- dec(coefs)
     sig <- mad(coefs[-seq_len(length.out = 2^(J1-1))])
     lambda <- sig*sqrt(2*log(2^(J1-1)))
     d <- coefs[-seq_len(length.out = 2^J0)]
     coefs[-seq_len(length.out = 2^J0)] <- d*(abs(d) > lambda)
-    coefs <- waverec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- rec(coefs)
   }
   if(thresh == "s"){
-    coefs <- wavedec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- dec(coefs)
     sig <- mad(coefs[-seq_len(length.out = 2^(J1-1))])
     lambda <- sig*sqrt(2*log(2^(J1-1)))
     d <- coefs[-seq_len(length.out = 2^J0)]
     coefs[-seq_len(length.out = 2^J0)] <- sign(d)*(abs(d) - lambda)*(abs(d) > lambda)
-    coefs <- waverec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- rec(coefs)
   }
 
   if(!warped & power.dens == 0.5)
