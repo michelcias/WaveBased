@@ -71,11 +71,11 @@ SEXP C_WaveDec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP b
   
   rx = REAL(x);
   n = length(x);
-  J = log2(n);
+
+  if(n < 2 || (n & (n - 1)) != 0)
+    error("This sample size must be a power of two, and at least two.");
+  J = (int) round(log2((double) n));
   j0 = INTEGER(J0)[0];
-  
-  if(J != trunc(J))
-    error("This sample size must be a power of two.");
   
   if(j0 > J){
     error("2^j0 must be smaller than the sample size of the data.");
@@ -151,7 +151,10 @@ SEXP C_WaveRec(SEXP x, SEXP family, SEXP fs, SEXP J0, SEXP waveletfilter, SEXP b
   
   rx = REAL(x);
   n = length(x);
-  J = log2(n);
+
+  if(n < 2 || (n & (n - 1)) != 0)
+    error("This sample size must be a power of two, and at least two.");
+  J = (int) round(log2((double) n));
   j0 = INTEGER(J0)[0];
   
   if(j0 > J)
