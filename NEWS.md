@@ -1,3 +1,13 @@
+# WaveBased 2.7-3
+
+## Bug fixes
+
+* `wdensity()` now removes the non-finite elements of `data`, with a
+  warning, as it meant to. The test was inverted: it removed them only when
+  no element was finite, so a single `NA` made the function stop with
+  "missing value where TRUE/FALSE needed". It now stops when no element is
+  finite. The default `xlab` of the plot is still the name of `data`.
+
 # WaveBased 2.7-2
 
 ## Bug fixes

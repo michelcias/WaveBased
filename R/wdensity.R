@@ -196,8 +196,13 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   if(boundary == "interval" && !is.null(wavelet.table))
     warning("wavelet.table is not used with boundary = \"interval\" and was ignored.")
 
-  if (!any(is.finite(data))){
+  # taken before data is changed below, for the default xlab
+  data.name <- deparse(substitute(data))
+
+  if (!all(is.finite(data))){
     data <- data[is.finite(data)]
+    if(!length(data))
+      stop("'data' has no finite element.")
     warning("At least one element of 'data' is not finite. Non-finite elements were removed.")
   }
 
@@ -313,7 +318,7 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
     if(missing(main))
       main <- paste("Density estimates using power =", power.dens)
     if(missing(xlab))
-      xlab <- deparse(substitute(data))
+      xlab <- data.name
     if(missing(ylab))
       ylab <- "Density"
     if(missing(type))
