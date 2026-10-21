@@ -14,9 +14,10 @@ wavedec(
 )
 }
 \arguments{
-\item{x}{Vector containing the data to be decomposed. Its length must be
-power of 2. A matrix is not accepted: to decompose its rows, use
-\code{t(apply(x, 1, wavedec, ...))}.}
+\item{x}{Vector containing the data to be decomposed, or a matrix whose rows
+are the signals to be decomposed. The length of the vector, or the number
+of columns of the matrix, must be power of 2. A matrix with a single
+column is taken as a vector.}
 
 \item{j0}{The coarsest resolution level where the signal is to be decomposed.}
 
@@ -41,7 +42,9 @@ description of the interval construction.}
 }
 \value{
 A vector of wavelet coefficients decomposed from \code{x}, where the
-  coarsest resolution level is \code{j0}.
+  coarsest resolution level is \code{j0}. If \code{x} is a matrix, a matrix
+  of the same dimensions, whose rows hold the coefficients of the rows of
+  \code{x}, with the same row names.
 }
 \description{
 Decomposes a signal using the Mallat's pyramidal algorithm
@@ -54,6 +57,12 @@ whose length must be a power of 2. As result, the function returns
 \ldots d_{J-1,0} \ldots d_{J-1,2^{J-1}-1},}
 where \eqn{c_{j_0,k}} represent the scale coefficients in the coarsest level
 and \eqn{d_{j,k}} represent the detail coefficients in level \eqn{j}.
+
+If \code{x} is a matrix, each row is decomposed, as by
+\code{t(apply(x, 1, wavedec, ...))}, but in a single call to the compiled
+code, which sets up the filter (and, with \code{boundary = "interval"}, the
+boundary blocks) only once. This is not the two-dimensional transform of an
+image.
 
 For the moment, the function deal with boundary conditions by applying
 periodic extensions to the data. In the future, a reflective extesion may be
@@ -76,6 +85,11 @@ x <- sort(runif(n))
 # filter of a Daulet.
 # Consider j0 = 3 as the coarsest resolution level:
 wdx <- wavedec(x, j0 = 3, family = "daublets", filter.size = 18)
+
+# The rows of a matrix are decomposed in a single call:
+X <- rbind(x, rev(x))
+WX <- wavedec(X, j0 = 3, family = "daublets", filter.size = 18)
+all.equal(WX[1, ], wdx)
 
 }
 \references{
