@@ -162,7 +162,7 @@ PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
 
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(as.double(x), fam, filter.size,
                         level = J, what = "wavelet")
 
   wtab <- NULL

@@ -120,16 +120,17 @@ For \emph{Daublets} and \emph{Symmlets} with \code{filter.size} between 4
 and 24, the boundary coefficient blocks are precomputed: they were derived
 from the filters in 320-bit arithmetic (see
 \file{tools/make_cdv_tables.R} in the package sources) and are accurate to
-the precision of the filter coefficients themselves. For other filters
-(\code{family = "Own"}, or non-tabulated sizes) the construction is
-carried out at run time in double precision, which is reliable up to
-moderate filter sizes and validates itself, raising an informative error
-when the filter is too long for a stable construction.
+the precision of the filter coefficients themselves. For the
+non-tabulated sizes the construction is carried out at run time in double
+precision, which is reliable up to moderate filter sizes and validates
+itself, raising an informative error when the filter is too long for a
+stable construction.
 
 The interval basis requires: (i) the data to lie in \eqn{[0,1]};
 (ii) \code{family} to be \emph{Daublets} or \emph{Symmlets} (the
-construction needs minimal-length filters, so \emph{Coiflets} are not
-supported); and (iii) the coarsest level to be large enough for the two
+construction needs minimal-length filters, those of Daubechies, so
+neither \emph{Coiflets} nor user-supplied filters, \code{family = "Own"},
+are supported); and (iii) the coarsest level to be large enough for the two
 boundary zones not to interact -- the function reports the exact minimum
 (roughly \eqn{j_0 \ge \log_2(5 L)}) when the requested level is too small.
 

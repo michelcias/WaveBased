@@ -137,7 +137,7 @@ wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
 
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(xd, fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(xd, fam, filter.size,
                         level = j0, what = "decompose", check.range = FALSE)
 
   wdec <- .Call("_WaveBased_C_WaveDec", xd, as.integer(fam),

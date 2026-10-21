@@ -139,7 +139,7 @@ waverec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
 
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(xd, fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(xd, fam, filter.size,
                         level = j0, what = "decompose", check.range = FALSE)
 
   wrec <- .Call("_WaveBased_C_WaveRec", xd, as.integer(fam),
