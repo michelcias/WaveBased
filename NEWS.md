@@ -1,3 +1,14 @@
+# WaveBased 2.7-2
+
+## Bug fixes
+
+* `wdensity()` now uses the filter given in `wavelet.filter` in the
+  thresholding as well. Before, the projection used it but the transforms of
+  `thresh = "hard"` and `thresh = "soft"` used `family` and `filter.size`:
+  with `family = "Own"` the default `thresh = "hard"` stopped, and with a
+  filter given alongside a built-in family the coefficients were thresholded
+  in the basis of that family. `thresh = "linear"` was not affected.
+
 # WaveBased 2.7-1
 
 ## Bug fixes
