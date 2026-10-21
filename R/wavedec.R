@@ -77,6 +77,11 @@ wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
   if(any(!is.finite(x)))
     stop("'x' must be a numeric vector.")
 
+  n <- length(x)
+  if(n < 2L || bitwAnd(n, n - 1L) != 0L)
+    stop("The length of 'x' must be a power of two, and at least two (got ",
+         n, ").")
+
   if(j0 < 0)
     stop("j0 must be a non-negative integer.")
 

@@ -1,3 +1,18 @@
+# WaveBased 2.6-3
+
+## Bug fixes
+
+* `wavedec()` and `waverec()` now stop when the length of `x` is not a power
+  of two. Before, the check in the C code never fired, because `log2(n)` was
+  truncated to an integer before it was tested, and `waverec()` had no check
+  at all. A length such as 60, 100 or 1000 was accepted without an error: the
+  periodic transform wrote past its work buffers, and R could abort at the
+  next garbage collection. When `j0` was equal to the truncated level (for
+  instance `n = 100` and `j0 = 6`), `x` was returned unchanged, with a warning
+  that there was no decomposition. The C routines carry the same check, for
+  direct callers of `.Call`. A vector of length one, returned unchanged with
+  a warning before, is now rejected too.
+
 # WaveBased 2.6-2
 
 ## Documentation
