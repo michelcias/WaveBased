@@ -968,5 +968,5 @@ void fill_filter_coiflets(int rfs, double *rwfilter){
     rwfilter[101] = -1.055408614665356789775787814731337905514088897800715301399902e-22 * M_SQRT2;
   }
   else
-    error("'fs = %d' is not allowed for 'Coiflets'. For this family, the only filter sizes available are 12, 18, 24, ..., 96 and 102.", rfs);
+    error("'fs = %d' is not allowed for 'Coiflets'. For this family, the only filter sizes available are 6, 12, 18, ..., 96 and 102.", rfs);
 }

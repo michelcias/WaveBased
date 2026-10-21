@@ -1,3 +1,10 @@
+# WaveBased 2.7-5
+
+## Bug fixes
+
+* The error for an unavailable `filter.size` of the Coiflets listed the sizes
+  from 12, but 6 is available too.
+
 # WaveBased 2.7-4
 
 ## Documentation

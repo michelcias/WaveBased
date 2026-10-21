@@ -49,3 +49,13 @@ test_that("wavedec and waverec reject an array and a data frame", {
   expect_equal(waverec(matrix(x, ncol = 1)), waverec(x))
   expect_equal(wavedec(array(x, c(1, 16, 1))), wavedec(x))
 })
+
+test_that("an unavailable filter size lists the available ones", {
+  x <- sort(runif(16))
+  expect_error(PHI(x, J = 3, family = "Coiflets", filter.size = 8),
+               "6, 12, 18, ..., 96 and 102", fixed = TRUE)
+  expect_error(PHI(x, J = 3, family = "Symmlets", filter.size = 2),
+               "4, 6, 8, ..., 38 and 40", fixed = TRUE)
+  expect_error(PHI(x, J = 3, family = "Daublets", filter.size = 3),
+               "2, 4, 6, ..., 74 and 76", fixed = TRUE)
+})
