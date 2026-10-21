@@ -28,9 +28,10 @@ is provided \code{wavelet.filter}.}
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
 
-\item{wavelet.filter}{Use this to provide your own filter. To use this
-argument, you must specify \code{family = "Own"}. Do not use it, if you are
-not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter, the low-pass
+filter of an orthonormal wavelet basis. To use this argument, you must
+specify \code{family = "Own"}. The filter is checked: see Details of
+\command{\link{wbasis}}.}
 
 \item{boundary}{The boundary treatment of the transform. Either
 \code{"periodic"} (the default, the usual periodic wavelet transform)

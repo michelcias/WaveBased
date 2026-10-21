@@ -67,9 +67,10 @@ on the chosen wavelet family.}
 \item{prec.wavelet}{The number of iterations to be performed in the
 Daubechies-Lagarias algorithm.}
 
-\item{wavelet.filter}{Use this to provide your own filter. To use this
-argument, you must specify \code{family = "Own"}. Do not use it, if you are
-not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter, the low-pass
+filter of an orthonormal wavelet basis. To use this argument, you must
+specify \code{family = "Own"}. The filter is checked: see Details of
+\command{\link{wbasis}}.}
 
 \item{wavelet.table}{An optional object created by \command{\link{wtable}}.
 When provided, the wavelet basis is evaluated by table lookup with linear

@@ -59,8 +59,8 @@ depend on the chosen family; see \command{\link{wbasis}}.}
 algorithm used to evaluate the basis functions at the data points.}
 
 \item{wavelet.filter}{Use this to provide your own filter, together with
-\code{family = "Own"}. Do not use it, if you are not sure about what you
-are doing. See \command{\link{wbasis}}.}
+\code{family = "Own"}. The filter is checked: see Details of
+\command{\link{wbasis}}.}
 
 \item{boundary}{The boundary treatment of the basis. Either
 \code{"periodic"} (default, the periodized basis) or \code{"interval"}

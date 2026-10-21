@@ -308,6 +308,7 @@ wmixreg <- function(y, x = seq_along(y)/length(y), mu.U, mu.V, cut,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter)
   }
 
   # --- The means of the two components ------------------------------------
@@ -369,8 +370,11 @@ wmixreg <- function(y, x = seq_along(y)/length(y), mu.U, mu.V, cut,
            else
              list(family = family, filter.size = filter.size)
 
-  dec <- function(v, lev) do.call(wavedec, c(list(x = v, j0 = lev), wargs))
-  rec <- function(v, lev) do.call(waverec, c(list(x = v, j0 = lev), wargs))
+  # the filter was checked above: the transforms repeat the check quietly
+  dec <- function(v, lev)
+    .wb_quiet_filter(do.call(wavedec, c(list(x = v, j0 = lev), wargs)))
+  rec <- function(v, lev)
+    .wb_quiet_filter(do.call(waverec, c(list(x = v, j0 = lev), wargs)))
 
   if(is.null(newx))
     newx <- seq(min(x), max(x), length.out = length.obs)

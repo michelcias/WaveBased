@@ -28,9 +28,10 @@
 #'   on the chosen wavelet family.
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
-#'   not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param wavelet.table An optional object created by \command{\link{wtable}}.
 #'   When provided, the wavelet basis is evaluated by table lookup with linear
 #'   interpolation instead of the Daubechies-Lagarias algorithm, which is
@@ -279,15 +280,17 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)
 
   # The thresholding transforms use the filter of the projection. A filter
-  # given by the user goes as "Own": PHI has already warned if the family
-  # was a built-in one.
+  # given by the user goes as "Own": PHI has already checked it, and warned
+  # if the family was a built-in one.
   wargs <- if(missing(wavelet.filter))
              list(family = family, filter.size = filter.size)
            else
              list(family = "Own", wavelet.filter = wavelet.filter)
 
-  dec <- function(v) do.call(wavedec, c(list(x = v, j0 = J0, boundary = boundary), wargs))
-  rec <- function(v) do.call(waverec, c(list(x = v, j0 = J0, boundary = boundary), wargs))
+  dec <- function(v) .wb_quiet_filter(
+    do.call(wavedec, c(list(x = v, j0 = J0, boundary = boundary), wargs)))
+  rec <- function(v) .wb_quiet_filter(
+    do.call(waverec, c(list(x = v, j0 = J0, boundary = boundary), wargs)))
 
   if(thresh == "h"){
     coefs <- dec(coefs)

@@ -37,9 +37,9 @@ chosen family. See Details for more information.}
 Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 functions of the specified wavelet basis at the data points.}
 
-\item{wavelet.filter}{Use this to provide your own filter. To use this
-argument, you must specify \code{family = "Own"}. Do not use it, if you are
-not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter, the low-pass
+filter of an orthonormal wavelet basis. To use this argument, you must
+specify \code{family = "Own"}. The filter is checked: see Details.}
 
 \item{boundary}{The boundary treatment of the basis. One of
 \code{"periodic"} (the default, the periodized basis), \code{"none"}
@@ -172,13 +172,24 @@ satisfying the relation \code{N = filter.size/2}. In the case of
 \eqn{[0, L - 1]} with \eqn{L} = \code{filter.size}, has vanishing moments
 about the point \eqn{N}: \eqn{\int (x - N)^n \phi(x) dx = 0, n = 1, \ldots, N}.
 
-This function accepects wavelet filters provided by the user. In this case,
-the filter is given in the argument \code{wavelet filter}, while setting
+This function accepts wavelet filters provided by the user. In this case,
+the filter is given in the argument \code{wavelet.filter}, while setting
 \code{family = "Own"}. If the filter is provided and \code{family} is not
 \code{"Own"}, a warning is released and the function will still consider the
-wavelet filter given. \bold{Caution: the function does not check if the filter
-provided is in fact a wavelet filter. Therefore, do not use
-\code{wavelet.filter}, unless you know what you are doing.}
+wavelet filter given. The filter must be the low-pass (scaling) filter
+\eqn{h} of an orthonormal wavelet basis of compact support, normalized as
+the built-in ones, and the function checks the conditions that hold for any
+such filter: an even length; \eqn{\sum_n h_n = \sqrt{2}}; the orthogonality
+to its translations by even shifts, \eqn{\sum_n h_n h_{n+2k} = \delta_k};
+and the condition of Lawton (1991), without which the integer translations
+of the scaling function are not orthonormal (\code{c(1, 0, 0, 1)/sqrt(2)},
+for example, satisfies the first two but not this one). The function stops
+when the coefficients fail the first two by more than \code{1e-6}, or when
+the condition of Lawton fails. It warns when they hold up to an error
+between \code{1e-10} and \code{1e-6} only, as with coefficients copied with
+a few digits, and when the filter nearly fails the condition of Lawton,
+which makes the scaling function very irregular. The number of vanishing
+moments is not checked: it is a choice of the designer of the filter.
 
 This function works only with real valued observations. If, for some reason,
 the data set is composed by complex numbers, the function will be applied only
@@ -302,6 +313,10 @@ Daubechies, I. and Lagarias, J.C. (1992). Two-Scale Difference Equations II.
 Local Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM
 Journal on Mathematical Analysis}, 24(4), 1031--1079,
 \url{https://epubs.siam.org/doi/10.1137/0523059}.
+
+Lawton, W.M. (1991). Necessary and Sufficient Conditions for Constructing
+Orthonormal Wavelet Bases. \emph{Journal of Mathematical Physics}, 32(1),
+57--61, \doi{10.1063/1.529093}.
 
 Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
 PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open

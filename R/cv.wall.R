@@ -234,6 +234,10 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
     eps <- 1.9^(-max(J))
 
   wf.own <- if(missing(wavelet.filter)) NULL else wavelet.filter
+  # checked once here: the internal calls of wtable and wbasis repeat the
+  # check quietly (.wall_table, .wall_wbasis)
+  if(!is.null(wf.own))
+    .wb_check_filter(wf.own)
 
   if(is.null(foldid))
     foldid <- sample(rep_len(seq_len(nfolds), n))

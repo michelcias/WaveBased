@@ -1,3 +1,37 @@
+# WaveBased 2.8-0
+
+## New features
+
+* A user-supplied filter (`family = "Own"`, or a `wavelet.filter` given
+  alongside a built-in family) is now checked to be the low-pass filter of an
+  orthonormal wavelet basis of compact support, in `PHI()`, `PSI()`,
+  `wbasis()`, `wavedec()`, `waverec()`, `wtable()`, `wdensity()`, `wall()`,
+  `cv.wall()`, `wmixreg()`, `bayesthresh()`, `bwmixreg()` and `bwregime()`.
+  Before, no function checked it, and the documentation said so. The checks
+  are the conditions that hold for any such filter: an even length, a sum of
+  `sqrt(2)`, the orthogonality to the translations by even shifts, and the
+  condition of Lawton (1991), without which the integer translations of the
+  scaling function are not orthonormal (`c(1, 0, 0, 1)/sqrt(2)` satisfies the
+  other three but not this one). The number of vanishing moments is not
+  checked.
+* The function stops when the sum or the orthogonality fail by more than
+  `1e-6`, with a hint when the filter is the high-pass one, sums to 1 or sums
+  to `-sqrt(2)`, and when the condition of Lawton fails. It warns when they
+  hold up to an error between `1e-10` and `1e-6` only, as with coefficients
+  copied with a few digits, and when the filter nearly fails the condition of
+  Lawton, which makes the scaling function very irregular. The filters of
+  the built-in families pass silently. `wdensity()`, `wall()`, `cv.wall()`
+  and `wmixreg()` warn once, and not at each of their internal calls.
+* This changes the behavior: a filter accepted before may now stop. The odd
+  length is still refused with a message that says "even", now in all the
+  functions above and not only in `wtable()`.
+
+## Documentation
+
+* The parameter `wavelet.filter` and the Details of `PHI()` and `wbasis()`
+  describe the checks, in place of the warning that the filter was not
+  checked.
+
 # WaveBased 2.7-5
 
 ## Bug fixes
