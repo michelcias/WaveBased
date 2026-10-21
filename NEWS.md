@@ -1,3 +1,19 @@
+# WaveBased 2.7-0
+
+## New features
+
+* `wavedec()` and `waverec()` transform a matrix by rows: each row is a
+  signal, and the result is a matrix of the same dimensions, with the same row
+  names. This replaces the error of 2.6-4. The rows go through a single call
+  to the compiled code, which sets up the filter, and the boundary blocks of
+  `boundary = "interval"`, only once. The numbers are the same as those of
+  `t(apply(x, 1, wavedec, ...))`, from 2 to 13 times faster in our
+  measurements (500 to 5000 rows of 256 or 1024 points). The number of
+  columns must be a power of two. A matrix with a single column is still taken
+  as a vector, and an array with more than one dimension of extent greater
+  than one, or a data frame, still stops. The two-dimensional transform of an
+  image is not computed by these functions.
+
 # WaveBased 2.6-4
 
 ## Bug fixes

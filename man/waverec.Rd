@@ -14,9 +14,10 @@ waverec(
 )
 }
 \arguments{
-\item{x}{Vector containing the decomposed data. Its length must be power of 2.
-A matrix is not accepted: to reconstruct its rows, use
-\code{t(apply(x, 1, waverec, ...))}.}
+\item{x}{Vector containing the decomposed data, or a matrix whose rows are
+decomposed signals. The length of the vector, or the number of columns of
+the matrix, must be power of 2. A matrix with a single column is taken as
+a vector.}
 
 \item{j0}{The coarsest resolution level where the signal is decomposed.}
 
@@ -41,7 +42,9 @@ description of the interval construction.}
 }
 \value{
 A vector containing a reconstruction of the decomposed data \code{x},
-  whose coarsest resolution level is \code{j0}.
+  whose coarsest resolution level is \code{j0}. If \code{x} is a matrix, a
+  matrix of the same dimensions, whose rows hold the reconstruction of the
+  rows of \code{x}, with the same row names.
 }
 \description{
 Reconstructs a signal using the Mallat's pyramidal algorithm in
@@ -51,6 +54,11 @@ the reconstruction stage (Mallat, 1989).
 This function applies the inverse discrete wavelet transform to the
 (decomposed) data \code{x}, whose length must be a power of 2. In this case,
 it is assumed that the data is decomposed with the coarsest level \code{j0}.
+
+If \code{x} is a matrix, each row is reconstructed, as by
+\code{t(apply(x, 1, waverec, ...))}, but in a single call to the compiled
+code, which sets up the filter (and, with \code{boundary = "interval"}, the
+boundary blocks) only once.
 
 For the moment, the function deal with boundary conditions by applying
 periodic extensions to the data. In the future, a reflective extesion may be
@@ -79,6 +87,11 @@ wrx <- waverec(wdx, j0 = 3, family = "daublets", filter.size = 18)
 # The reconstructed vector should be equal to x (or, at least,
 # as close as possible)
 sum(abs(wrx-x))
+
+# The rows of a matrix are reconstructed in a single call:
+X <- rbind(x, rev(x))
+WX <- wavedec(X, j0 = 3, family = "daublets", filter.size = 18)
+all.equal(waverec(WX, j0 = 3, family = "daublets", filter.size = 18), X)
 
 }
 \references{

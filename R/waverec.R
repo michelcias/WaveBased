@@ -3,9 +3,10 @@
 #' @description Reconstructs a signal using the Mallat's pyramidal algorithm in
 #' the reconstruction stage (Mallat, 1989).
 #'
-#' @param x Vector containing the decomposed data. Its length must be power of 2.
-#'   A matrix is not accepted: to reconstruct its rows, use
-#'   \code{t(apply(x, 1, waverec, ...))}.
+#' @param x Vector containing the decomposed data, or a matrix whose rows are
+#'   decomposed signals. The length of the vector, or the number of columns of
+#'   the matrix, must be power of 2. A matrix with a single column is taken as
+#'   a vector.
 #' @param j0 The coarsest resolution level where the signal is decomposed.
 #' @param family The family of wavelets to use. It can be \emph{Daublets},
 #'   \emph{Symmlets} or \emph{Coiflets}. It can also be \emph{Own}, if a filter
@@ -28,6 +29,11 @@
 #' (decomposed) data \code{x}, whose length must be a power of 2. In this case,
 #' it is assumed that the data is decomposed with the coarsest level \code{j0}.
 #'
+#' If \code{x} is a matrix, each row is reconstructed, as by
+#' \code{t(apply(x, 1, waverec, ...))}, but in a single call to the compiled
+#' code, which sets up the filter (and, with \code{boundary = "interval"}, the
+#' boundary blocks) only once.
+#'
 #' For the moment, the function deal with boundary conditions by applying
 #' periodic extensions to the data. In the future, a reflective extesion may be
 #' taken into account.
@@ -37,7 +43,9 @@
 #' \command{\link{wbasis}}.
 #'
 #' @return A vector containing a reconstruction of the decomposed data \code{x},
-#'   whose coarsest resolution level is \code{j0}.
+#'   whose coarsest resolution level is \code{j0}. If \code{x} is a matrix, a
+#'   matrix of the same dimensions, whose rows hold the reconstruction of the
+#'   rows of \code{x}, with the same row names.
 #'
 #' @references
 #' Mallat, S.G. (1989). A theory for multiresolution signal decomposition:
@@ -68,17 +76,27 @@
 #' # as close as possible)
 #' sum(abs(wrx-x))
 #'
+#' # The rows of a matrix are reconstructed in a single call:
+#' X <- rbind(x, rev(x))
+#' WX <- wavedec(X, j0 = 3, family = "daublets", filter.size = 18)
+#' all.equal(waverec(WX, j0 = 3, family = "daublets", filter.size = 18), X)
+#'
 #' @keywords smooth
 #' @export
 waverec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
                     wavelet.filter, boundary = c("periodic", "interval")){
 
   if(is.list(x))
-    stop("'x' must be a numeric vector.")
+    stop("'x' must be a numeric vector or matrix.")
 
-  if(sum(dim(x) > 1L) > 1L)
-    stop("'x' must be a vector, not a matrix or an array. To reconstruct the ",
-         "rows of a matrix, use t(apply(x, 1, waverec, ...)).")
+  # a matrix is reconstructed by rows; a matrix with a single column, or an
+  # array with a single dimension of extent greater than one, is a vector
+  rows <- is.matrix(x) && ncol(x) > 1L
+  if(!rows){
+    if(sum(dim(x) > 1L) > 1L)
+      stop("'x' must be a vector or a matrix, not an array.")
+    x <- as.vector(x)
+  }
 
   if(is.complex(x)){
     x <- Re(x)
@@ -88,10 +106,10 @@ waverec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
   if(any(!is.finite(x)))
     stop("'x' must be a numeric vector.")
 
-  n <- length(x)
+  n <- if(rows) ncol(x) else length(x)
   if(n < 2L || bitwAnd(n, n - 1L) != 0L)
-    stop("The length of 'x' must be a power of two, and at least two (got ",
-         n, ").")
+    stop("The length of 'x', or its number of columns, must be a power of ",
+         "two, and at least two (got ", n, ").")
 
   if(j0 < 0)
     stop("j0 must be a non-negative integer.")
@@ -117,14 +135,18 @@ waverec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
   if(bcode == 0L)
     stop("boundary must be \"periodic\" or \"interval\" for the wavelet transform.")
 
+  xd <- if(rows) matrix(as.double(x), nrow(x), ncol(x)) else as.double(x)
+
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(xd, fam, filter.size, wavelet.filter,
                         level = j0, what = "decompose", check.range = FALSE)
 
-  wrec <- .Call("_WaveBased_C_WaveRec", as.double(x), as.integer(fam),
+  wrec <- .Call("_WaveBased_C_WaveRec", xd, as.integer(fam),
                 as.integer(filter.size), as.integer(j0),
                 as.double(wavelet.filter), bcode, cdv)
+  if(rows)
+    rownames(wrec) <- rownames(x)
 
   return(wrec)
 
