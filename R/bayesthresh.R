@@ -165,6 +165,7 @@ bayesthresh <- function(x, j0 = 3, alpha = 0.5, beta = 1, C1 = NA, C2 = NA,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter, call = sys.call(-1L))
   }
 
   list(fam = as.integer(fam), filter = as.double(wavelet.filter),

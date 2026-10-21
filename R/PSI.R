@@ -15,9 +15,10 @@
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
-#'   not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param boundary The boundary treatment of the basis. One of
 #'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
 #'   (the raw translates) or \code{"interval"} (the boundary-corrected
@@ -158,6 +159,7 @@ PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter)
   }
 
   bcode <- .wb_boundary_code(boundary)

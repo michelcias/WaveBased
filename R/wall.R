@@ -32,8 +32,8 @@
 #' @param prec.wavelet The number of iterations of the Daubechies-Lagarias
 #'   algorithm used to evaluate the basis functions at the data points.
 #' @param wavelet.filter Use this to provide your own filter, together with
-#'   \code{family = "Own"}. Do not use it, if you are not sure about what you
-#'   are doing. See \command{\link{wbasis}}.
+#'   \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param boundary The boundary treatment of the basis. Either
 #'   \code{"periodic"} (default, the periodized basis) or \code{"interval"}
 #'   (the boundary-corrected orthonormal basis of Cohen, Daubechies and Vial,
@@ -238,6 +238,10 @@ wall <- function(x, y, J, j0 = 0, family = "Daublets", filter.size = 20,
   J <- .wall_J(J, j0, d)
 
   wf.own <- if(missing(wavelet.filter)) NULL else wavelet.filter
+  # checked once here: the internal calls of wtable and wbasis repeat the
+  # check quietly (.wall_table, .wall_wbasis)
+  if(!is.null(wf.own))
+    .wb_check_filter(wf.own)
 
   if(missing(eps))
     eps <- NULL
@@ -772,8 +776,8 @@ plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
     wtable(family = family, filter.size = filter.size,
            prec.wavelet = prec.wavelet, check = FALSE)
   else
-    wtable(family = "Own", prec.wavelet = prec.wavelet,
-           wavelet.filter = wavelet.filter, check = FALSE)
+    .wb_quiet_filter(wtable(family = "Own", prec.wavelet = prec.wavelet,
+                            wavelet.filter = wavelet.filter, check = FALSE))
 }
 
 # Decides the sparse storage of the design. The expected density comes from
@@ -821,10 +825,11 @@ plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
            filter.size = obj$filter.size, prec.wavelet = obj$prec.wavelet,
            boundary = obj$boundary, wavelet.table = obj$wavelet.table)
   else
-    wbasis(u, j0 = obj$j0, J = J, family = "Own",
-           filter.size = obj$filter.size, prec.wavelet = obj$prec.wavelet,
-           wavelet.filter = obj$wavelet.filter,
-           boundary = obj$boundary, wavelet.table = obj$wavelet.table)
+    .wb_quiet_filter(
+      wbasis(u, j0 = obj$j0, J = J, family = "Own",
+             filter.size = obj$filter.size, prec.wavelet = obj$prec.wavelet,
+             wavelet.filter = obj$wavelet.filter,
+             boundary = obj$boundary, wavelet.table = obj$wavelet.table))
 }
 
 # Evaluates the wavelet basis of one (already rescaled) covariate directly
