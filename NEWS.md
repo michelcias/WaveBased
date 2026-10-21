@@ -1,3 +1,15 @@
+# WaveBased 2.7-4
+
+## Documentation
+
+* The vanishing moments of the Coiflets were wrong in `PHI()`, `PSI()` and
+  `wbasis()`: they gave `filter.size/6` for both the scaling function and the
+  wavelet. The wavelet has `N = filter.size/3` vanishing moments, and the
+  moments of the scaling function of orders 1 to `N` vanish about the point
+  `N` of its support `[0, filter.size - 1]`. The paragraph on user-supplied
+  filters of `PHI()` and `wbasis()` named the family `"Other"` where the code
+  uses `"Own"`.
+
 # WaveBased 2.7-3
 
 ## Bug fixes
