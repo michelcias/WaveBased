@@ -48,8 +48,8 @@ integers, used for all the covariates). By default, the grid
 \code{J1:max(J1+1, ceiling(log2(n)/2))} is used, with
 \code{J1 = max(j0+1, 2)}. It starts at \code{J = 2} because, under the
 default \code{eps} of the periodized basis, \eqn{1.9^{-1} > 0.5} falls
-outside the range of the rescaling, and \code{J = 1} would be a
-degenerate candidate.}
+outside the range of the rescaling, and \code{J = 1} would stop with an
+error (see \code{eps}).}
 
 \item{j0}{The coarsest resolution level of the decomposed wavelet basis.
 Default is \code{j0 = 0}. See \command{\link{wall}}.}
@@ -67,8 +67,9 @@ basis evaluation. See \command{\link{wall}}.}
 \item{eps}{A value in \eqn{[0, 0.5)} used by the rescaling. By default,
 \code{eps} \eqn{= 1.9^{-J}} for each candidate \code{J} (periodized
 basis); with \code{share.design = TRUE}, a single value
-\eqn{1.9^{-\max(J)}} is used for the whole grid. See
-\command{\link{wall}}.}
+\eqn{1.9^{-\max(J)}} is used for the whole grid. A value outside
+\eqn{[0, 0.5)}, supplied or given by the default for some candidate,
+stops with an error. See \command{\link{wall}}.}
 
 \item{type.measure}{The loss used for cross-validation, among the measures
 available in \command{\link[glmnet]{cv.glmnet}} for logistic regression:

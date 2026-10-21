@@ -149,13 +149,33 @@ test_that("scaling columns kept: d non-identified directions, predictions unaffe
   expect_lt(max(abs(X1 %*% (b + v) - X1 %*% b)), 1e-8)
 })
 
-test_that("wall warns when the default eps is degenerate at J = 1", {
+test_that("wall and cv.wall stop when eps is outside [0, 0.5), whatever its source", {
   dat <- .wall_sim()
+  msg <- "must belong to \\[0, 0.5\\), so that \\[eps, 1 - eps\\] is a nondegenerate interval"
 
-  expect_warning(wall(dat$x, dat$y, J = 1, filter.size = 8),
-                 "default 'eps' is 0.5 or more")
-  expect_no_warning(wall(dat$x, dat$y, J = 1, filter.size = 8, eps = 0.1))
+  # The default 1.9^(-J) at J = 1
+  expect_error(wall(dat$x, dat$y, J = 1, filter.size = 8),
+               paste0(msg, "; got eps = 0.5263\\."))
+  # Supplied values, scalar or one per covariate, at a J where the default
+  # would be valid
+  expect_error(wall(dat$x, dat$y, J = 2, filter.size = 8, eps = 0.6),
+               "got eps = 0.6\\.")
+  expect_error(wall(dat$x, dat$y, J = 2, filter.size = 8, eps = 0.5),
+               "got eps = 0.5\\.")
+  expect_error(wall(dat$x, dat$y, J = 2, filter.size = 8, eps = -0.1),
+               "got eps = -0.1\\.")
+  expect_error(wall(dat$x, dat$y, J = 2, filter.size = 8, eps = c(0.1, 0.7)),
+               "got eps = 0.7\\.")
+  # A grid containing a candidate whose default eps is degenerate
+  expect_error(cv.wall(dat$x, dat$y, J = 1:2, filter.size = 8, nfolds = 5),
+               "got eps = 0.5263\\.")
+
+  expect_no_error(wall(dat$x, dat$y, J = 1, filter.size = 8, eps = 0.1))
   expect_no_warning(wall(dat$x, dat$y, J = 2, filter.size = 8))
+  # With share.design, the whole grid uses 1.9^(-max(J)), valid at J = 1
+  set.seed(5)
+  expect_no_error(cv.wall(dat$x, dat$y, J = 1:2, filter.size = 8, nfolds = 5,
+                          share.design = TRUE))
 })
 
 test_that("wall validates its inputs", {

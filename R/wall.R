@@ -47,7 +47,10 @@
 #'   default, \code{eps} \eqn{= 1.9^{-J}} for the periodized basis, following
 #'   Montoril et al. (2019), and \code{eps} \eqn{= 0} for
 #'   \code{boundary = "interval"} (whose construction does not suffer from
-#'   the wrap-around boundary effect). Only used if \code{rescale = TRUE}.
+#'   the wrap-around boundary effect). A value outside \eqn{[0, 0.5)},
+#'   supplied or given by the default, stops with an error, since the
+#'   interval would then be a single point or reversed. Only used if
+#'   \code{rescale = TRUE}.
 #' @param use.table Controls whether the basis functions are evaluated by
 #'   table lookup with linear interpolation (see \command{\link{wtable}}),
 #'   which is considerably faster than the exact Daubechies-Lagarias
@@ -703,23 +706,33 @@ plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
 
 # Resolves the boundary-avoidance constant of the rescaling, one entry per
 # covariate: 1.9^(-J) for the periodized basis (Montoril et al., 2019) and 0
-# for the interval basis or when the data are not rescaled.
+# for the interval basis or when the data are not rescaled. The value is
+# checked once it is resolved, whether it is the default or supplied.
 .wall_eps <- function(eps, J, j0, boundary, rescale){
   if(!rescale || boundary == "interval")
     return(rep_len(0, length(J)))
-  if(is.null(eps)){
+  if(is.null(eps))
     eps <- 1.9^(-J)
-    if(any(eps >= 0.5))
-      warning("With J = 1, the default 'eps' is 0.5 or more and the rescaling ",
-              "is degenerate; supply 'eps' in [0, 0.5) or use J >= 2.",
-              call. = FALSE)
-    return(eps)
-  }
-  if(!is.numeric(eps) || any(!is.finite(eps)) || any(eps < 0) || any(eps >= 0.5))
-    stop("'eps' must belong to the interval [0, 0.5).")
-  if(length(eps) != 1L && length(eps) != length(J))
+  else if(length(eps) != 1L && length(eps) != length(J))
     stop("'eps' must have length 1 or one entry per covariate (", length(J), ").")
+  .check_eps(eps)
   rep_len(eps, length(J))
+}
+
+# Checks the constant of a linear rescaling to [eps, 1-eps], shared by
+# wall() and wdensity(). The interval is nondegenerate only for
+# 0 <= eps < 0.5, whatever the rule that produced eps: at 0.5 it is a single
+# point and above it the map is reversed into a band around 1/2, which
+# predictions truncated to [eps, 1-eps] collapse to a single value.
+.check_eps <- function(eps){
+  if(!is.numeric(eps) || any(!is.finite(eps)))
+    stop("'eps' must be numeric and finite.", call. = FALSE)
+  bad <- eps < 0 | eps >= 0.5
+  if(any(bad))
+    stop("'eps' must belong to [0, 0.5), so that [eps, 1 - eps] is a ",
+         "nondegenerate interval; got eps = ",
+         paste(unique(signif(eps[bad], 4)), collapse = ", "), ".", call. = FALSE)
+  invisible(eps)
 }
 
 # Location/scale of the linear map taking each covariate to [eps, 1-eps],

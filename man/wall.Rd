@@ -77,7 +77,10 @@ data. If \code{FALSE}, the covariates are assumed to lie in \eqn{[0,1]}.}
 default, \code{eps} \eqn{= 1.9^{-J}} for the periodized basis, following
 Montoril et al. (2019), and \code{eps} \eqn{= 0} for
 \code{boundary = "interval"} (whose construction does not suffer from
-the wrap-around boundary effect). Only used if \code{rescale = TRUE}.}
+the wrap-around boundary effect). A value outside \eqn{[0, 0.5)},
+supplied or given by the default, stops with an error, since the
+interval would then be a single point or reversed. Only used if
+\code{rescale = TRUE}.}
 
 \item{use.table}{Controls whether the basis functions are evaluated by
 table lookup with linear interpolation (see \command{\link{wtable}}),

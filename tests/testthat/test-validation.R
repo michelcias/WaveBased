@@ -49,3 +49,26 @@ test_that("wavedec and waverec reject an array and a data frame", {
   expect_equal(waverec(matrix(x, ncol = 1)), waverec(x))
   expect_equal(wavedec(array(x, c(1, 16, 1))), wavedec(x))
 })
+
+test_that("wdensity stops when eps is outside [0, 0.5) and is used", {
+  set.seed(11)
+  d <- rbeta(200, 2, 5)
+  args <- list(d, wf = function(x) rep_len(1, length(x)), power.dens = 0.5,
+               filter.size = 8, thresh = "linear", plot = FALSE)
+
+  # The default 1.9^(-J1) at J1 = 1, and supplied values
+  expect_error(do.call(wdensity, c(args, J1 = 1, warped = FALSE)),
+               "must belong to \\[0, 0.5\\).*got eps = 0.5263\\.")
+  expect_error(do.call(wdensity, c(args, J1 = 4, warped = FALSE, eps = 0.5)),
+               "got eps = 0.5\\.")
+  expect_error(do.call(wdensity, c(args, J1 = 4, warped = FALSE, eps = 0.7)),
+               "got eps = 0.7\\.")
+  expect_error(do.call(wdensity, c(args, J1 = 4, warped = FALSE, eps = -0.1)),
+               "got eps = -0.1\\.")
+  expect_no_error(do.call(wdensity, c(args, J1 = 4, warped = FALSE, eps = 0.1)))
+
+  # eps is not used by the warped estimator, nor without rescaling
+  expect_no_error(do.call(wdensity, c(args, J1 = 4, eps = 0.7)))
+  expect_no_error(do.call(wdensity, c(args, J1 = 4, warped = FALSE,
+                                      rescale = FALSE, eps = 0.7)))
+})

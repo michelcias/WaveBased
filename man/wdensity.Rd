@@ -96,9 +96,12 @@ provides a kernel density estimate of \code{data}. Only used if
 interval [\code{eps}, 1-\code{eps}], where \code{eps} is another argument.
 Only used if \code{warped = FALSE}.}
 
-\item{eps}{A value in the unit interval. It is used to rescale the \code{data}
+\item{eps}{A value in \eqn{[0, 0.5)}. It is used to rescale the \code{data}
 in the interval \eqn{[}\code{eps}\eqn{, 1-}\code{eps}\eqn{]}. By default,
-\code{eps} \eqn{= 1.9^{-J1}}. Only used if \code{warped = FALSE}.}
+\code{eps} \eqn{= 1.9^{-J1}}. A value outside \eqn{[0, 0.5)}, supplied or
+given by the default, stops with an error, since the interval would then
+be a single point or reversed. Only used if \code{warped = FALSE} and
+\code{rescale = TRUE}.}
 
 \item{thresh}{Indicates if the wavelet-density estimate should be regularized
 and how. If \code{thresh = "linear"}, the density estimate will not be

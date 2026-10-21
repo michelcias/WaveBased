@@ -1,3 +1,24 @@
+# WaveBased 2.7-1
+
+## Bug fixes
+
+* `wall()`, `cv.wall()` and `wdensity()` stop when the rescaling constant
+  `eps` lies outside `[0, 0.5)`, whatever its source: supplied by the user,
+  or given by the default `1.9^(-J)` (`1.9^(-J1)` in `wdensity()`), as at
+  `J = 1`. The value is checked once it is resolved, by a single rule shared
+  by the three functions, and the message reports it. At `eps = 0.5` the
+  interval `[eps, 1 - eps]` is a single point, and above it the covariates
+  were mapped, reversed, into a narrow band around 1/2. In `wall()`, the fit
+  ran on that band, but `predict()` truncates the rescaled values to
+  `[eps, 1 - eps]`, which then sends every observation to the same point, so
+  the predictions were constant. `cv.wall()` scores its folds on the design
+  of the fit, without that truncation, so it could report a low
+  cross-validated error and select a `J` whose fitted object only predicts a
+  single class. Before, the default `eps >= 0.5` only raised a warning (since
+  2.6-1), and `wdensity()` accepted any `eps` in `[0, 1]`.
+* `wdensity()` checks `eps` only when it is used, i.e., with
+  `warped = FALSE` and `rescale = TRUE`.
+
 # WaveBased 2.7-0
 
 ## New features

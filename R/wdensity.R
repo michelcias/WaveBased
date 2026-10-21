@@ -50,9 +50,12 @@
 #' @param rescale Logical. If TRUE, the \code{data} will be rescaled in the
 #'   interval [\code{eps}, 1-\code{eps}], where \code{eps} is another argument.
 #'   Only used if \code{warped = FALSE}.
-#' @param eps A value in the unit interval. It is used to rescale the \code{data}
+#' @param eps A value in \eqn{[0, 0.5)}. It is used to rescale the \code{data}
 #'   in the interval \eqn{[}\code{eps}\eqn{, 1-}\code{eps}\eqn{]}. By default,
-#'   \code{eps} \eqn{= 1.9^{-J1}}. Only used if \code{warped = FALSE}.
+#'   \code{eps} \eqn{= 1.9^{-J1}}. A value outside \eqn{[0, 0.5)}, supplied or
+#'   given by the default, stops with an error, since the interval would then
+#'   be a single point or reversed. Only used if \code{warped = FALSE} and
+#'   \code{rescale = TRUE}.
 #' @param thresh Indicates if the wavelet-density estimate should be regularized
 #'   and how. If \code{thresh = "linear"}, the density estimate will not be
 #'   regularized; if \code{thresh = "hard"}, the hard-thresholding regularizer is
@@ -201,8 +204,12 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
     warning("At least one element of 'data' is not finite. Non-finite elements were removed.")
   }
 
-  if(eps < 0 | eps > 1)
-    stop("'eps' must belong to the interval [0,1].")
+  # eps is only used by the rescaling of the unwarped estimator.
+  if(!warped && rescale){
+    if(length(eps) != 1L)
+      stop("'eps' must be a single value.")
+    .check_eps(eps)
+  }
 
   thresh <- tolower(substring(thresh, 1, 1))
   if(!thresh %in% c("l","h","s"))
