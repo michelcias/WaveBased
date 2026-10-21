@@ -19,3 +19,16 @@ test_that("the thresholding of wdensity uses the filter of the projection", {
     expect_equal(mixed, own)
   }
 })
+
+test_that("wdensity removes the non-finite elements of data", {
+  set.seed(1)
+  d <- rbeta(200, 2, 5)
+  w <- function(x) 0.1 + 0.9 * x
+  est <- function(x) wdensity(x, wf = w, power.dens = 0.5, J1 = 5,
+                              warped = FALSE, plot = FALSE)
+
+  expect_warning(dna <- est(c(d[1:100], NA, Inf, d[101:200], -Inf, NaN)),
+                 "not finite")
+  expect_equal(dna, est(d))
+  expect_error(suppressWarnings(est(c(NA, Inf, NaN))), "no finite")
+})
