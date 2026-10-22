@@ -347,9 +347,10 @@ bwmixreg <- function(y, x = seq_along(y)/length(y),
     stop("With padding = \"none\", the sample size must be a power of two.")
 
   # Zero-based positions of y, which C gathers to build the padded sample.
-  # The reflection is the whole-point mirror of period 2n, which reproduces
-  # the tail reversal of the reference implementation and keeps working when
-  # more than n points have to be added.
+  # The reflection is the half-point mirror of period 2n, which repeats the
+  # last observation and so reproduces the tail reversal of the reference
+  # implementation, and keeps working when more than n points have to be
+  # added.
   idx <- seq_len(npad) - 1L
   padidx <- switch(padding,
     none = idx,

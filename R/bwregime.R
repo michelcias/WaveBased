@@ -663,9 +663,10 @@ bwregime <- function(y, x = seq_along(y)/length(y),
     stop("With padding = \"none\", the sample size must be a power of two.")
 
   # Zero-based positions of y, which C gathers to place the allocation
-  # variables on the padded grid. The reflection is the whole-point mirror of
-  # period 2n, which reproduces the tail reversal of the Remark of Section 5.2
-  # and keeps working when more than n points have to be added.
+  # variables on the padded grid. The reflection is the half-point mirror of
+  # period 2n, which repeats the last observation and so reproduces the tail
+  # reversal of the Remark of Section 5.2, and keeps working when more than n
+  # points have to be added.
   idx <- seq_len(npad) - 1L
   padidx <- switch(padding,
     none = idx,
