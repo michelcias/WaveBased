@@ -99,9 +99,11 @@ mforwardsolve <- function(L, B) {
 # --- mpfr port of the derivation in R/cdv.R -------------------------------
 
 # Orthogonality defect of the filter itself: the shipped coefficients are
-# not all extended-precision (the Symmlets carry ~17 significant digits),
-# and no construction can be more orthonormal than its filter. All the
-# validation gates below adapt to this measured defect.
+# not all extended-precision (the Symmlets are printed with up to 17
+# digits, but for the sizes tabulated here they are accurate to between
+# 2e-15 and 4e-12 only, with a defect of up to 5e-12), and no construction
+# can be more orthonormal than its filter. All the validation gates below
+# adapt to this measured defect.
 mqmf_defect <- function(h) {
   L <- length(h)
   d <- abs(sum(h) - sqrt(mnum(2)))
