@@ -98,7 +98,7 @@ accepts the first letter of the available families. For example, it is allowed
 to use \code{family = "d"} for the \emph{Daublet} family. The filters used
 here were taken from the Python package \pkg{PyWavelets} (Lee et al., 2019),
 which provides extended precision for the families \emph{Daublets} and
-\emph{Coiflets}. Furhtermore, \pkg{PyWavelets} provides a wider range of
+\emph{Coiflets}. Furthermore, \pkg{PyWavelets} provides a wider range of
 filters for the three families.
 
 The filter sizes available depend on the chosen family:
