@@ -32,9 +32,10 @@ chosen family. See Details for more information.}
 Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 functions of the specified wavelet basis at the data points.}
 
-\item{wavelet.filter}{Use this to provide your own filter. To use this
-argument, you must specify \code{family = "Own"}. Do not use it, if you are
-not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter, the low-pass
+filter of an orthonormal wavelet basis. To use this argument, you must
+specify \code{family = "Own"}. The filter is checked: see Details of
+\command{\link{wbasis}}.}
 
 \item{boundary}{The boundary treatment of the basis. One of
 \code{"periodic"} (the default, the periodized basis), \code{"none"}
@@ -97,7 +98,7 @@ accepts the first letter of the available families. For example, it is allowed
 to use \code{family = "d"} for the \emph{Daublet} family. The filters used
 here were taken from the Python package \pkg{PyWavelets} (Lee et al., 2019),
 which provides extended precision for the families \emph{Daublets} and
-\emph{Coiflets}. Furhtermore, \pkg{PyWavelets} provides a wider range of
+\emph{Coiflets}. Furthermore, \pkg{PyWavelets} provides a wider range of
 filters for the three families.
 
 The filter sizes available depend on the chosen family:
@@ -111,8 +112,10 @@ The argument \code{filter.size} is associated with the number of vanishing
 moments (\eqn{N}) of each wavelet family. For \emph{Daublets} and
 \emph{Symmlets}, one has \eqn{\int x^n \psi(x) dx = 0, n = 0, \ldots, N - 1},
 satisfying the relation \code{N = filter.size/2}. In the case of
-\emph{Coiflets}, both scaling function \eqn{\phi} and wavelet \eqn{\psi} have
-\eqn{N} vanishing moments satisfying the relation \code{N = filter.size/6}.
+\emph{Coiflets}, \eqn{\psi} has \eqn{N} vanishing moments, with
+\code{N = filter.size/3}, and the scaling function, supported on
+\eqn{[0, L - 1]} with \eqn{L} = \code{filter.size}, has vanishing moments
+about the point \eqn{N}: \eqn{\int (x - N)^n \phi(x) dx = 0, n = 1, \ldots, N}.
 
 This function works only with real valued observations. If, for some reason,
 the data set is composed by complex numbers, the function will be applied only

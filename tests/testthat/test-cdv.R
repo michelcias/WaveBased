@@ -104,6 +104,30 @@ test_that("interior columns agree with the periodic basis away from edges", {
   expect_lt(max(abs(Wi[, edge])), 1e-12)
 })
 
+test_that("the interval boundary is refused for family 'Own'", {
+  set.seed(5)
+  x <- sort(runif(30))
+  y <- rnorm(256)
+  # the refusal depends on the family only: even the coefficients of a
+  # Daublet are refused when they come as a user-supplied filter
+  h <- WaveBased:::.wb_filter(1L, 8L)
+
+  expect_error(PHI(x, J = 5, family = "Own", wavelet.filter = h,
+                   boundary = "interval"), "Own")
+  expect_error(PSI(x, J = 5, family = "Own", wavelet.filter = h,
+                   boundary = "interval"), "Own")
+  expect_error(wbasis(x, j0 = 4, J = 5, family = "Own", wavelet.filter = h,
+                      boundary = "interval"), "Own")
+  expect_error(wavedec(y, j0 = 4, family = "Own", wavelet.filter = h,
+                       boundary = "interval"), "Own")
+  expect_error(waverec(y, j0 = 4, family = "Own", wavelet.filter = h,
+                       boundary = "interval"), "Own")
+  # a filter given alongside a built-in family is taken as 'Own' as well
+  expect_error(suppressWarnings(
+    wbasis(x, j0 = 4, J = 5, family = "d", wavelet.filter = h,
+           boundary = "interval")), "Own")
+})
+
 test_that("boundary argument validation", {
   set.seed(5)
   x <- sort(runif(30))

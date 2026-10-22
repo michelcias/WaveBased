@@ -72,3 +72,13 @@ test_that("wdensity stops when eps is outside [0, 0.5) and is used", {
   expect_no_error(do.call(wdensity, c(args, J1 = 4, warped = FALSE,
                                       rescale = FALSE, eps = 0.7)))
 })
+
+test_that("an unavailable filter size lists the available ones", {
+  x <- sort(runif(16))
+  expect_error(PHI(x, J = 3, family = "Coiflets", filter.size = 8),
+               "6, 12, 18, ..., 96 and 102", fixed = TRUE)
+  expect_error(PHI(x, J = 3, family = "Symmlets", filter.size = 2),
+               "4, 6, 8, ..., 38 and 40", fixed = TRUE)
+  expect_error(PHI(x, J = 3, family = "Daublets", filter.size = 3),
+               "2, 4, 6, ..., 74 and 76", fixed = TRUE)
+})

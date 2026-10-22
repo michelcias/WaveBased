@@ -28,9 +28,10 @@
 #'   on the chosen wavelet family.
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
-#'   not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param wavelet.table An optional object created by \command{\link{wtable}}.
 #'   When provided, the wavelet basis is evaluated by table lookup with linear
 #'   interpolation instead of the Daubechies-Lagarias algorithm, which is
@@ -199,8 +200,13 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   if(boundary == "interval" && !is.null(wavelet.table))
     warning("wavelet.table is not used with boundary = \"interval\" and was ignored.")
 
-  if (!any(is.finite(data))){
+  # taken before data is changed below, for the default xlab
+  data.name <- deparse(substitute(data))
+
+  if (!all(is.finite(data))){
     data <- data[is.finite(data)]
+    if(!length(data))
+      stop("'data' has no finite element.")
     warning("At least one element of 'data' is not finite. Non-finite elements were removed.")
   }
 
@@ -280,25 +286,34 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   matvals <- mbasis[seq_len(n),]*dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
   coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)
 
+  # The thresholding transforms use the filter of the projection. A filter
+  # given by the user goes as "Own": PHI has already checked it, and warned
+  # if the family was a built-in one.
+  wargs <- if(missing(wavelet.filter))
+             list(family = family, filter.size = filter.size)
+           else
+             list(family = "Own", wavelet.filter = wavelet.filter)
+
+  dec <- function(v) .wb_quiet_filter(
+    do.call(wavedec, c(list(x = v, j0 = J0, boundary = boundary), wargs)))
+  rec <- function(v) .wb_quiet_filter(
+    do.call(waverec, c(list(x = v, j0 = J0, boundary = boundary), wargs)))
+
   if(thresh == "h"){
-    coefs <- wavedec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- dec(coefs)
     sig <- mad(coefs[-seq_len(length.out = 2^(J1-1))])
     lambda <- sig*sqrt(2*log(2^(J1-1)))
     d <- coefs[-seq_len(length.out = 2^J0)]
     coefs[-seq_len(length.out = 2^J0)] <- d*(abs(d) > lambda)
-    coefs <- waverec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- rec(coefs)
   }
   if(thresh == "s"){
-    coefs <- wavedec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- dec(coefs)
     sig <- mad(coefs[-seq_len(length.out = 2^(J1-1))])
     lambda <- sig*sqrt(2*log(2^(J1-1)))
     d <- coefs[-seq_len(length.out = 2^J0)]
     coefs[-seq_len(length.out = 2^J0)] <- sign(d)*(abs(d) - lambda)*(abs(d) > lambda)
-    coefs <- waverec(x = coefs, j0 = J0, family = family,
-                     filter.size = filter.size, boundary = boundary)
+    coefs <- rec(coefs)
   }
 
   if(!warped & power.dens == 0.5)
@@ -313,7 +328,7 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
     if(missing(main))
       main <- paste("Density estimates using power =", power.dens)
     if(missing(xlab))
-      xlab <- deparse(substitute(data))
+      xlab <- data.name
     if(missing(ylab))
       ylab <- "Density"
     if(missing(type))

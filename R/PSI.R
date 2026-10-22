@@ -15,9 +15,10 @@
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
-#'   not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param boundary The boundary treatment of the basis. One of
 #'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
 #'   (the raw translates) or \code{"interval"} (the boundary-corrected
@@ -68,7 +69,7 @@
 #' to use \code{family = "d"} for the \emph{Daublet} family. The filters used
 #' here were taken from the Python package \pkg{PyWavelets} (Lee et al., 2019),
 #' which provides extended precision for the families \emph{Daublets} and
-#' \emph{Coiflets}. Furhtermore, \pkg{PyWavelets} provides a wider range of
+#' \emph{Coiflets}. Furthermore, \pkg{PyWavelets} provides a wider range of
 #' filters for the three families.
 #'
 #' The filter sizes available depend on the chosen family:
@@ -82,8 +83,10 @@
 #' moments (\eqn{N}) of each wavelet family. For \emph{Daublets} and
 #' \emph{Symmlets}, one has \eqn{\int x^n \psi(x) dx = 0, n = 0, \ldots, N - 1},
 #' satisfying the relation \code{N = filter.size/2}. In the case of
-#' \emph{Coiflets}, both scaling function \eqn{\phi} and wavelet \eqn{\psi} have
-#' \eqn{N} vanishing moments satisfying the relation \code{N = filter.size/6}.
+#' \emph{Coiflets}, \eqn{\psi} has \eqn{N} vanishing moments, with
+#' \code{N = filter.size/3}, and the scaling function, supported on
+#' \eqn{[0, L - 1]} with \eqn{L} = \code{filter.size}, has vanishing moments
+#' about the point \eqn{N}: \eqn{\int (x - N)^n \phi(x) dx = 0, n = 1, \ldots, N}.
 #'
 #' This function works only with real valued observations. If, for some reason,
 #' the data set is composed by complex numbers, the function will be applied only
@@ -156,13 +159,14 @@ PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter)
   }
 
   bcode <- .wb_boundary_code(boundary)
 
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(as.double(x), fam, filter.size,
                         level = J, what = "wavelet")
 
   wtab <- NULL

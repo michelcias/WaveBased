@@ -13,9 +13,10 @@
 #'   is provided \code{wavelet.filter}.
 #' @param filter.size The size of the filter. The available values depend on the
 #'   chosen family. See Details for more information.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
-#'   not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param boundary The boundary treatment of the transform. Either
 #'   \code{"periodic"} (the default, the usual periodic wavelet transform)
 #'   or \code{"interval"} (the boundary-corrected transform of Cohen,
@@ -38,12 +39,8 @@
 #' boundary blocks) only once. This is not the two-dimensional transform of an
 #' image.
 #'
-#' For the moment, the function deal with boundary conditions by applying
-#' periodic extensions to the data. In the future, a reflective extesion may be
-#' taken into account.
-#'
-#' For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size},
-#' \code{prec.wavelet} and \code{wavelet.filter}, see the help of
+#' For more details about \code{family}, \code{filter.size},
+#' \code{wavelet.filter} and \code{boundary}, see the help of
 #' \command{\link{wbasis}}.
 #'
 #' @return A vector of wavelet coefficients decomposed from \code{x}, where the
@@ -127,6 +124,7 @@ wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter)
   }
 
   bcode <- .wb_boundary_code(boundary)
@@ -137,7 +135,7 @@ wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
 
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(xd, fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(xd, fam, filter.size,
                         level = j0, what = "decompose", check.range = FALSE)
 
   wdec <- .Call("_WaveBased_C_WaveDec", xd, as.integer(fam),

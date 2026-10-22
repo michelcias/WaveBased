@@ -19,9 +19,10 @@
 #' @param ngrid Number of grid intervals in the unit interval. The grid step is
 #'   \code{1/ngrid}. The default, \code{2^13}, keeps the interpolation error of
 #'   smooth wavelets (e.g. \code{filter.size >= 8}) below \code{1e-5}.
-#' @param wavelet.filter Use this to provide your own filter (with even
-#'   length). To use this argument, you must specify \code{family = "Own"}.
-#'   Do not use it, if you are not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details of
+#'   \command{\link{wbasis}}.
 #' @param check Logical. If \code{TRUE} (default), the interpolation error is
 #'   measured against the exact Daubechies-Lagarias values at off-grid points
 #'   and stored in the returned object.
@@ -149,13 +150,11 @@ wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter)
   }
 
   if(ngrid < 2)
     stop("'ngrid' must be an integer greater than or equal to 2.")
-
-  if(fam == 4 && (length(wavelet.filter) < 2 || length(wavelet.filter) %% 2 != 0))
-    stop("'wavelet.filter' must be a numeric vector of even length.")
 
   N <- if(fam == 4) length(wavelet.filter) else filter.size
   if(N < 6)

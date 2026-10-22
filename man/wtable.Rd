@@ -41,9 +41,10 @@ algorithm used to compute the exact values stored in the table.}
 \code{1/ngrid}. The default, \code{2^13}, keeps the interpolation error of
 smooth wavelets (e.g. \code{filter.size >= 8}) below \code{1e-5}.}
 
-\item{wavelet.filter}{Use this to provide your own filter (with even
-length). To use this argument, you must specify \code{family = "Own"}.
-Do not use it, if you are not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter, the low-pass
+filter of an orthonormal wavelet basis. To use this argument, you must
+specify \code{family = "Own"}. The filter is checked: see Details of
+\command{\link{wbasis}}.}
 
 \item{check}{Logical. If \code{TRUE} (default), the interpolation error is
 measured against the exact Daubechies-Lagarias values at off-grid points

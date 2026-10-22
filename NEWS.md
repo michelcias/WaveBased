@@ -1,4 +1,4 @@
-# WaveBased 2.7-1
+# WaveBased 2.8-2
 
 ## Bug fixes
 
@@ -18,6 +18,106 @@
   2.6-1), and `wdensity()` accepted any `eps` in `[0, 1]`.
 * `wdensity()` checks `eps` only when it is used, i.e., with
   `warped = FALSE` and `rescale = TRUE`.
+
+# WaveBased 2.8-1
+
+## Bug fixes
+
+* `wall()` and `cv.wall()` now warn when `wavelet.filter` is given alongside a
+  built-in family, as the other functions do: the filter is the one used, and
+  `family` and `filter.size` are ignored. Before, they used the filter
+  silently. `cv.wall()` warns once, and not at each fold or candidate `J`.
+
+# WaveBased 2.8-0
+
+## New features
+
+* A user-supplied filter (`family = "Own"`, or a `wavelet.filter` given
+  alongside a built-in family) is now checked to be the low-pass filter of an
+  orthonormal wavelet basis of compact support, in `PHI()`, `PSI()`,
+  `wbasis()`, `wavedec()`, `waverec()`, `wtable()`, `wdensity()`, `wall()`,
+  `cv.wall()`, `wmixreg()`, `bayesthresh()`, `bwmixreg()` and `bwregime()`.
+  Before, no function checked it, and the documentation said so. The checks
+  are the conditions that hold for any such filter: an even length, a sum of
+  `sqrt(2)`, the orthogonality to the translations by even shifts, and the
+  condition of Lawton (1991), without which the integer translations of the
+  scaling function are not orthonormal (`c(1, 0, 0, 1)/sqrt(2)` satisfies the
+  other three but not this one). The number of vanishing moments is not
+  checked.
+* The function stops when the sum or the orthogonality fail by more than
+  `1e-6`, with a hint when the filter is the high-pass one, sums to 1 or sums
+  to `-sqrt(2)`, and when the condition of Lawton fails. It warns when they
+  hold up to an error between `1e-10` and `1e-6` only, as with coefficients
+  copied with a few digits, and when the filter nearly fails the condition of
+  Lawton, which makes the scaling function very irregular. The filters of
+  the built-in families pass silently. `wdensity()`, `wall()`, `cv.wall()`
+  and `wmixreg()` warn once, and not at each of their internal calls.
+* This changes the behavior: a filter accepted before may now stop. The odd
+  length is still refused with a message that says "even", now in all the
+  functions above and not only in `wtable()`.
+
+## Documentation
+
+* The parameter `wavelet.filter` and the Details of `PHI()` and `wbasis()`
+  describe the checks, in place of the warning that the filter was not
+  checked.
+
+# WaveBased 2.7-5
+
+## Bug fixes
+
+* The error for an unavailable `filter.size` of the Coiflets listed the sizes
+  from 12, but 6 is available too.
+
+# WaveBased 2.7-4
+
+## Documentation
+
+* The vanishing moments of the Coiflets were wrong in `PHI()`, `PSI()` and
+  `wbasis()`: they gave `filter.size/6` for both the scaling function and the
+  wavelet. The wavelet has `N = filter.size/3` vanishing moments, and the
+  moments of the scaling function of orders 1 to `N` vanish about the point
+  `N` of its support `[0, filter.size - 1]`. The paragraph on user-supplied
+  filters of `PHI()` and `wbasis()` named the family `"Other"` where the code
+  uses `"Own"`.
+
+# WaveBased 2.7-3
+
+## Bug fixes
+
+* `wdensity()` now removes the non-finite elements of `data`, with a
+  warning, as it meant to. The test was inverted: it removed them only when
+  no element was finite, so a single `NA` made the function stop with
+  "missing value where TRUE/FALSE needed". It now stops when no element is
+  finite. The default `xlab` of the plot is still the name of `data`.
+
+# WaveBased 2.7-2
+
+## Bug fixes
+
+* `wdensity()` now uses the filter given in `wavelet.filter` in the
+  thresholding as well. Before, the projection used it but the transforms of
+  `thresh = "hard"` and `thresh = "soft"` used `family` and `filter.size`:
+  with `family = "Own"` the default `thresh = "hard"` stopped, and with a
+  filter given alongside a built-in family the coefficients were thresholded
+  in the basis of that family. `thresh = "linear"` was not affected.
+
+# WaveBased 2.7-1
+
+## Bug fixes
+
+* `boundary = "interval"` now stops when the filter is user-supplied
+  (`family = "Own"`, or a `wavelet.filter` given alongside a built-in family),
+  in `PHI()`, `PSI()`, `wbasis()`, `wavedec()` and `waverec()`, and through
+  them in `wdensity()`, `wall()` and `cv.wall()`. The documentation already
+  required a Daublet or Symmlet filter, since the Cohen-Daubechies-Vial
+  construction needs the minimal-length filters of Daubechies, but the code
+  accepted any filter and derived the boundary blocks from it at run time.
+  With the filters of fewer than `L/2` vanishing moments that we tried (a
+  Coiflet, and random orthonormal filters of lengths 4 to 12), the
+  construction stopped with a message that blamed the length of the filter.
+  The message now names the family. The paragraph of `wbasis()` that
+  described the run-time construction for `family = "Own"` was corrected.
 
 # WaveBased 2.7-0
 

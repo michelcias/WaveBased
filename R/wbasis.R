@@ -20,9 +20,9 @@
 #' @param prec.wavelet The number of iterations to be performed in the
 #'   Daubechies-Lagarias algorithm, which is used to evaluate the scaling
 #'   functions of the specified wavelet basis at the data points.
-#' @param wavelet.filter Use this to provide your own filter. To use this
-#'   argument, you must specify \code{family = "Own"}. Do not use it, if you are
-#'   not sure about what you are doing.
+#' @param wavelet.filter Use this to provide your own filter, the low-pass
+#'   filter of an orthonormal wavelet basis. To use this argument, you must
+#'   specify \code{family = "Own"}. The filter is checked: see Details.
 #' @param boundary The boundary treatment of the basis. One of
 #'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
 #'   (the raw translates) or \code{"interval"} (the boundary-corrected
@@ -89,16 +89,17 @@
 #' and 24, the boundary coefficient blocks are precomputed: they were derived
 #' from the filters in 320-bit arithmetic (see
 #' \file{tools/make_cdv_tables.R} in the package sources) and are accurate to
-#' the precision of the filter coefficients themselves. For other filters
-#' (\code{family = "Own"}, or non-tabulated sizes) the construction is
-#' carried out at run time in double precision, which is reliable up to
-#' moderate filter sizes and validates itself, raising an informative error
-#' when the filter is too long for a stable construction.
+#' the precision of the filter coefficients themselves. For the
+#' non-tabulated sizes the construction is carried out at run time in double
+#' precision, which is reliable up to moderate filter sizes and validates
+#' itself, raising an informative error when the filter is too long for a
+#' stable construction.
 #'
 #' The interval basis requires: (i) the data to lie in \eqn{[0,1]};
 #' (ii) \code{family} to be \emph{Daublets} or \emph{Symmlets} (the
-#' construction needs minimal-length filters, so \emph{Coiflets} are not
-#' supported); and (iii) the coarsest level to be large enough for the two
+#' construction needs minimal-length filters, those of Daubechies, so
+#' neither \emph{Coiflets} nor user-supplied filters, \code{family = "Own"},
+#' are supported); and (iii) the coarsest level to be large enough for the two
 #' boundary zones not to interact -- the function reports the exact minimum
 #' (roughly \eqn{j_0 \ge \log_2(5 L)}) when the requested level is too small.
 #'
@@ -121,7 +122,7 @@
 #' to use \code{family = "d"} for the \emph{Daublet} family. The filters used
 #' here were taken from the Python package \pkg{PyWavelets} (Lee et al., 2019),
 #' which provides extended precision for the families \emph{Daublets} and
-#' \emph{Coiflets}. Furhtermore, \pkg{PyWavelets} provides a wider range of
+#' \emph{Coiflets}. Furthermore, \pkg{PyWavelets} provides a wider range of
 #' filters for the three families.
 #'
 #' The filter sizes available depend on the chosen family:
@@ -135,16 +136,29 @@
 #' moments (\eqn{N}) of each wavelet family. For \emph{Daublets} and
 #' \emph{Symmlets}, one has \eqn{\int x^n \psi(x) dx = 0, n = 0, \ldots, N - 1},
 #' satisfying the relation \code{N = filter.size/2}. In the case of
-#' \emph{Coiflets}, both scaling function \eqn{\phi} and wavelet \eqn{\psi} have
-#' \eqn{N} vanishing moments satisfying the relation \code{N = filter.size/6}.
+#' \emph{Coiflets}, \eqn{\psi} has \eqn{N} vanishing moments, with
+#' \code{N = filter.size/3}, and the scaling function, supported on
+#' \eqn{[0, L - 1]} with \eqn{L} = \code{filter.size}, has vanishing moments
+#' about the point \eqn{N}: \eqn{\int (x - N)^n \phi(x) dx = 0, n = 1, \ldots, N}.
 #'
-#' This function accepects wavelet filters provided by the user. In this case,
-#' the filter is given in the argument \code{wavelet filter}, while setting
+#' This function accepts wavelet filters provided by the user. In this case,
+#' the filter is given in the argument \code{wavelet.filter}, while setting
 #' \code{family = "Own"}. If the filter is provided and \code{family} is not
-#' \code{"Other"}, a warning is released and the function will still consider the
-#' wavelet filter given. \bold{Caution: the function does not check if the filter
-#' provided is in fact a wavelet filter. Therefore, do not use
-#' \code{wavelet.filter}, unless you know what you are doing.}
+#' \code{"Own"}, a warning is released and the function will still consider the
+#' wavelet filter given. The filter must be the low-pass (scaling) filter
+#' \eqn{h} of an orthonormal wavelet basis of compact support, normalized as
+#' the built-in ones, and the function checks the conditions that hold for any
+#' such filter: an even length; \eqn{\sum_n h_n = \sqrt{2}}; the orthogonality
+#' to its translations by even shifts, \eqn{\sum_n h_n h_{n+2k} = \delta_k};
+#' and the condition of Lawton (1991), without which the integer translations
+#' of the scaling function are not orthonormal (\code{c(1, 0, 0, 1)/sqrt(2)},
+#' for example, satisfies the first two but not this one). The function stops
+#' when the coefficients fail the first two by more than \code{1e-6}, or when
+#' the condition of Lawton fails. It warns when they hold up to an error
+#' between \code{1e-10} and \code{1e-6} only, as with coefficients copied with
+#' a few digits, and when the filter nearly fails the condition of Lawton,
+#' which makes the scaling function very irregular. The number of vanishing
+#' moments is not checked: it is a choice of the designer of the filter.
 #'
 #' This function works only with real valued observations. If, for some reason,
 #' the data set is composed by complex numbers, the function will be applied only
@@ -169,6 +183,10 @@
 #' Local Regularity, Infinite Products of Matrices and Fractals. \emph{SIAM
 #' Journal on Mathematical Analysis}, 24(4), 1031--1079,
 #' \url{https://epubs.siam.org/doi/10.1137/0523059}.
+#'
+#' Lawton, W.M. (1991). Necessary and Sufficient Conditions for Constructing
+#' Orthonormal Wavelet Bases. \emph{Journal of Mathematical Physics}, 32(1),
+#' 57--61, \doi{10.1063/1.529093}.
 #'
 #' Lee, G., Gommers, R., Waselewski, F., Wohlfahrt, K. and O'Leary, A. (2019).
 #' PyWavelets: A Python package for wavelet analysis. \emph{Journal of Open
@@ -310,13 +328,14 @@ wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
+    .wb_check_filter(wavelet.filter)
   }
 
   bcode <- .wb_boundary_code(boundary)
 
   cdv <- NULL
   if(bcode == 2L)
-    cdv <- .cdv_prepare(as.double(x), fam, filter.size, wavelet.filter,
+    cdv <- .cdv_prepare(as.double(x), fam, filter.size,
                         level = j0,
                         what = if (j0 < J) "decompose" else "basis")
 

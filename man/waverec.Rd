@@ -28,9 +28,10 @@ is provided \code{wavelet.filter}.}
 \item{filter.size}{The size of the filter. The available values depend on the
 chosen family. See Details for more information.}
 
-\item{wavelet.filter}{Use this to provide your own filter. To use this
-argument, you must specify \code{family = "Own"}. Do not use it, if you are
-not sure about what you are doing.}
+\item{wavelet.filter}{Use this to provide your own filter, the low-pass
+filter of an orthonormal wavelet basis. To use this argument, you must
+specify \code{family = "Own"}. The filter is checked: see Details of
+\command{\link{wbasis}}.}
 
 \item{boundary}{The boundary treatment of the transform. Either
 \code{"periodic"} (the default, the usual periodic wavelet transform)
@@ -60,12 +61,8 @@ If \code{x} is a matrix, each row is reconstructed, as by
 code, which sets up the filter (and, with \code{boundary = "interval"}, the
 boundary blocks) only once.
 
-For the moment, the function deal with boundary conditions by applying
-periodic extensions to the data. In the future, a reflective extesion may be
-taken into account.
-
-For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size},
-\code{prec.wavelet} and \code{wavelet.filter}, see the help of
+For more details about \code{family}, \code{filter.size},
+\code{wavelet.filter} and \code{boundary}, see the help of
 \command{\link{wbasis}}.
 }
 \examples{

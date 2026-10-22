@@ -19,7 +19,7 @@ horseshoe, and a choice of link, probit or logit.
 
 The package ships with families **Daublets**, **Symmlets** and **Coiflets**
 (filters from PyWavelets, Lee et al., 2019), and also accepts user-supplied
-filters.
+filters, which are checked to be those of an orthonormal wavelet basis.
 
 ## Installation
 
