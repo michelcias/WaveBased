@@ -234,10 +234,13 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
     eps <- 1.9^(-max(J))
 
   wf.own <- if(missing(wavelet.filter)) NULL else wavelet.filter
-  # checked once here: the internal calls of wtable and wbasis repeat the
-  # check quietly (.wall_table, .wall_wbasis)
-  if(!is.null(wf.own))
+  # checked once here: the internal calls of wtable and wbasis go as "Own"
+  # and repeat the check quietly (.wall_table, .wall_wbasis)
+  if(!is.null(wf.own)){
+    if(any(tolower(substring(family, 1, 1)) == c("d", "s", "c")))
+      warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     .wb_check_filter(wf.own)
+  }
 
   if(is.null(foldid))
     foldid <- sample(rep_len(seq_len(nfolds), n))

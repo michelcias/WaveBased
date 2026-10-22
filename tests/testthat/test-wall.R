@@ -506,3 +506,27 @@ test_that("plot.wall keeps the display readable with many covariates", {
   expect_equal(e$layout, c(4, 1))
   expect_error(grab(mfrow = 3), "'mfrow' must be")
 })
+
+test_that("wall and cv.wall warn when a filter comes with a built-in family", {
+  dat <- .wall_sim()
+  h <- WaveBased:::.wb_filter(1L, 8L)
+
+  expect_warning(fit <- wall(dat$x, dat$y, J = 3, family = "Coiflets",
+                             filter.size = 6, wavelet.filter = h),
+                 "not 'Own'")
+  expect_silent(own <- wall(dat$x, dat$y, J = 3, family = "Own",
+                            wavelet.filter = h))
+  # the filter is the one used, as in the other functions
+  expect_equal(fit$glmnet.fit$beta, own$glmnet.fit$beta)
+
+  # once, and not at each of the internal calls
+  n <- 0L
+  withCallingHandlers(
+    cv.wall(dat$x, dat$y, J = 2:3, family = "Daublets", wavelet.filter = h,
+            nfolds = 3),
+    warning = function(w){
+      if(grepl("not 'Own'", conditionMessage(w))) n <<- n + 1L
+      invokeRestart("muffleWarning")
+    })
+  expect_equal(n, 1L)
+})

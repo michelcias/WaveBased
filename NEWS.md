@@ -1,3 +1,12 @@
+# WaveBased 2.8-1
+
+## Bug fixes
+
+* `wall()` and `cv.wall()` now warn when `wavelet.filter` is given alongside a
+  built-in family, as the other functions do: the filter is the one used, and
+  `family` and `filter.size` are ignored. Before, they used the filter
+  silently. `cv.wall()` warns once, and not at each fold or candidate `J`.
+
 # WaveBased 2.8-0
 
 ## New features
