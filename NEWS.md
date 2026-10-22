@@ -86,8 +86,8 @@
   With the filters of fewer than `L/2` vanishing moments that we tried (a
   Coiflet, and random orthonormal filters of lengths 4 to 12), the
   construction stopped with a message that blamed the length of the filter.
-  The message now names the family. The paragraph of `wbasis()` that described the run-time
-  construction for `family = "Own"` was corrected.
+  The message now names the family. The paragraph of `wbasis()` that
+  described the run-time construction for `family = "Own"` was corrected.
 
 # WaveBased 2.7-0
 

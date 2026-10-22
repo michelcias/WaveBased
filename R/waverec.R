@@ -35,12 +35,8 @@
 #' code, which sets up the filter (and, with \code{boundary = "interval"}, the
 #' boundary blocks) only once.
 #'
-#' For the moment, the function deal with boundary conditions by applying
-#' periodic extensions to the data. In the future, a reflective extesion may be
-#' taken into account.
-#'
-#' For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size},
-#' \code{prec.wavelet} and \code{wavelet.filter}, see the help of
+#' For more details about \code{family}, \code{filter.size},
+#' \code{wavelet.filter} and \code{boundary}, see the help of
 #' \command{\link{wbasis}}.
 #'
 #' @return A vector containing a reconstruction of the decomposed data \code{x},
