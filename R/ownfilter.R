@@ -5,7 +5,8 @@
 # Checks that a user-supplied filter is the low-pass filter of an orthonormal
 # wavelet basis of compact support, with the conditions that hold for any
 # such filter: (i) it sums to sqrt(2); (ii) it is orthogonal to its
-# translations by even shifts; (iii) Lawton's condition. (i) and (ii)
+# translations by even shifts; (iii) Lawton's condition, unless 'lawton' is
+# FALSE. (i) and (ii)
 # together give H(pi) = 0, the one vanishing moment that the theory
 # requires; how many more the filter has is the choice of its designer, and
 # is not checked. (i) and (ii) are not enough: c(1, 0, 0, 1)/sqrt(2)
@@ -14,6 +15,14 @@
 # (ii), the translations are orthonormal if, and only if, the eigenvalue 1
 # of the transition matrix of the autocorrelation of the filter is simple
 # (Lawton, 1991, J. Math. Phys. 32, 57-61).
+#
+# (iii) is a property of the scaling function, not of the discrete
+# transform: with (ii), the transform is orthogonal, and reconstructs the
+# signal exactly, whether or not (iii) holds. The functions that only
+# transform (wavedec, waverec and the Bayesian estimators) skip it, and those
+# that evaluate the scaling function skip it at the request of the user
+# (check.lawton = FALSE), to study degenerate filters: the Daubechies-
+# Lagarias algorithm evaluates their scaling function all the same.
 #
 # The coefficients may come with a few digits only, so (i) and (ii) are
 # required up to 1e-6, with a warning above 1e-10 (the Symmlets of the
@@ -24,7 +33,10 @@
 #
 # Stops with the call of the exported function that checks the filter, and
 # returns the filter as a double vector, invisibly.
-.wb_check_filter <- function(wavelet.filter, call = sys.call(-1L)){
+.wb_check_filter <- function(wavelet.filter, lawton = TRUE,
+                             call = sys.call(-1L)){
+  if(!is.logical(lawton) || length(lawton) != 1L || is.na(lawton))
+    stop(simpleError("'check.lawton' must be TRUE or FALSE.", call))
   h <- wavelet.filter
   if(!is.numeric(h) || length(h) < 2L || length(h) %% 2L != 0L ||
      any(!is.finite(h)))
@@ -51,6 +63,9 @@
     warning(.wb_filter_warning(paste0("'wavelet.filter' satisfies the conditions of an orthonormal wavelet filter up to ",
                                       signif(d, 2), " only. The results carry an error of this order."),
                                call))
+
+  if(!lawton)
+    return(invisible(h))
 
   ev <- eigen(.wb_lawton_matrix(h), only.values = TRUE)$values
   gap <- sort(abs(ev - 1))[2L]

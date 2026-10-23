@@ -16,7 +16,8 @@ wtable(
   check = TRUE,
   check.points = 1000,
   check.tol = 1e-05,
-  cache = FALSE
+  cache = FALSE,
+  check.lawton = TRUE
 )
 
 wtable_cache(clear = FALSE)
@@ -59,6 +60,10 @@ when the measured error exceeds it.}
 being generated and read back instantly in future calls (including in
 future R sessions), instead of being recomputed. See Details for the
 cache location. Default is \code{FALSE}.}
+
+\item{check.lawton}{Logical. Whether a filter given in
+\code{wavelet.filter} must satisfy the condition of Lawton, as in
+\command{\link{PHI}}.}
 
 \item{clear}{Logical. If \code{TRUE}, all cached tables are removed.}
 

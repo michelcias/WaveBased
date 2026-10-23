@@ -40,6 +40,9 @@
 #'   algorithm.
 #' @param wavelet.filter Use this to provide your own filter, together with
 #'   \code{family = "Own"}.
+#' @param check.lawton Logical. Whether a filter given in
+#'   \code{wavelet.filter} must satisfy the condition of Lawton, as in
+#'   \command{\link{PHI}}.
 #' @param wavelet.table An optional object created by \command{\link{wtable}}.
 #'   When provided, the scaling functions are evaluated by table lookup with
 #'   linear interpolation instead of the Daubechies-Lagarias algorithm.
@@ -249,7 +252,7 @@ wmixreg <- function(y, x = seq_along(y)/length(y), mu.U, mu.V, cut,
                     integral = c("primitive", "trapezoid"),
                     delta = 1e-4, min.pts = 2, ngrid = 2^13, j0 = 0,
                     clip = TRUE, length.obs = 250, newx = NULL,
-                    bandwidth = NULL, plot = TRUE, ...){
+                    bandwidth = NULL, plot = TRUE, check.lawton = TRUE, ...){
 
   cl <- match.call()
 
@@ -308,7 +311,7 @@ wmixreg <- function(y, x = seq_along(y)/length(y), mu.U, mu.V, cut,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
-    .wb_check_filter(wavelet.filter)
+    .wb_check_filter(wavelet.filter, lawton = check.lawton)
   }
 
   # --- The means of the two components ------------------------------------

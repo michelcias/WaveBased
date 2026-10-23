@@ -31,6 +31,7 @@ wdensity(
   ylab,
   type,
   boundary = c("periodic", "interval"),
+  check.lawton = TRUE,
   ...
 )
 }
@@ -119,6 +120,10 @@ thresholding transform. Either \code{"periodic"} (default) or
 and Vial, 1993; see \command{\link{wbasis}}). With
 \code{"interval"}, the levels \code{J0} and \code{J1} must satisfy
 the minimum reported by the corresponding error message.}
+
+\item{check.lawton}{Logical. Whether a filter given in
+\code{wavelet.filter} must satisfy the condition of Lawton, as in
+\command{\link{PHI}}.}
 
 \item{...}{Further plotting parameters.}
 }

@@ -32,6 +32,9 @@
 #'   filter of an orthonormal wavelet basis. To use this argument, you must
 #'   specify \code{family = "Own"}. The filter is checked: see Details of
 #'   \command{\link{wbasis}}.
+#' @param check.lawton Logical. Whether a filter given in
+#'   \code{wavelet.filter} must satisfy the condition of Lawton, as in
+#'   \command{\link{PHI}}.
 #' @param wavelet.table An optional object created by \command{\link{wtable}}.
 #'   When provided, the wavelet basis is evaluated by table lookup with linear
 #'   interpolation instead of the Daubechies-Lagarias algorithm, which is
@@ -191,7 +194,8 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
                      dens.biased, warped = TRUE, warp.fun, dwarp.fun,
                      rescale = TRUE, eps = 1.9^(-J1), thresh = "hard",
                      plot = TRUE, main, xlab, ylab, type,
-                     boundary = c("periodic", "interval"), ...){
+                     boundary = c("periodic", "interval"),
+                     check.lawton = TRUE, ...){
 
   boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
   if(boundary == "interval" && !is.null(wavelet.table))
@@ -274,7 +278,8 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   mbasis <- PHI(x = c(Hyc, Hy.vals), J = J1, family = family,
                 filter.size = filter.size, prec.wavelet = prec.wavelet,
                 boundary = boundary, wavelet.filter = wavelet.filter,
-                wavelet.table = if(boundary == "interval") NULL else wavelet.table)
+                wavelet.table = if(boundary == "interval") NULL else wavelet.table,
+                check.lawton = check.lawton)
 
   matvals <- mbasis[seq_len(n),]*dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
   coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)

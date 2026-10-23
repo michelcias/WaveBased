@@ -30,8 +30,11 @@ chosen family. See Details for more information.}
 
 \item{wavelet.filter}{Use this to provide your own filter, the low-pass
 filter of an orthonormal wavelet basis. To use this argument, you must
-specify \code{family = "Own"}. The filter is checked: see Details of
-\command{\link{wbasis}}.}
+specify \code{family = "Own"}. The filter is checked as in
+\command{\link{wbasis}} (see Details there), except for the condition of
+Lawton, which concerns the scaling function and not the transform: the
+transform is orthogonal, and reconstructs the signal exactly, whenever
+the other conditions hold.}
 
 \item{boundary}{The boundary treatment of the transform. Either
 \code{"periodic"} (the default, the usual periodic wavelet transform)

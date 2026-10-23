@@ -23,6 +23,13 @@
 #' @param wavelet.filter Use this to provide your own filter, the low-pass
 #'   filter of an orthonormal wavelet basis. To use this argument, you must
 #'   specify \code{family = "Own"}. The filter is checked: see Details.
+#' @param check.lawton Logical. If \code{TRUE} (the default), a filter given
+#'   in \code{wavelet.filter} must satisfy the condition of Lawton (1991),
+#'   besides the other conditions of an orthonormal wavelet filter: see
+#'   Details of \command{\link{wbasis}}. Set it to \code{FALSE} to study
+#'   degenerate filters, as \code{c(1, 0, 0, 1)/sqrt(2)}, whose scaling
+#'   function is evaluated all the same but whose integer translations are not
+#'   orthonormal.
 #' @param boundary The boundary treatment of the basis. One of
 #'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
 #'   (the raw translates) or \code{"interval"} (the boundary-corrected
@@ -158,7 +165,14 @@
 #' between \code{1e-10} and \code{1e-6} only, as with coefficients copied with
 #' a few digits, and when the filter nearly fails the condition of Lawton,
 #' which makes the scaling function very irregular. The number of vanishing
-#' moments is not checked: it is a choice of the designer of the filter.
+#' moments is not checked: it is a choice of the designer of the filter. With
+#' \code{check.lawton = FALSE}, the condition of Lawton is not checked, nor is
+#' the warning of a filter that nearly fails it released. This serves the study
+#' of degenerate filters: their scaling function is evaluated all the same
+#' (that of \code{c(1, 0, 0, 1)/sqrt(2)} is \eqn{1/3} on \eqn{[0, 3)}), but
+#' its integer translations are not orthonormal. The discrete transforms,
+#' \command{\link{wavedec}} and \command{\link{waverec}}, never check this
+#' condition, which concerns the scaling function only.
 #'
 #' This function works only with real valued observations. If, for some reason,
 #' the data set is composed by complex numbers, the function will be applied only
@@ -303,7 +317,7 @@
 wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
                    prec.wavelet = 30, wavelet.filter,
                    boundary = c("periodic", "none", "interval"),
-                   wavelet.table = NULL){
+                   wavelet.table = NULL, check.lawton = TRUE){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -328,7 +342,7 @@ wbasis <- function(x, j0 = 0, J, family = "Daublets", filter.size = 20,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
-    .wb_check_filter(wavelet.filter)
+    .wb_check_filter(wavelet.filter, lawton = check.lawton)
   }
 
   bcode <- .wb_boundary_code(boundary)

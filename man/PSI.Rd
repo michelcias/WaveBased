@@ -12,7 +12,8 @@ PSI(
   prec.wavelet = 30,
   wavelet.filter,
   boundary = c("periodic", "none", "interval"),
-  wavelet.table = NULL
+  wavelet.table = NULL,
+  check.lawton = TRUE
 )
 }
 \arguments{
@@ -54,6 +55,10 @@ for the same \code{family} and \code{filter.size} requested here; the
 argument \code{prec.wavelet} is then ignored. It is not used with
 \code{boundary = "interval"} (the boundary evaluation is always exact).
 See \command{\link{wtable}} for accuracy considerations.}
+
+\item{check.lawton}{Logical. Whether a filter given in
+\code{wavelet.filter} must satisfy the condition of Lawton, as in
+\command{\link{PHI}}.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to

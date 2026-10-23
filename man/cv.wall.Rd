@@ -30,6 +30,7 @@ cv.wall(
   parallel = FALSE,
   parallel.J = FALSE,
   trace = FALSE,
+  check.lawton = TRUE,
   ...
 )
 
@@ -134,6 +135,10 @@ candidate. Default is \code{FALSE}.}
 
 \item{trace}{Logical. If \code{TRUE}, prints a progress line for each
 candidate value of \code{J}.}
+
+\item{check.lawton}{Logical. Whether a filter given in
+\code{wavelet.filter} must satisfy the condition of Lawton, as in
+\command{\link{PHI}}.}
 
 \item{...}{Further arguments passed to
 \command{\link[glmnet]{cv.glmnet}} and, from there, to

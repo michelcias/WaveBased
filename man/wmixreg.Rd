@@ -30,6 +30,7 @@ wmixreg(
   newx = NULL,
   bandwidth = NULL,
   plot = TRUE,
+  check.lawton = TRUE,
   ...
 )
 
@@ -118,6 +119,10 @@ evaluated.}
 not supplied, the rule of Bowman and Azzalini (1997) is used.}
 
 \item{plot}{Logical. Should the estimated curves be plotted?}
+
+\item{check.lawton}{Logical. Whether a filter given in
+\code{wavelet.filter} must satisfy the condition of Lawton, as in
+\command{\link{PHI}}.}
 
 \item{...}{Further arguments passed to \command{\link{plot.wmixreg}}.}
 

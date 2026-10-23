@@ -23,6 +23,9 @@
 #'   Default is \code{j0 = 0}. See \command{\link{wall}}.
 #' @param family,filter.size,prec.wavelet,wavelet.filter The wavelet basis
 #'   specification, as in \command{\link{wall}}.
+#' @param check.lawton Logical. Whether a filter given in
+#'   \code{wavelet.filter} must satisfy the condition of Lawton, as in
+#'   \command{\link{PHI}}.
 #' @param boundary The boundary treatment of the basis, as in
 #'   \command{\link{wall}}.
 #' @param rescale Logical. If \code{TRUE} (default), the covariates are
@@ -188,7 +191,8 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
                     use.table = c("auto", "always", "never"), wavelet.table = NULL,
                     sparse = c("auto", "always", "never"), share.design = FALSE,
                     lambda = NULL, standardize = FALSE, weights = NULL,
-                    parallel = FALSE, parallel.J = FALSE, trace = FALSE, ...){
+                    parallel = FALSE, parallel.J = FALSE, trace = FALSE,
+                    check.lawton = TRUE, ...){
 
   this.call <- match.call()
   boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
@@ -235,11 +239,12 @@ cv.wall <- function(x, y, J = NULL, j0 = 0, family = "Daublets",
 
   wf.own <- if(missing(wavelet.filter)) NULL else wavelet.filter
   # checked once here: the internal calls of wtable and wbasis go as "Own"
-  # and repeat the check quietly (.wall_table, .wall_wbasis)
+  # and repeat the check quietly, without the condition of Lawton, which
+  # the user may have waived (.wall_table, .wall_wbasis)
   if(!is.null(wf.own)){
     if(any(tolower(substring(family, 1, 1)) == c("d", "s", "c")))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
-    .wb_check_filter(wf.own)
+    .wb_check_filter(wf.own, lawton = check.lawton)
   }
 
   if(is.null(foldid))

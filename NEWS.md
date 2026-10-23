@@ -1,3 +1,28 @@
+# WaveBased 2.9-0
+
+## New features
+
+* `PHI()`, `PSI()`, `wbasis()`, `wtable()`, `wdensity()`, `wall()`,
+  `cv.wall()` and `wmixreg()` gain the argument `check.lawton`, `TRUE` by
+  default. With `check.lawton = FALSE`, a filter given in `wavelet.filter`
+  is not checked against the condition of Lawton (1991), nor is the warning
+  of a filter that nearly fails it released, which serves the study of
+  degenerate filters. Their scaling function is evaluated all the same: that
+  of `c(1, 0, 0, 1)/sqrt(2)` is 1/3 on `[0, 3)`, the exact value, but its
+  integer translations are not orthonormal. The even length, the sum of
+  `sqrt(2)` and the orthogonality to the translations by even shifts are
+  still checked.
+
+## Bug fixes
+
+* `wavedec()`, `waverec()`, `bayesthresh()`, `bwmixreg()` and `bwregime()`
+  no longer check the condition of Lawton, which 2.8-0 required of them. It
+  concerns the scaling function, which these functions do not evaluate: the
+  discrete transform is orthogonal, and reconstructs the signal exactly,
+  whenever the filter sums to `sqrt(2)` and is orthogonal to its
+  translations by even shifts. A degenerate filter as
+  `c(1, 0, 0, 1)/sqrt(2)` stopped them, and is now accepted.
+
 # WaveBased 2.8-1
 
 ## Bug fixes
