@@ -172,7 +172,7 @@
 #'
 #' # Cross-validated choice of J and lambda
 #' set.seed(1)
-#' cvfit <- cv.wall(x, y, J = 1:4, filter.size = 8, nfolds = 5)
+#' cvfit <- cv.wall(x, y, J = 2:4, filter.size = 8, nfolds = 5)
 #' cvfit
 #' plot(cvfit)
 #'
@@ -521,7 +521,7 @@ coef.cv.wall <- function(object, s = c("lambda.min", "lambda.1se"), ...){
 #' n <- 300
 #' x <- matrix(runif(2*n), n, 2)
 #' y <- rbinom(n, 1, 1/(1 + exp(-5*(x[, 1] - 0.5))))
-#' cvfit <- cv.wall(x, y, J = 1:3, filter.size = 8, nfolds = 5)
+#' cvfit <- cv.wall(x, y, J = 2:3, filter.size = 8, nfolds = 5)
 #'
 #' plot(cvfit)                                     # cross-validation curves
 #' plot(cvfit, type = "path")                      # paths of the selected J

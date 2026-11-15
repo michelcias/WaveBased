@@ -220,7 +220,7 @@ y <- rbinom(n, 1, 1/(1 + exp(-h)))
 
 # Cross-validated choice of J and lambda
 set.seed(1)
-cvfit <- cv.wall(x, y, J = 1:4, filter.size = 8, nfolds = 5)
+cvfit <- cv.wall(x, y, J = 2:4, filter.size = 8, nfolds = 5)
 cvfit
 plot(cvfit)
 
