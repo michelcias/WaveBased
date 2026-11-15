@@ -34,6 +34,9 @@
 #' @param wavelet.filter Use this to provide your own filter, together with
 #'   \code{family = "Own"}. The filter is checked: see Details of
 #'   \command{\link{wbasis}}.
+#' @param check.lawton Logical. Whether a filter given in
+#'   \code{wavelet.filter} must satisfy the condition of Lawton, as in
+#'   \command{\link{PHI}}.
 #' @param boundary The boundary treatment of the basis. Either
 #'   \code{"periodic"} (default, the periodized basis) or \code{"interval"}
 #'   (the boundary-corrected orthonormal basis of Cohen, Daubechies and Vial,
@@ -220,7 +223,8 @@ wall <- function(x, y, J, j0 = 0, family = "Daublets", filter.size = 20,
                  rescale = TRUE, eps,
                  use.table = c("auto", "always", "never"), wavelet.table = NULL,
                  sparse = c("auto", "always", "never"),
-                 lambda = NULL, standardize = FALSE, weights = NULL, ...){
+                 lambda = NULL, standardize = FALSE, weights = NULL,
+                 check.lawton = TRUE, ...){
 
   this.call <- match.call()
   boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
@@ -242,11 +246,12 @@ wall <- function(x, y, J, j0 = 0, family = "Daublets", filter.size = 20,
 
   wf.own <- if(missing(wavelet.filter)) NULL else wavelet.filter
   # checked once here: the internal calls of wtable and wbasis go as "Own"
-  # and repeat the check quietly (.wall_table, .wall_wbasis)
+  # and repeat the check quietly, without the condition of Lawton, which
+  # the user may have waived (.wall_table, .wall_wbasis)
   if(!is.null(wf.own)){
     if(any(tolower(substring(family, 1, 1)) == c("d", "s", "c")))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
-    .wb_check_filter(wf.own)
+    .wb_check_filter(wf.own, lawton = check.lawton)
   }
 
   if(missing(eps))
@@ -793,7 +798,8 @@ plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
            prec.wavelet = prec.wavelet, check = FALSE)
   else
     .wb_quiet_filter(wtable(family = "Own", prec.wavelet = prec.wavelet,
-                            wavelet.filter = wavelet.filter, check = FALSE))
+                            wavelet.filter = wavelet.filter, check = FALSE,
+                            check.lawton = FALSE))
 }
 
 # Decides the sparse storage of the design. The expected density comes from
@@ -845,7 +851,8 @@ plot.wall <- function(x, type = c("path", "components", "network"), s = NULL,
       wbasis(u, j0 = obj$j0, J = J, family = "Own",
              filter.size = obj$filter.size, prec.wavelet = obj$prec.wavelet,
              wavelet.filter = obj$wavelet.filter,
-             boundary = obj$boundary, wavelet.table = obj$wavelet.table))
+             boundary = obj$boundary, wavelet.table = obj$wavelet.table,
+             check.lawton = FALSE))
 }
 
 # Evaluates the wavelet basis of one (already rescaled) covariate directly

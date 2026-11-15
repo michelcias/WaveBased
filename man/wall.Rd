@@ -23,6 +23,7 @@ wall(
   lambda = NULL,
   standardize = FALSE,
   weights = NULL,
+  check.lawton = TRUE,
   ...
 )
 
@@ -113,6 +114,10 @@ in Montoril (2026), since the wavelet basis is already orthonormal.}
 
 \item{weights}{Optional vector of observation weights, passed to
 \command{\link[glmnet]{glmnet}}.}
+
+\item{check.lawton}{Logical. Whether a filter given in
+\code{wavelet.filter} must satisfy the condition of Lawton, as in
+\command{\link{PHI}}.}
 
 \item{...}{Further arguments passed to \command{\link[glmnet]{glmnet}}
 (e.g., \code{nlambda}, \code{lambda.min.ratio}, \code{alpha},

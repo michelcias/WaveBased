@@ -19,6 +19,9 @@
 #'   filter of an orthonormal wavelet basis. To use this argument, you must
 #'   specify \code{family = "Own"}. The filter is checked: see Details of
 #'   \command{\link{wbasis}}.
+#' @param check.lawton Logical. Whether a filter given in
+#'   \code{wavelet.filter} must satisfy the condition of Lawton, as in
+#'   \command{\link{PHI}}.
 #' @param boundary The boundary treatment of the basis. One of
 #'   \code{"periodic"} (the default, the periodized basis), \code{"none"}
 #'   (the raw translates) or \code{"interval"} (the boundary-corrected
@@ -137,7 +140,7 @@
 #' @export
 PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
                 wavelet.filter, boundary = c("periodic", "none", "interval"),
-                wavelet.table = NULL){
+                wavelet.table = NULL, check.lawton = TRUE){
 
   if(is.complex(x)){
     x <- Re(x)
@@ -159,7 +162,7 @@ PSI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
-    .wb_check_filter(wavelet.filter)
+    .wb_check_filter(wavelet.filter, lawton = check.lawton)
   }
 
   bcode <- .wb_boundary_code(boundary)

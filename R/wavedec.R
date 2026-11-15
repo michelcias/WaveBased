@@ -15,8 +15,11 @@
 #'   chosen family. See Details for more information.
 #' @param wavelet.filter Use this to provide your own filter, the low-pass
 #'   filter of an orthonormal wavelet basis. To use this argument, you must
-#'   specify \code{family = "Own"}. The filter is checked: see Details of
-#'   \command{\link{wbasis}}.
+#'   specify \code{family = "Own"}. The filter is checked as in
+#'   \command{\link{wbasis}} (see Details there), except for the condition of
+#'   Lawton, which concerns the scaling function and not the transform: the
+#'   transform is orthogonal, and reconstructs the signal exactly, whenever
+#'   the other conditions hold.
 #' @param boundary The boundary treatment of the transform. Either
 #'   \code{"periodic"} (the default, the usual periodic wavelet transform)
 #'   or \code{"interval"} (the boundary-corrected transform of Cohen,
@@ -124,7 +127,7 @@ wavedec <- function(x, j0 = 0, family = "Daublets", filter.size = 20,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
-    .wb_check_filter(wavelet.filter)
+    .wb_check_filter(wavelet.filter, lawton = FALSE)
   }
 
   bcode <- .wb_boundary_code(boundary)

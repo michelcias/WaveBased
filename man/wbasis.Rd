@@ -13,7 +13,8 @@ wbasis(
   prec.wavelet = 30,
   wavelet.filter,
   boundary = c("periodic", "none", "interval"),
-  wavelet.table = NULL
+  wavelet.table = NULL,
+  check.lawton = TRUE
 )
 }
 \arguments{
@@ -56,6 +57,14 @@ built for the same \code{family} and \code{filter.size} requested here;
 the argument \code{prec.wavelet} is then ignored. It is not used with
 \code{boundary = "interval"} (the boundary evaluation is always exact).
 See \command{\link{wtable}} for accuracy considerations.}
+
+\item{check.lawton}{Logical. If \code{TRUE} (the default), a filter given
+in \code{wavelet.filter} must satisfy the condition of Lawton (1991),
+besides the other conditions of an orthonormal wavelet filter: see
+Details of \command{\link{wbasis}}. Set it to \code{FALSE} to study
+degenerate filters, as \code{c(1, 0, 0, 1)/sqrt(2)}, whose scaling
+function is evaluated all the same but whose integer translations are not
+orthonormal.}
 }
 \value{
 A matrix in which each line \eqn{i} corresponds to
@@ -189,7 +198,14 @@ the condition of Lawton fails. It warns when they hold up to an error
 between \code{1e-10} and \code{1e-6} only, as with coefficients copied with
 a few digits, and when the filter nearly fails the condition of Lawton,
 which makes the scaling function very irregular. The number of vanishing
-moments is not checked: it is a choice of the designer of the filter.
+moments is not checked: it is a choice of the designer of the filter. With
+\code{check.lawton = FALSE}, the condition of Lawton is not checked, nor is
+the warning of a filter that nearly fails it released. This serves the study
+of degenerate filters: their scaling function is evaluated all the same
+(that of \code{c(1, 0, 0, 1)/sqrt(2)} is \eqn{1/3} on \eqn{[0, 3)}), but
+its integer translations are not orthonormal. The discrete transforms,
+\command{\link{wavedec}} and \command{\link{waverec}}, never check this
+condition, which concerns the scaling function only.
 
 This function works only with real valued observations. If, for some reason,
 the data set is composed by complex numbers, the function will be applied only

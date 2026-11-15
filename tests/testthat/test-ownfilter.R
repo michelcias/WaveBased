@@ -63,7 +63,7 @@ test_that("an approximate filter and a nearly degenerate one are accepted with a
   expect_warning(phi(lattice_filter(c(0.01, pi/4 - 0.01))), "nearly fails")
 })
 
-test_that("every entry point checks the filter", {
+test_that("every entry point that evaluates phi checks Lawton's condition", {
   set.seed(2)
   x <- sort(runif(32))
   y <- rnorm(32)
@@ -72,10 +72,7 @@ test_that("every entry point checks the filter", {
   expect_error(PSI(x, J = 3, family = "Own", wavelet.filter = bad), "Lawton")
   expect_error(wbasis(x, j0 = 1, J = 3, family = "Own", wavelet.filter = bad),
                "Lawton")
-  expect_error(wavedec(y, family = "Own", wavelet.filter = bad), "Lawton")
-  expect_error(waverec(y, family = "Own", wavelet.filter = bad), "Lawton")
   expect_error(wtable(family = "Own", wavelet.filter = bad), "Lawton")
-  expect_error(bayesthresh(y, family = "Own", wavelet.filter = bad), "Lawton")
   yb <- rep(0:1, 16)
   expect_error(wall(cbind(x), yb, J = 3, family = "Own", wavelet.filter = bad),
                "Lawton")
@@ -84,9 +81,83 @@ test_that("every entry point checks the filter", {
   expect_error(wdensity(x, wf = function(u) 0.1 + 0.9 * u, J1 = 3,
                         family = "Own", wavelet.filter = bad, plot = FALSE),
                "Lawton")
+  expect_error(wmixreg(y, mu.U = 1, mu.V = 0, J = 3, family = "Own",
+                       wavelet.filter = bad, plot = FALSE), "Lawton")
   # a filter given alongside a built-in family is checked as well
   expect_error(suppressWarnings(PHI(x, J = 3, family = "d",
                                     wavelet.filter = bad)), "Lawton")
+})
+
+test_that("the functions that only transform do not check Lawton's condition", {
+  set.seed(2)
+  y <- rnorm(64)
+  bad <- c(1, 0, 0, 1) / sqrt(2)
+
+  # the other conditions make the transform orthogonal
+  d <- expect_silent(wavedec(y, j0 = 2, family = "Own", wavelet.filter = bad))
+  expect_equal(sum(d^2), sum(y^2))
+  expect_equal(waverec(d, j0 = 2, family = "Own", wavelet.filter = bad), y)
+  expect_silent(bayesthresh(y, family = "Own", wavelet.filter = bad))
+  expect_silent(bwregime(y, family = "Own", wavelet.filter = bad,
+                         nchain = 20, burn = 10, lag = 1))
+  expect_silent(bwmixreg(y, family = "Own", wavelet.filter = bad,
+                         nchain = 20, burn = 10, lag = 1))
+  # the other checks remain
+  expect_error(wavedec(y, family = "Own", wavelet.filter = bad / sqrt(2)),
+               "multiply it by sqrt(2)", fixed = TRUE)
+  expect_error(bayesthresh(y, family = "Own", wavelet.filter = -bad),
+               "multiply it by -1")
+})
+
+test_that("check.lawton = FALSE accepts a degenerate filter", {
+  set.seed(2)
+  x <- sort(runif(32))
+  y <- rnorm(32)
+  bad <- c(1, 0, 0, 1) / sqrt(2)
+
+  # phi = 1[0,3)/3, evaluated exactly by the Daubechies-Lagarias algorithm
+  u <- c(0.1, 0.7, 1.4, 2.2, 2.9)
+  B <- PHI(u, J = 0, family = "Own", wavelet.filter = bad, boundary = "none",
+           check.lawton = FALSE)
+  expect_equal(B, outer(u, 0:4, function(t, k) ((t - k + 2) >= 0 &
+                                                  (t - k + 2) < 3) / 3),
+               ignore_attr = TRUE)
+
+  expect_silent(PSI(x, J = 3, family = "Own", wavelet.filter = bad,
+                    check.lawton = FALSE))
+  expect_silent(wbasis(x, j0 = 1, J = 3, family = "Own", wavelet.filter = bad,
+                       check.lawton = FALSE))
+  expect_s3_class(suppressWarnings(wtable(family = "Own", wavelet.filter = bad,
+                                          check.lawton = FALSE)),
+                  "wavelet_table")
+  yb <- rep(0:1, 16)
+  # the table warns of the short filter, not of Lawton's condition
+  expect_warning(fit <- wall(cbind(x), yb, J = 3, family = "Own",
+                             wavelet.filter = bad, use.table = "always",
+                             check.lawton = FALSE), "very short filters")
+  expect_silent(predict(fit, cbind(x), type = "response"))
+  expect_silent(wall(cbind(x), yb, J = 3, family = "Own", wavelet.filter = bad,
+                     use.table = "never", sparse = "never",
+                     check.lawton = FALSE))
+  expect_silent(cv.wall(cbind(x), yb, J = 2:3, family = "Own",
+                        wavelet.filter = bad, nfolds = 3,
+                        check.lawton = FALSE))
+  expect_silent(wdensity(x, wf = function(u) 0.1 + 0.9 * u, J1 = 3,
+                         family = "Own", wavelet.filter = bad, warped = FALSE,
+                         plot = FALSE, check.lawton = FALSE))
+  expect_silent(wmixreg(y, mu.U = 1, mu.V = 0, J = 3, family = "Own",
+                        wavelet.filter = bad, plot = FALSE,
+                        check.lawton = FALSE))
+
+  # nor the warning of a nearly degenerate filter
+  expect_silent(PHI(x, J = 3, family = "Own",
+                    wavelet.filter = lattice_filter(c(0.01, pi/4 - 0.01)),
+                    check.lawton = FALSE))
+  # the other checks remain, and the argument is validated
+  expect_error(PHI(x, J = 3, family = "Own", wavelet.filter = -bad,
+                   check.lawton = FALSE), "multiply it by -1")
+  expect_error(PHI(x, J = 3, family = "Own", wavelet.filter = bad,
+                   check.lawton = NA), "TRUE or FALSE")
 })
 
 test_that("functions that call others warn once about an approximate filter", {

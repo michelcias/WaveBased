@@ -23,6 +23,9 @@
 #'   filter of an orthonormal wavelet basis. To use this argument, you must
 #'   specify \code{family = "Own"}. The filter is checked: see Details of
 #'   \command{\link{wbasis}}.
+#' @param check.lawton Logical. Whether a filter given in
+#'   \code{wavelet.filter} must satisfy the condition of Lawton, as in
+#'   \command{\link{PHI}}.
 #' @param check Logical. If \code{TRUE} (default), the interpolation error is
 #'   measured against the exact Daubechies-Lagarias values at off-grid points
 #'   and stored in the returned object.
@@ -133,7 +136,8 @@
 #' @export
 wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
                    ngrid = 2^13, wavelet.filter, check = TRUE,
-                   check.points = 1000, check.tol = 1e-5, cache = FALSE){
+                   check.points = 1000, check.tol = 1e-5, cache = FALSE,
+                   check.lawton = TRUE){
 
   fam <- which(tolower(substring(family, 1, 1)) == c("d", "s", "c", "o"))
 
@@ -150,7 +154,7 @@ wtable <- function(family = "Daublets", filter.size = 20, prec.wavelet = 30,
     if(any(fam == 1:3))
       warning("wavelet.filter provided, but family is not 'Own'. The arguments family and filter.size were ignored.")
     fam <- 4
-    .wb_check_filter(wavelet.filter)
+    .wb_check_filter(wavelet.filter, lawton = check.lawton)
   }
 
   if(ngrid < 2)
