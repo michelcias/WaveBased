@@ -1,3 +1,36 @@
+# WaveBased 2.10-1
+
+## Performance
+
+* The Daubechies-Lagarias algorithm, which evaluates the scaling function and
+  the wavelet wherever no `wavelet.table` is given, applies its product of
+  `prec.wavelet` matrices to a vector, by matrix-vector products, instead of
+  forming the product: the cost per point falls from O(prec N^3) to
+  O(prec N^2), for a filter of size N. Every function that evaluates the basis
+  gains: the evaluation is about 15 times faster with Daublets of size 10, 44
+  times with Symmlets of size 20 and 70 times with Coiflets of size 30. The
+  values change by rounding only, below 1e-13.
+* `PSI()`, `wbasis()` and the dense designs of `wall()` and `cv.wall()` no
+  longer keep a workspace for every point until they return: `PSI()` at
+  200,000 points with Daublets of size 20 reached 1.4 GB for a result of
+  12 MB, and took 184 s, now 1 s.
+* `wdensity()` no longer forms the matrix of the basis at the data and at the
+  evaluation points, with (n + `length.obs`) x 2^`J1` entries, of which at
+  most `filter.size - 1` per row are not null. The coefficients and the
+  estimate are computed in C point by point, so the memory no longer grows
+  with the product of the sample size and 2^`J1`, which made
+  `warped = TRUE`, whose `J1` grows with the sample size, impractical for
+  large samples: with 10,000 observations and Symmlets of size 20, a fit took
+  12.6 s and 1.4 GB, and now takes 0.05 s; with 100,000 (`J1 = 16`), whose
+  matrix alone would take 52 GB, it takes 0.8 s. The four `bac` examples of
+  its help page fall from 2.4-2.8 s to about 0.013 s each.
+
+## Minor changes
+
+* `wdensity()` with `warped = TRUE` and the default warping no longer warns
+  "collapsing to unique 'x' values" on tied data. The warping was already
+  computed with `ties = mean`, which is now stated.
+
 # WaveBased 2.10-0
 
 ## New features

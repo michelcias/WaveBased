@@ -41,6 +41,8 @@
  *
  *          **Registered routines:**
  *          - C_PHImat:       scaling-function basis matrix (9 args)
+ *          - C_PHIcolMeans:  weighted column means of that matrix (10 args)
+ *          - C_PHIprod:      product of that matrix and a vector (10 args)
  *          - C_PSImat:       mother-wavelet basis matrix (9 args)
  *          - C_WavBasis:     decomposed wavelet basis matrix (10 args)
  *          - C_WavBasisSparse: sparse (CSC) periodic decomposed basis (9 args)
@@ -68,6 +70,8 @@
  */
 static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_PHImat",       (DL_FUNC) &C_PHImat,       9},
+  {"_WaveBased_C_PHIcolMeans",  (DL_FUNC) &C_PHIcolMeans,  10},
+  {"_WaveBased_C_PHIprod",      (DL_FUNC) &C_PHIprod,      10},
   {"_WaveBased_C_PSImat",       (DL_FUNC) &C_PSImat,       9},
   {"_WaveBased_C_WavBasis",     (DL_FUNC) &C_WavBasis,     10},
   {"_WaveBased_C_WavBasisSparse", (DL_FUNC) &C_WavBasisSparse, 9},

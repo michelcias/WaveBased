@@ -21,7 +21,6 @@ SEXP C_WavTable(SEXP family, SEXP fs, SEXP prec, SEXP waveletfilter, SEXP ngrid)
   int g, G, lkmax, lkmin, m, N, rprec;
   double px, rpsisl;
   double *phi, *prod, *psi, *rphitab, *rpsitab, *rwfilter, *tmp;
-  const void *vmax;
   SEXP out, phitab, psitab;
 
   G = INTEGER(ngrid)[0];
@@ -48,14 +47,10 @@ SEXP C_WavTable(SEXP family, SEXP fs, SEXP prec, SEXP waveletfilter, SEXP ngrid)
   prod = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
   tmp = (double *) R_alloc((N - 1)*(N - 1), sizeof(double));
 
-  /* Columns g = 0, ..., G - 1: exact Daubechies-Lagarias values at w = g/G.
-   * PsiVec() allocates internal buffers with R_alloc on every call, so the
-   * allocation stack is rewound at each iteration to keep memory bounded. */
+  /* Columns g = 0, ..., G - 1: exact Daubechies-Lagarias values at w = g/G. */
   for(g = 0; g < G; g++){
 
     px = (double) g / G;
-
-    vmax = vmaxget();
 
     PhiVec(phi, px, rwfilter, N, rprec, prod, tmp);
 
@@ -63,8 +58,6 @@ SEXP C_WavTable(SEXP family, SEXP fs, SEXP prec, SEXP waveletfilter, SEXP ngrid)
     lkmax = floor(px - rpsisl);
     lkmin = lkmax - N + 2;
     PsiVec(psi, px, rwfilter, N, rprec, lkmin, prod, tmp);
-
-    vmaxset(vmax);
 
     for(m = 0; m < N - 1; m++){
       rphitab[m + (N - 1)*g] = phi[m];

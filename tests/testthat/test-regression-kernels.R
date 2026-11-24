@@ -192,10 +192,13 @@ test_that("share.design defaults eps to 1.9^(-max(J))", {
   expect_equal(fit$wall.fit$eps, rep(1.9^(-4), 2))
 
   # And the stored fit predicts with the fixed eps, like a direct wall()
-  # fit at (J.min, eps fixed).
+  # fit at (J.min, eps fixed). The direct fit computes its own path of
+  # lambda, as cv.glmnet() does for the stored fit: the same lambdas given
+  # explicitly take another branch of glmnet, whose solutions agree with
+  # these only up to the tolerance of its convergence.
   ref <- wall(x, y, J = fit$J.min, filter.size = 8, eps = 1.9^(-4),
-              use.table = "never",
-              lambda = fit$wall.fit$lambda)
+              use.table = "never")
+  expect_equal(ref$lambda, fit$wall.fit$lambda)
   expect_equal(predict(fit, x[1:5, ], s = fit$lambda.min),
                predict(ref, x[1:5, ], s = fit$lambda.min))
 })

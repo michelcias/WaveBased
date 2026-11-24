@@ -1,8 +1,8 @@
 /**
  * @file phi_psi_interp.c
  * @brief Fast evaluation of scaling function and wavelet vectors by table lookup.
- * @details Replaces the per-point Daubechies-Lagarias iteration (prec matrix
- *          products of dimension (N - 1) x (N - 1)) with a linear interpolation
+ * @details Replaces the per-point Daubechies-Lagarias iteration (prec matrix-
+ *          vector products of dimension N - 1) with a linear interpolation
  *          between two precomputed columns, at a cost of O(N) operations per
  *          evaluation point. The tables are built by C_WavTable().
  * @author Michel H. Montoril

@@ -181,6 +181,11 @@ For more details about \code{J0}, \code{J1}, \code{family}, \code{filter.size},
 \code{prec.wavelet} and \code{wavelet.filter}, see the help of
 \command{\link{wbasis}}.
 
+The basis is evaluated in C point by point, without forming the matrix of
+\command{\link{PHI}} at the data and at the evaluation points: each point
+takes only the few basis functions that do not vanish at it, so the memory
+used does not grow with the product of the sample size and \eqn{2^{J1}}.
+
 The arguments \code{warp.fun} and \code{dwarp.fun} are used only when
 \code{warped = TRUE}. They must be functions representing a cumulative
 distribution function and a probability density function, respectively. By

@@ -31,6 +31,55 @@
 SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab, SEXP cdvblocks);
 
 /**
+ * @brief Weighted column means of the PHI matrix, without forming it (R interface).
+ *
+ * Returns colMeans(PHImat(x) * w) for the periodic and the interval bases:
+ * each point adds the non-null entries of its row only, so the memory does
+ * not grow with the product of the number of points and of 2^J. The sums
+ * run in long double, as in colMeans(). A point that is not finite makes
+ * every mean NA, with the warning of C_PHImat; a weight that is not finite
+ * makes them NaN.
+ *
+ * @param[in] x             Real SEXP: evaluation points.
+ * @param[in] w             Real SEXP: weights, one per point.
+ * @param[in] J             Integer SEXP: resolution level, in 0, ..., 30.
+ * @param[in] family        Integer SEXP: wavelet family.
+ * @param[in] fs            Integer SEXP: filter size.
+ * @param[in] prec          Integer SEXP: dyadic refinement precision.
+ * @param[in] periodic      Integer SEXP: 1 for periodic, 2 for interval (CDV).
+ * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] wtab          List SEXP with the interpolation tables built by
+ *                          C_WavTable(), or R_NilValue; ignored when
+ *                          periodic == 2.
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when periodic == 2).
+ * @return SEXP vector of the 2^J means.
+ */
+SEXP C_PHIcolMeans(SEXP x, SEXP w, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab, SEXP cdvblocks);
+
+/**
+ * @brief Product of the PHI matrix and a vector, without forming the matrix (R interface).
+ *
+ * Returns PHImat(x) %*% coefs, the expansion sum_k coefs[k] phi[Jk](x[i]),
+ * for the periodic and the interval bases. A point that is not finite gives
+ * NA, with the warning of C_PHImat.
+ *
+ * @param[in] x             Real SEXP: evaluation points.
+ * @param[in] coefs         Real SEXP: the 2^J coefficients.
+ * @param[in] J             Integer SEXP: resolution level, in 0, ..., 30.
+ * @param[in] family        Integer SEXP: wavelet family.
+ * @param[in] fs            Integer SEXP: filter size.
+ * @param[in] prec          Integer SEXP: dyadic refinement precision.
+ * @param[in] periodic      Integer SEXP: 1 for periodic, 2 for interval (CDV).
+ * @param[in] waveletfilter Real SEXP: custom filter (used only when family == 4).
+ * @param[in] wtab          List SEXP with the interpolation tables built by
+ *                          C_WavTable(), or R_NilValue; ignored when
+ *                          periodic == 2.
+ * @param[in] cdvblocks     List SEXP: CDV boundary blocks (used only when periodic == 2).
+ * @return SEXP vector of the values of the expansion at x.
+ */
+SEXP C_PHIprod(SEXP x, SEXP coefs, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab, SEXP cdvblocks);
+
+/**
  * @brief Computes the matrix of PSI[Jk](x[i]) for all non-null k values (R interface).
  *
  * @param[in] x             Real SEXP: evaluation points.

@@ -96,7 +96,6 @@ static void FillBlock(const double *x, int n, int p, int sl, int colbase,
 
   int c, c0, g, i, k, lkmax, lkmin, t, u;
   double px, sqp;
-  const void *vmax;
 
   sqp = sqrt((double) p);
 
@@ -108,14 +107,8 @@ static void FillBlock(const double *x, int n, int p, int sl, int colbase,
     if(ispsi){
       if(tab)
         PsiVecInterp(vals, px, tab, N, G);
-      else{
-        /* PsiVec allocates internal workspace with R_alloc on every
-         * call: release it per observation to keep the peak memory
-         * proportional to the filter size, not to n. */
-        vmax = vmaxget();
+      else
         PsiVec(vals, px, filter, N, prec, lkmin, prod, tmp);
-        vmaxset((void *) vmax);
-      }
     }
     else{
       if(tab)

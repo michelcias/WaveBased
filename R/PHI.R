@@ -217,12 +217,31 @@ PHI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
     warning("Sorry, we don't work with complex data. Only the real part was considered.")
   }
 
+  a <- .phi_args(x, J, family, filter.size, wavelet.filter,
+                 has.filter = !missing(wavelet.filter), boundary,
+                 wavelet.table, check.lawton)
+
+  PHI <- .Call("_WaveBased_C_PHImat", as.double(x), as.integer(J), a$fam,
+               as.integer(filter.size), as.integer(prec.wavelet),
+               a$bcode, a$wf, a$wtab, a$cdv)
+  return(PHI)
+
+}
+
+# The checked arguments with which PHI() evaluates the scaling basis at x in
+# C: the code of the family (fam), the filter (wf, 0 for a built-in family),
+# the code of the boundary (bcode), the interpolation table (wtab) and the
+# CDV blocks (cdv). has.filter tells whether wavelet.filter was given, which
+# is not evaluated otherwise.
+.phi_args <- function(x, J, family, filter.size, wavelet.filter, has.filter,
+                      boundary, wavelet.table = NULL, check.lawton = TRUE){
+
   fam <- which(tolower(substring(family, 1, 1)) == c("d", "s", "c", "o"))
 
   if(length(fam) == 0)
     stop("Unknown family. The families available are 'Daublets', 'Symmlets' and 'Coiflets'. You can also use 'Own', if you provide your wavelet.filter.")
 
-  if(missing(wavelet.filter)){
+  if(!has.filter){
     if(fam == 4)
       stop("Provide your own filter or choose an available family.")
     else
@@ -250,9 +269,20 @@ PHI <- function(x, J, family = "Daublets", filter.size = 20, prec.wavelet = 30,
       wtab <- .match_wavelet_table(wavelet.table, fam, filter.size, wavelet.filter)
   }
 
-  PHI <- .Call("_WaveBased_C_PHImat", as.double(x), as.integer(J), as.integer(fam),
-               as.integer(filter.size), as.integer(prec.wavelet),
-               bcode, as.double(wavelet.filter), wtab, cdv)
-  return(PHI)
-
+  list(fam = as.integer(fam), wf = as.double(wavelet.filter), bcode = bcode,
+       wtab = wtab, cdv = cdv)
 }
+
+# colMeans(PHI(x, J, ...) * w) and PHI(x, J, ...) %*% coefs, for the
+# periodic and the interval bases, computed in C from the arguments a of
+# .phi_args() without forming the matrix of PHI(): each point contributes
+# the non-null entries of its row only.
+.wb_phi_means <- function(x, w, J, filter.size, prec.wavelet, a)
+  .Call("_WaveBased_C_PHIcolMeans", as.double(x), as.double(w),
+        as.integer(J), a$fam, as.integer(filter.size),
+        as.integer(prec.wavelet), a$bcode, a$wf, a$wtab, a$cdv)
+
+.wb_phi_prod <- function(x, coefs, J, filter.size, prec.wavelet, a)
+  .Call("_WaveBased_C_PHIprod", as.double(x), as.double(coefs),
+        as.integer(J), a$fam, as.integer(filter.size),
+        as.integer(prec.wavelet), a$bcode, a$wf, a$wtab, a$cdv)

@@ -111,6 +111,11 @@
 #' \code{prec.wavelet} and \code{wavelet.filter}, see the help of
 #' \command{\link{wbasis}}.
 #'
+#' The basis is evaluated in C point by point, without forming the matrix of
+#' \command{\link{PHI}} at the data and at the evaluation points: each point
+#' takes only the few basis functions that do not vanish at it, so the memory
+#' used does not grow with the product of the sample size and \eqn{2^{J1}}.
+#'
 #' The arguments \code{warp.fun} and \code{dwarp.fun} are used only when
 #' \code{warped = TRUE}. They must be functions representing a cumulative
 #' distribution function and a probability density function, respectively. By
@@ -298,8 +303,10 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
     if(missing(warp.fun)){
       Hyc <- seq_len(length.out = n)/n
       hy <- dens.biased
-      Hy.vals <- approx(x = sy, y = Hyc, xout = y.vals)$y
+      # ties = mean, the default of approx(), stated so that tied data do
+      # not warn
       Hfun <- function(y) approx(x = sy, y = Hyc, xout = y, ties = mean)$y
+      Hy.vals <- Hfun(y.vals)
     }
     else if(!is.function(warp.fun))
       stop("warp.fun must be a function.")
@@ -329,18 +336,25 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
     Hy.vals <- y.vals
   }
 
-  mbasis <- PHI(x = c(Hyc, Hy.vals), J = J1, family = family,
-                filter.size = filter.size, prec.wavelet = prec.wavelet,
-                boundary = boundary, wavelet.filter = wavelet.filter,
-                wavelet.table = if(boundary == "interval") NULL else wavelet.table,
-                check.lawton = check.lawton)
+  # The basis is evaluated as PHI() would at c(Hyc, Hy.vals), with the same
+  # checks, but in C without its matrix: the coefficients are weighted means
+  # of the basis at the data, and the estimate is the expansion at Hy.vals,
+  # each point taking the non-null entries of its row only.
+  pa <- .phi_args(c(Hyc, Hy.vals), J1, family, filter.size, wavelet.filter,
+                  has.filter = !missing(wavelet.filter), boundary,
+                  wavelet.table = if(boundary == "interval") NULL
+                                  else wavelet.table,
+                  check.lawton = check.lawton)
+  if(!any(is.finite(c(Hyc, Hy.vals))))
+    stop("Check your data. The observations should be real values.")
 
-  matvals <- mbasis[seq_len(n),]*dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
-  coefs <- (scale/mean(1/wf(sy)))^(power.dens)*colMeans(matvals)
+  wts <- dens.biased^(power.dens-1)*hy/wf(sy)^power.dens
+  coefs <- (scale/mean(1/wf(sy)))^(power.dens)*
+    .wb_phi_means(Hyc, wts, J1, filter.size, prec.wavelet, pa)
 
   # The thresholding transforms use the filter of the projection. A filter
-  # given by the user goes as "Own": PHI has already checked it, and warned
-  # if the family was a built-in one.
+  # given by the user goes as "Own": .phi_args() has already checked it, and
+  # warned if the family was a built-in one.
   wargs <- if(missing(wavelet.filter))
              list(family = family, filter.size = filter.size)
            else
@@ -377,16 +391,15 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   fpow <- function(g)
     if(power.dens == 0.5) g^2 else pmax(g, 0)^(1/power.dens)
 
-  dens.vals <- fpow(drop(mbasis[-seq_len(n),]%*%coefs))/scale
+  dens.vals <- fpow(.wb_phi_prod(Hy.vals, coefs, J1, filter.size,
+                                 prec.wavelet, pa))/scale
 
   if(correct){
     xi <- if(!warped && power.dens == 0.5) 0 else
       .wdensity_xi(coefs = coefs, J1 = J1, fpow = fpow, scale = scale,
-                   Hfun = Hfun, sy = sy, family = family,
+                   Hfun = Hfun, sy = sy, fam = pa$fam,
                    filter.size = filter.size, prec.wavelet = prec.wavelet,
-                   wavelet.filter = if(missing(wavelet.filter)) NULL
-                                    else wavelet.filter,
-                   boundary = boundary)
+                   wf = pa$wf, boundary = boundary)
     dens.vals <- pmax(dens.vals - xi, 0)
   }
 
@@ -421,21 +434,17 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
 # times the jacobian scale). With warping, the integral is in the scale of the
 # data: the nodes are a uniform grid of the range, the data and the preimages
 # of the dyadic grid, so that they follow the resolution of the warped basis,
-# and g is interpolated between the dyadic points.
-.wdensity_xi <- function(coefs, J1, fpow, scale, Hfun, sy, family,
-                         filter.size, prec.wavelet, wavelet.filter, boundary){
+# and g is interpolated between the dyadic points. fam and wf are the code
+# of the family and the filter, as given by .phi_args().
+.wdensity_xi <- function(coefs, J1, fpow, scale, Hfun, sy, fam,
+                         filter.size, prec.wavelet, wf, boundary){
 
   r <- min(4L, max(0L, 22L - J1))
   M <- 2^(J1 + r)
 
-  fam <- if(is.null(wavelet.filter))
-           which(tolower(substring(family, 1, 1)) == c("d", "s", "c", "o"))
-         else 4L
   gd <- .wb_fine_grid(coefs, J = J1, r = r, fam = fam,
                       filter.size = filter.size, prec.wavelet = prec.wavelet,
-                      wavelet.filter = if(is.null(wavelet.filter)) 0
-                                       else wavelet.filter,
-                      boundary = boundary)
+                      wavelet.filter = wf, boundary = boundary)
 
   if(is.null(Hfun)){
     fq <- fpow(gd)/scale

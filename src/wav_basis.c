@@ -310,6 +310,217 @@ SEXP C_PHImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SE
   return phimat;
 }
 
+/* ------------------------------------------------------------------------
+ * Products with the matrix of C_PHImat, without forming it: each point
+ * contributes the non-null entries of its row only, N - 1 in the periodic
+ * basis and at most 2(N - 1) + 1 in the CDV basis, instead of a row of
+ * 2^J entries.
+ * ------------------------------------------------------------------------ */
+
+/* What the row of a point in the matrix of C_PHImat needs, for the periodic
+ * (per = 1) and the CDV (per = 2) bases of p = 2^J functions. */
+typedef struct {
+  int G, N, p, per, phisl, prec;
+  double sqp;
+  double *ework, *evec, *filter, *hrev, *phi, *prod, *tmp;
+  const double *phitab;
+  CDVBlocks blk;
+} PhiRowSpec;
+
+/* Fills s from the arguments of C_PHImat (wutils is the protected output of
+ * WavUtilities) and returns the largest number of entries of a row. */
+static int PhiRowSetup(PhiRowSpec *s, SEXP wutils, SEXP J, SEXP prec,
+                       SEXP periodic, SEXP wtab, SEXP cdvblocks){
+
+  int i, L, rJ = asInteger(J);
+
+  if(rJ == NA_INTEGER || rJ < 0 || rJ > 30)
+    error("J must be an integer in 0, ..., 30.");
+
+  s->p = 1 << rJ;
+  s->sqp = sqrt((double) s->p);
+  s->prec = asInteger(prec);
+  s->per = asInteger(periodic);
+  s->phisl = INTEGER(VECTOR_ELT(wutils, 0))[0];
+  s->filter = REAL(VECTOR_ELT(wutils, 4));
+  s->N = L = INTEGER(VECTOR_ELT(wutils, 5))[0];
+  s->G = 0;
+  s->phitab = NULL;
+  s->hrev = s->evec = s->ework = NULL;
+
+  s->phi = (double *) R_alloc(L - 1, sizeof(double));
+  s->prod = (double *) R_alloc(L - 1, sizeof(double));
+  s->tmp = (double *) R_alloc(L - 1, sizeof(double));
+
+  if(s->per == 2){
+    CDVUnpackBlocks(cdvblocks, L, &s->blk);
+    s->hrev = (double *) R_alloc(L, sizeof(double));
+    for(i = 0; i < L; i++)
+      s->hrev[i] = s->filter[L - 1 - i];
+    s->evec = (double *) R_alloc(s->blk.Nv, sizeof(double));
+    s->ework = (double *) R_alloc(CDV_EDGE_PHI_WORK(s->blk.Nv, L),
+                                  sizeof(double));
+    return 2*s->blk.Nv + L - 1;
+  }
+
+  if(s->per != 1)
+    error("The products with the PHI matrix need boundary = \"periodic\" or \"interval\".");
+
+  s->phitab = TableGet(wtab, 0, L, &s->G);
+  return L - 1;
+}
+
+/* The non-null entries of the row of x in the matrix of C_PHImat: the value
+ * vals[t] at the column cols[t], t below the returned count. In the periodic
+ * basis, the translates that share a column keep separate entries, which
+ * add up as they do in Periodize(). x must be finite. */
+static int PhiRow(const PhiRowSpec *s, double x, int *cols, double *vals){
+
+  int cnt = 0, k, L = s->N, lkmax, lkmin, m, mhi, mlo, p = s->p, t;
+  double px = p*x, y;
+
+  if(s->per == 2){
+    int Nv = s->blk.Nv;
+
+    /* left edge functions (support [0, L-1] in level coordinates) */
+    if(px < (double)(L - 1)){
+      CDVEdgePhiVec(s->evec, px, s->blk.BL, s->blk.bL, s->blk.phi0L, Nv, L,
+                    s->filter, s->prec, s->ework);
+      for(k = 0; k < Nv; k++){
+        cols[cnt] = k;
+        vals[cnt++] = s->sqp * s->evec[k];
+      }
+    }
+
+    /* interior translates m = 1, ..., p - L */
+    lkmax = (int) floor(px);
+    lkmin = lkmax - L + 2;
+    mlo = lkmin < 1 ? 1 : lkmin;
+    mhi = lkmax > p - L ? p - L : lkmax;
+    if(mlo <= mhi){
+      PhiVec(s->phi, px, s->filter, L, s->prec, s->prod, s->tmp);
+      for(m = mlo; m <= mhi; m++){
+        cols[cnt] = Nv + m - 1;
+        vals[cnt++] = s->sqp * s->phi[m - lkmin];
+      }
+    }
+
+    /* right edge functions (reflected construction) */
+    y = (double) p - px;
+    if(y < (double)(L - 1)){
+      CDVEdgePhiVec(s->evec, y, s->blk.BR, s->blk.bR, s->blk.phi0R, Nv, L,
+                    s->hrev, s->prec, s->ework);
+      for(k = 0; k < Nv; k++){
+        cols[cnt] = p - Nv + k;
+        vals[cnt++] = s->sqp * s->evec[k];
+      }
+    }
+    return cnt;
+  }
+
+  if(s->phitab)
+    PhiVecInterp(s->phi, px, s->phitab, L, s->G);
+  else
+    PhiVec(s->phi, px, s->filter, L, s->prec, s->prod, s->tmp);
+
+  lkmax = (int) floor(px - s->phisl);
+  lkmin = lkmax - L + 2;
+  for(t = 0; t < L - 1; t++){
+    cols[t] = mod(lkmin + t, p);
+    vals[t] = s->sqp * s->phi[t];
+  }
+  return L - 1;
+}
+
+SEXP C_PHIcolMeans(SEXP x, SEXP w, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab, SEXP cdvblocks){
+
+  int cnt, i, k, n = LENGTH(x), nanx = 0, nanw = 0, nr, t;
+  int *cols;
+  double *rout, *rw, *rx, *vals;
+  long double *acc;
+  PhiRowSpec s;
+  SEXP out, wutils;
+
+  if(LENGTH(w) != n)
+    error("'w' must have the length of 'x'.");
+  rx = REAL(x);
+  rw = REAL(w);
+
+  wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
+  nr = PhiRowSetup(&s, wutils, J, prec, periodic, wtab, cdvblocks);
+
+  cols = (int *) R_alloc(nr, sizeof(int));
+  vals = (double *) R_alloc(nr, sizeof(double));
+  acc = (long double *) R_alloc(s.p, sizeof(long double));
+  for(k = 0; k < s.p; k++)
+    acc[k] = 0.0;
+
+  /* The sums run in long double, as in colMeans() */
+  for(i = 0; i < n; i++){
+    if(!R_FINITE(rx[i])){
+      warning("At least one observation is not finite and its associated line in the PHI matrix will be set as NA.");
+      nanx = 1;
+      continue;
+    }
+    if(!R_FINITE(rw[i]))
+      nanw = 1;
+    cnt = PhiRow(&s, rx[i], cols, vals);
+    for(t = 0; t < cnt; t++)
+      acc[cols[t]] += vals[t] * rw[i];
+  }
+
+  /* A row of NA gives NA means, as in colMeans(); a weight that is not
+   * finite gives NaN means, as 0 * Inf does in the product with the
+   * entries of its row that are null. */
+  PROTECT(out = allocVector(REALSXP, s.p));
+  rout = REAL(out);
+  for(k = 0; k < s.p; k++)
+    rout[k] = nanx ? NA_REAL : (nanw ? R_NaN : (double) (acc[k] / n));
+
+  UNPROTECT(2);
+  return out;
+}
+
+SEXP C_PHIprod(SEXP x, SEXP coefs, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab, SEXP cdvblocks){
+
+  int cnt, i, n = LENGTH(x), nr, t;
+  int *cols;
+  double acc, *rc, *rout, *rx, *vals;
+  PhiRowSpec s;
+  SEXP out, wutils;
+
+  rx = REAL(x);
+  rc = REAL(coefs);
+
+  wutils = PROTECT(WavUtilities(family, fs, waveletfilter));
+  nr = PhiRowSetup(&s, wutils, J, prec, periodic, wtab, cdvblocks);
+
+  if(LENGTH(coefs) != s.p)
+    error("'coefs' must have length 2^J.");
+
+  cols = (int *) R_alloc(nr, sizeof(int));
+  vals = (double *) R_alloc(nr, sizeof(double));
+
+  PROTECT(out = allocVector(REALSXP, n));
+  rout = REAL(out);
+
+  for(i = 0; i < n; i++){
+    if(!R_FINITE(rx[i])){
+      warning("At least one observation is not finite and its associated line in the PHI matrix will be set as NA.");
+      rout[i] = NA_REAL;
+      continue;
+    }
+    cnt = PhiRow(&s, rx[i], cols, vals);
+    acc = 0.0;
+    for(t = 0; t < cnt; t++)
+      acc += vals[t] * rc[cols[t]];
+    rout[i] = acc;
+  }
+
+  UNPROTECT(2);
+  return out;
+}
+
 SEXP C_PSImat(SEXP x, SEXP J, SEXP family, SEXP fs, SEXP prec, SEXP periodic, SEXP waveletfilter, SEXP wtab, SEXP cdvblocks){
 
   int i, j, kdiff1, kmax, kmin, lkmin, lkmax, n, N, p, rJ, rper, rprec;

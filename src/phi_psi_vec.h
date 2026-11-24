@@ -13,22 +13,27 @@
 /**
  * @brief Computes the vector phi[0k](px) for all k values where phi is non-null.
  *
- * Based on the 'phi' function from 'WAVDE.c' of the wavethresh package.
+ * Based on the 'phi' function from 'WAVDE.c' of the wavethresh package. The
+ * product of the prec matrices of the Daubechies-Lagarias algorithm is
+ * applied to a vector from the right, by matrix-vector products in the band
+ * of each matrix, so the cost is O(prec N^2), instead of the O(prec N^3) of
+ * forming the product itself.
  *
  * @param[out] phi    Output scaling function values (length N-1).
  * @param[in]  px     Evaluation point.
  * @param[in]  filter Wavelet filter of length N.
  * @param[in]  N      Filter length.
  * @param[in]  prec   Number of dyadic refinement iterations.
- * @param[in,out] prod Workspace matrix of size (N-1)^2.
- * @param[in,out] tmp  Workspace matrix of size (N-1)^2.
+ * @param[in,out] prod Workspace of at least N-1 doubles.
+ * @param[in,out] tmp  Workspace of at least N-1 doubles.
  */
 void PhiVec(double *phi, double px, double *filter, int N, int prec, double *prod, double *tmp);
 
 /**
  * @brief Computes the vector psi[0k](px) for all k values where psi is non-null.
  *
- * Uses the result in Theorem 3.5.5 of Vidakovic (2002, p. 90).
+ * Uses the result in Theorem 3.5.5 of Vidakovic (2002, p. 90). It allocates
+ * no memory, so it can be called once per observation.
  *
  * @param[out] psi    Output wavelet values (length N-1).
  * @param[in]  px     Evaluation point.
@@ -36,8 +41,8 @@ void PhiVec(double *phi, double px, double *filter, int N, int prec, double *pro
  * @param[in]  N      Filter length.
  * @param[in]  prec   Number of dyadic refinement iterations.
  * @param[in]  kmin   Minimum k index for the support.
- * @param[in,out] prod Workspace matrix of size (N-1)^2.
- * @param[in,out] tmp  Workspace matrix of size (N-1)^2.
+ * @param[in,out] prod Workspace of at least N-1 doubles.
+ * @param[in,out] tmp  Workspace of at least N-1 doubles.
  */
 void PsiVec(double *psi, double px, double *filter, int N, int prec, int kmin, double *prod, double *tmp);
 

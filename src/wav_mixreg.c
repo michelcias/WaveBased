@@ -119,7 +119,7 @@ static void MixPhiIntegers(double *u, const double *filter, int N)
  *          positions and the new odd positions are filled by the two-scale
  *          relation, whose right-hand side only involves points of the previous
  *          grid. The whole sample therefore costs O(N^2 2^m), against the
- *          O(N^3 2^m prec) of one Daubechies-Lagarias run per grid point, and
+ *          O(N^2 2^m prec) of one Daubechies-Lagarias run per grid point, and
  *          the values it produces are exact at every dyadic argument.
  *
  * @param[out] f      Values of phi at q/2^m, q = 0, ..., (N - 1)*2^m

@@ -33,6 +33,15 @@ test_that("wdensity removes the non-finite elements of data", {
   expect_error(suppressWarnings(est(c(NA, Inf, NaN))), "no finite")
 })
 
+test_that("wdensity does not warn about tied data with the default warping", {
+  set.seed(1)
+  d <- round(rbeta(200, 2, 5), 2)
+  expect_gt(anyDuplicated(d), 0)
+  w <- function(x) 0.1 + 0.9 * x
+  expect_no_warning(wdensity(d, wf = w, power.dens = 1, J1 = 6, warped = TRUE,
+                             plot = FALSE))
+})
+
 test_that("wdensity takes the power of the positive part of the estimate", {
   set.seed(1)
   d <- rbeta(200, 2, 5)
