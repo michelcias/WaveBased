@@ -32,6 +32,7 @@ wdensity(
   type,
   boundary = c("periodic", "interval"),
   check.lawton = TRUE,
+  correct = FALSE,
   ...
 )
 }
@@ -128,6 +129,12 @@ the minimum reported by the corresponding error message.}
 \code{wavelet.filter} must satisfy the condition of Lawton, as in
 \command{\link{PHI}}.}
 
+\item{correct}{Logical. If \code{TRUE}, the density estimate is corrected to
+be a bona fide density by the method of Glad, Hjort and Ushakov (2003): it
+becomes \eqn{\max(0, \hat{f} - \xi)}, where the constant \eqn{\xi} makes it
+integrate to one over the domain of the estimator. See Details. Default is
+\code{correct = FALSE}.}
+
 \item{...}{Further plotting parameters.}
 }
 \value{
@@ -135,6 +142,8 @@ A list containing the following components.
   \item{y}{The grid of \code{length.obs} observations at which the densities
   are estimated.}
   \item{dens}{The estimated density values.}
+  \item{xi}{Only when \code{correct = TRUE}: the constant \eqn{\xi} of the
+  correction (see Details).}
 }
 \description{
 The \code{wdensity} function calculates wavelet-based density
@@ -147,7 +156,9 @@ compactly supported orthonormal wavelet basis.
 This function provides density estimates of size-biased data according to
 Montoril et al. (2021). It estimates the power of the density of interest by
 wavelet basis, i.e., \eqn{\hat{f^a}, a \ge 0.5}. After that, the density is
-finally estimated by \eqn{[\hat{f^a}]^{1/a}}. Periodized version of ordinary
+finally estimated by \eqn{[\hat{f^a}]^{1/a}}, where the power is taken of the
+positive part \eqn{\max(0, \hat{f^a})}, except for \eqn{a = 0.5}, whose
+square is never negative. Periodized version of ordinary
 orthonormal wavelet bases of families \emph{Daublets}, \emph{Symmlets} and
 \emph{Coiflets} are allowed, as well as warped bases of these families. It
 also accepts wavelet filters provided in \code{wavelet.filter} (see the help
@@ -191,6 +202,36 @@ When \code{rescale = FALSE}, the original \code{data} are to be used.
 \bold{Caution: as the wavelet basis is periodized in the unit interval, if
 \eqn{\max(data) > 1} or \eqn{\min(data) < 0}, DO NOT use \code{warped = FALSE}
 with \code{rescale = FALSE}. Otherwise, the estimates will be unfeasible.}
+
+When \code{correct = TRUE}, the estimate \eqn{\hat{f}} is replaced by
+\eqn{\tilde{f} = \max(0, \hat{f} - \xi)}, the correction of Glad, Hjort and
+Ushakov (2003), where the constant \eqn{\xi} makes \eqn{\tilde{f}} integrate
+to one over the domain \eqn{D} of the estimator. With \code{warped = FALSE},
+\eqn{D} is the interval of the basis, \eqn{[0, 1]}, in the scale of the
+data: \eqn{[\min(data) - c, \max(data) + c]}, with
+\eqn{c = eps (\max(data) - \min(data))/(1 - 2 eps)}, if
+\code{rescale = TRUE}, and \eqn{[0, 1]} itself otherwise. With
+\code{warped = TRUE}, \eqn{D} is the range of the \code{data}. The domain
+does not depend on \code{from}, \code{to} and \code{length.obs}, which only
+set the points where the corrected estimate is evaluated: it integrates to
+one over \eqn{[}\code{from}\eqn{, }\code{to}\eqn{]} only when this interval
+covers \eqn{D}.
+
+If \eqn{\hat{f}} integrates to more than one over \eqn{D}, then
+\eqn{\xi > 0}: the estimate is lowered by \eqn{\xi}, and set to zero where
+it falls below \eqn{\xi}. This never increases the integrated squared error
+over \eqn{D} (Theorem 1 of Glad et al., 2003). Otherwise, \eqn{\xi \le 0}
+and \eqn{\tilde{f} = \hat{f} - \xi} on \eqn{D}: the missing mass is spread
+evenly over \eqn{D}, the counterpart on a bounded domain of their second
+correction. It does not increase the integrated squared error either when
+the density of interest vanishes outside \eqn{D}. In both cases,
+\eqn{\tilde{f}} is the projection of \eqn{\hat{f}} on the densities on
+\eqn{D}, in \eqn{L_2(D)}. With \code{power.dens = 0.5} and
+\code{warped = FALSE}, the estimate is already a density on \eqn{D}, since
+its coefficients are normalized, and \eqn{\xi = 0}. The integral is computed
+numerically, on the dyadic points of \eqn{[0, 1]}, 16 per interval of the
+level \code{J1} (fewer when \code{J1 > 18}), where the expansion is
+evaluated by a convolution of its coefficients with the scaling function.
 }
 \examples{
 # Density estimation of the Blood alcohol concentration of drivers
@@ -233,6 +274,10 @@ m4 = wdensity(data = bac, wf = function(x) 0.1+0.9*x, power.dens = 1,
 
 }
 \references{
+Glad, I. K., Hjort, N. L. and Ushakov, N. G. (2003). Correction of density
+estimators that are not densities. \emph{Scandinavian Journal of
+Statistics}, 30(2), 415-427, \doi{10.1111/1467-9469.00339}.
+
 Montoril, M. H., Chang, W. and Vidakovic, B. (2019). Wavelet-Based Estimation
 of Generalized Discriminant Functions. \emph{Sankhya B}, 81(2), 318-349,
 \doi{10.1007/s13571-018-0158-1}.

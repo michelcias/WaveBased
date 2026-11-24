@@ -82,6 +82,39 @@ void CDVEdgePhiVec(double *out, double y, const double *B, const double *bmat,
                    int prec, double *work);
 
 /**
+ * @brief Number of doubles of workspace required by CDVEdgePhiVecDyadic.
+ * @param[in] Nv Number of edge functions (filter length / 2).
+ * @param[in] L  Filter length.
+ */
+#define CDV_EDGE_PHI_DYADIC_WORK(Nv, L) (2 * (Nv) + ((L) - 1))
+
+/**
+ * @brief Evaluates the CDV boundary scaling functions at a dyadic point.
+ * Gives the values of CDVEdgePhiVec at y = num / R, R a power of 2, reading
+ * the interior scaling function from the vectors of PhiVec at the points
+ * s / R instead of evaluating it: every point 2^t y met by the two-scale
+ * recursion is a multiple of 1 / R, and PhiVec depends on the fractional part
+ * of its argument only. The recursion runs backwards from the first 2^T y
+ * outside the support, PhiL(y_t) = sqrt(2) * (B PhiL(y_{t+1}) +
+ * b (phi(y_{t+1} - m))_{m=1..L-1}), with y_{t+1} = 2 y_t, so it needs
+ * matrix-vector products only.
+ * @param[out] out  Array of length Nv receiving the values.
+ * @param[in]  num  Numerator of the evaluation point, y = num / R (num >= 0).
+ * @param[in]  R    Denominator of the evaluation point, a power of 2.
+ * @param[in]  B    Nv x Nv edge two-scale block (column-major).
+ * @param[in]  bmat Nv x (L-1) interior two-scale block (column-major).
+ * @param[in]  phi0 Values of the edge functions at y = 0 (length Nv).
+ * @param[in]  Nv   Number of edge functions.
+ * @param[in]  L    Filter length.
+ * @param[in]  taps (L-1) x R array (column-major) whose column s is the output
+ *                  of PhiVec at s / R, for the filter of this edge.
+ * @param[in]  work Workspace of CDV_EDGE_PHI_DYADIC_WORK(Nv, L) doubles.
+ */
+void CDVEdgePhiVecDyadic(double *out, int num, int R, const double *B,
+                         const double *bmat, const double *phi0, int Nv, int L,
+                         const double *taps, double *work);
+
+/**
  * @brief Evaluates the CDV boundary wavelets at one point.
  *
  * Computes out[k] = psiL_k(y), k = 0, ..., Nv - 1, for the left-edge wavelets

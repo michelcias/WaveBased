@@ -127,6 +127,73 @@ void CDVEdgePhiVec(double *out, double y, const double *B, const double *bmat,
   }
 }
 
+void CDVEdgePhiVecDyadic(double *out, int num, int R, const double *B,
+                         const double *bmat, const double *phi0, int Nv, int L,
+                         const double *taps, double *work) {
+
+  double *v    = work;
+  double *tv   = v  + Nv;
+  double *wvec = tv + Nv;
+  double acc;
+  long long lim, z[66];
+  int j, k, m, q, s, t, T, lkmin, lkmax, mlo, mhi;
+
+  if (num <= 0) {
+    /* limit values at the boundary point itself */
+    for (k = 0; k < Nv; k++)
+      out[k] = phi0[k];
+    return;
+  }
+
+  lim = (long long) (L - 1) * R;
+  if (num >= lim) {
+    for (k = 0; k < Nv; k++)
+      out[k] = 0.0;
+    return;
+  }
+
+  /* numerators of y_t = 2^t y, until y_T leaves the support [0, L - 1) */
+  T = 0;
+  z[0] = num;
+  while (z[T] < lim) {
+    z[T + 1] = 2 * z[T];
+    T++;
+  }
+
+  for (k = 0; k < Nv; k++)
+    v[k] = 0.0;                     /* PhiL(y_T) = 0 */
+
+  for (t = T - 1; t >= 0; t--) {
+
+    /* wvec[m-1] = phi(y_{t+1} - m), m = 1, ..., L-1 */
+    q = (int) (z[t + 1] / R);
+    s = (int) (z[t + 1] % R);
+    for (m = 0; m < L - 1; m++)
+      wvec[m] = 0.0;
+    lkmax = q;
+    lkmin = lkmax - L + 2;
+    mlo = lkmin < 1 ? 1 : lkmin;
+    mhi = lkmax > L - 1 ? L - 1 : lkmax;
+    for (m = mlo; m <= mhi; m++)
+      wvec[m - 1] = taps[(size_t) (L - 1) * s + (m - lkmin)];
+
+    /* v = sqrt(2) * (B %*% v + bmat %*% wvec) */
+    for (k = 0; k < Nv; k++) {
+      acc = 0.0;
+      for (j = 0; j < Nv; j++)
+        acc += B[k + Nv * j] * v[j];
+      for (j = 0; j < L - 1; j++)
+        acc += bmat[k + Nv * j] * wvec[j];
+      tv[k] = M_SQRT2 * acc;
+    }
+    for (k = 0; k < Nv; k++)
+      v[k] = tv[k];
+  }
+
+  for (k = 0; k < Nv; k++)
+    out[k] = v[k];
+}
+
 void CDVEdgePsiVec(double *out, double y, const double *U, const double *umat,
                    int uw, const double *B, const double *bmat,
                    const double *phi0, int Nv, int L, const double *filter,

@@ -72,6 +72,11 @@
 #'   and Vial, 1993; see \command{\link{wbasis}}). With
 #'   \code{"interval"}, the levels \code{J0} and \code{J1} must satisfy
 #'   the minimum reported by the corresponding error message.
+#' @param correct Logical. If \code{TRUE}, the density estimate is corrected to
+#'   be a bona fide density by the method of Glad, Hjort and Ushakov (2003): it
+#'   becomes \eqn{\max(0, \hat{f} - \xi)}, where the constant \eqn{\xi} makes it
+#'   integrate to one over the domain of the estimator. See Details. Default is
+#'   \code{correct = FALSE}.
 #' @param plot Logical. If \code{plot = TRUE}, the density estimate is to be
 #'   plotted.
 #' @param main,xlab,ylab,type Plotting parameters with useful defaults.
@@ -81,7 +86,9 @@
 #' This function provides density estimates of size-biased data according to
 #' Montoril et al. (2021). It estimates the power of the density of interest by
 #' wavelet basis, i.e., \eqn{\hat{f^a}, a \ge 0.5}. After that, the density is
-#' finally estimated by \eqn{[\hat{f^a}]^{1/a}}. Periodized version of ordinary
+#' finally estimated by \eqn{[\hat{f^a}]^{1/a}}, where the power is taken of the
+#' positive part \eqn{\max(0, \hat{f^a})}, except for \eqn{a = 0.5}, whose
+#' square is never negative. Periodized version of ordinary
 #' orthonormal wavelet bases of families \emph{Daublets}, \emph{Symmlets} and
 #' \emph{Coiflets} are allowed, as well as warped bases of these families. It
 #' also accepts wavelet filters provided in \code{wavelet.filter} (see the help
@@ -126,12 +133,48 @@
 #' \eqn{\max(data) > 1} or \eqn{\min(data) < 0}, DO NOT use \code{warped = FALSE}
 #' with \code{rescale = FALSE}. Otherwise, the estimates will be unfeasible.}
 #'
+#' When \code{correct = TRUE}, the estimate \eqn{\hat{f}} is replaced by
+#' \eqn{\tilde{f} = \max(0, \hat{f} - \xi)}, the correction of Glad, Hjort and
+#' Ushakov (2003), where the constant \eqn{\xi} makes \eqn{\tilde{f}} integrate
+#' to one over the domain \eqn{D} of the estimator. With \code{warped = FALSE},
+#' \eqn{D} is the interval of the basis, \eqn{[0, 1]}, in the scale of the
+#' data: \eqn{[\min(data) - c, \max(data) + c]}, with
+#' \eqn{c = eps (\max(data) - \min(data))/(1 - 2 eps)}, if
+#' \code{rescale = TRUE}, and \eqn{[0, 1]} itself otherwise. With
+#' \code{warped = TRUE}, \eqn{D} is the range of the \code{data}. The domain
+#' does not depend on \code{from}, \code{to} and \code{length.obs}, which only
+#' set the points where the corrected estimate is evaluated: it integrates to
+#' one over \eqn{[}\code{from}\eqn{, }\code{to}\eqn{]} only when this interval
+#' covers \eqn{D}.
+#'
+#' If \eqn{\hat{f}} integrates to more than one over \eqn{D}, then
+#' \eqn{\xi > 0}: the estimate is lowered by \eqn{\xi}, and set to zero where
+#' it falls below \eqn{\xi}. This never increases the integrated squared error
+#' over \eqn{D} (Theorem 1 of Glad et al., 2003). Otherwise, \eqn{\xi \le 0}
+#' and \eqn{\tilde{f} = \hat{f} - \xi} on \eqn{D}: the missing mass is spread
+#' evenly over \eqn{D}, the counterpart on a bounded domain of their second
+#' correction. It does not increase the integrated squared error either when
+#' the density of interest vanishes outside \eqn{D}. In both cases,
+#' \eqn{\tilde{f}} is the projection of \eqn{\hat{f}} on the densities on
+#' \eqn{D}, in \eqn{L_2(D)}. With \code{power.dens = 0.5} and
+#' \code{warped = FALSE}, the estimate is already a density on \eqn{D}, since
+#' its coefficients are normalized, and \eqn{\xi = 0}. The integral is computed
+#' numerically, on the dyadic points of \eqn{[0, 1]}, 16 per interval of the
+#' level \code{J1} (fewer when \code{J1 > 18}), where the expansion is
+#' evaluated by a convolution of its coefficients with the scaling function.
+#'
 #' @return A list containing the following components.
 #'   \item{y}{The grid of \code{length.obs} observations at which the densities
 #'   are estimated.}
 #'   \item{dens}{The estimated density values.}
+#'   \item{xi}{Only when \code{correct = TRUE}: the constant \eqn{\xi} of the
+#'   correction (see Details).}
 #'
 #' @references
+#' Glad, I. K., Hjort, N. L. and Ushakov, N. G. (2003). Correction of density
+#' estimators that are not densities. \emph{Scandinavian Journal of
+#' Statistics}, 30(2), 415-427, \doi{10.1111/1467-9469.00339}.
+#'
 #' Montoril, M. H., Chang, W. and Vidakovic, B. (2019). Wavelet-Based Estimation
 #' of Generalized Discriminant Functions. \emph{Sankhya B}, 81(2), 318-349,
 #' \doi{10.1007/s13571-018-0158-1}.
@@ -198,7 +241,7 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
                      rescale = TRUE, eps = 1.9^(-J1), thresh = "hard",
                      plot = TRUE, main, xlab, ylab, type,
                      boundary = c("periodic", "interval"),
-                     check.lawton = TRUE, ...){
+                     check.lawton = TRUE, correct = FALSE, ...){
 
   boundary <- match.arg(tolower(boundary[1L]), c("periodic", "interval"))
   if(boundary == "interval" && !is.null(wavelet.table))
@@ -248,12 +291,15 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
 
   y.vals <- seq(from = from, to = to, length.out = length.obs)
 
+  # The warping function, for the domain of the correction
+  Hfun <- NULL
   if(warped){
     scale <- 1
     if(missing(warp.fun)){
       Hyc <- seq_len(length.out = n)/n
       hy <- dens.biased
       Hy.vals <- approx(x = sy, y = Hyc, xout = y.vals)$y
+      Hfun <- function(y) approx(x = sy, y = Hyc, xout = y, ties = mean)$y
     }
     else if(!is.function(warp.fun))
       stop("warp.fun must be a function.")
@@ -265,6 +311,7 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
       Hyc <- warp.fun(sy)
       hy <- dwarp.fun(sy)
       Hy.vals <- warp.fun(y.vals)
+      Hfun <- warp.fun
     }
   }
   else if(rescale){
@@ -324,10 +371,24 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
   if(!warped & power.dens == 0.5)
     coefs <- coefs/sqrt(sum(coefs^2))
 
-  dens.vals <- drop(mbasis[-seq_len(n),]%*%coefs)^(1/power.dens)/scale
+  # The power of the positive part: a negative estimate of f^a has no real
+  # power 1/power.dens (except at power.dens = 1, where it stays negative),
+  # and gave NaN. At 0.5, the square is never negative and needs no clipping.
+  fpow <- function(g)
+    if(power.dens == 0.5) g^2 else pmax(g, 0)^(1/power.dens)
 
-  if((1/power.dens) %% 2)
-    dens.vals[dens.vals < 0] <- 0
+  dens.vals <- fpow(drop(mbasis[-seq_len(n),]%*%coefs))/scale
+
+  if(correct){
+    xi <- if(!warped && power.dens == 0.5) 0 else
+      .wdensity_xi(coefs = coefs, J1 = J1, fpow = fpow, scale = scale,
+                   Hfun = Hfun, sy = sy, family = family,
+                   filter.size = filter.size, prec.wavelet = prec.wavelet,
+                   wavelet.filter = if(missing(wavelet.filter)) NULL
+                                    else wavelet.filter,
+                   boundary = boundary)
+    dens.vals <- pmax(dens.vals - xi, 0)
+  }
 
   if(plot){
     if(missing(main))
@@ -343,6 +404,73 @@ wdensity <- function(data, from, to, length.obs = 250, wf = NULL, power.dens,
          xlab = xlab, ylab = ylab, ...)
   }
 
-  return(invisible(list(y = y.vals, dens = dens.vals)))
+  out <- list(y = y.vals, dens = dens.vals)
+  if(correct)
+    out$xi <- xi
+
+  return(invisible(out))
 
 }
+
+# The constant xi of the correction of Glad, Hjort and Ushakov (2003) for the
+# estimate fpow(g)/scale, g = sum_k coefs[k] phi_{J1,k-1}, over the domain of
+# the estimator: [0, 1] in the scale of the basis without warping (Hfun =
+# NULL), and the range of the sorted data sy with the warping Hfun. The
+# expansion is evaluated on the dyadic grid of [0, 1] with 2^r points per
+# interval of level J1. Without warping, the grid is the quadrature (in u,
+# times the jacobian scale). With warping, the integral is in the scale of the
+# data: the nodes are a uniform grid of the range, the data and the preimages
+# of the dyadic grid, so that they follow the resolution of the warped basis,
+# and g is interpolated between the dyadic points.
+.wdensity_xi <- function(coefs, J1, fpow, scale, Hfun, sy, family,
+                         filter.size, prec.wavelet, wavelet.filter, boundary){
+
+  r <- min(4L, max(0L, 22L - J1))
+  M <- 2^(J1 + r)
+
+  fam <- if(is.null(wavelet.filter))
+           which(tolower(substring(family, 1, 1)) == c("d", "s", "c", "o"))
+         else 4L
+  gd <- .wb_fine_grid(coefs, J = J1, r = r, fam = fam,
+                      filter.size = filter.size, prec.wavelet = prec.wavelet,
+                      wavelet.filter = if(is.null(wavelet.filter)) 0
+                                       else wavelet.filter,
+                      boundary = boundary)
+
+  if(is.null(Hfun)){
+    fq <- fpow(gd)/scale
+    wq <- c(0.5, rep_len(1, M - 1), 0.5)*scale/M
+  }
+  else{
+    n <- length(sy)
+    ud <- (0:M)/M
+    yk <- sort(unique(c(seq(from = sy[1], to = sy[n], length.out = M + 1),
+                        sy)))
+    Hk <- Hfun(yk)
+    ui <- ud[ud > Hk[1] & ud < Hk[length(Hk)]]
+    yq <- sort(unique(c(yk, approx(x = Hk, y = yk, xout = ui,
+                                   ties = mean)$y)))
+    fq <- fpow(approx(x = ud, y = gd, xout = Hfun(yq))$y)
+    dq <- diff(yq)
+    wq <- (c(dq, 0) + c(0, dq))/2
+  }
+
+  .wb_bonafide_xi(fq, wq)
+}
+
+# Values of sum_k coefs[k] phi_{J,k-1}(u), in the basis of PHI(), at the
+# dyadic points u = l/2^(J + r), l = 0, ..., 2^(J + r), computed in C without
+# a basis matrix. fam is the code of the family (4 for wavelet.filter).
+.wb_fine_grid <- function(coefs, J, r, fam, filter.size, prec.wavelet,
+                          wavelet.filter = 0, boundary = "periodic"){
+  bcode <- .wb_boundary_code(boundary)
+  cdv <- if(bcode == 2L)
+           .cdv_prepare(c(0, 1), fam, filter.size, level = J, what = "basis")
+  .Call("_WaveBased_C_WavFineGrid", as.double(coefs), as.integer(J),
+        as.integer(r), as.integer(fam), as.integer(filter.size),
+        as.integer(prec.wavelet), as.double(wavelet.filter), bcode, cdv)
+}
+
+# The xi solving sum(w * pmax(f - xi, 0)) == 1, computed in C.
+.wb_bonafide_xi <- function(f, w)
+  .Call("_WaveBased_C_BonaFideXi", as.double(f), as.double(w))

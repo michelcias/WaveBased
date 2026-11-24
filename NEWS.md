@@ -1,3 +1,32 @@
+# WaveBased 2.10-0
+
+## New features
+
+* `wdensity()` gains the argument `correct`, `FALSE` by default. With
+  `correct = TRUE`, the estimate is turned into a bona fide density by the
+  correction of Glad, Hjort and Ushakov (2003): it becomes `max(0, f - xi)`,
+  where the constant `xi`, also returned, makes it integrate to one over the
+  domain of the estimator. That domain is the interval `[0, 1]` of the basis,
+  in the scale of the data, with `warped = FALSE`, and the range of the data
+  with `warped = TRUE`. It does not depend on `from`, `to` and `length.obs`,
+  which only set where the estimate is evaluated. When `xi > 0`, the
+  correction never increases the integrated squared error; when `xi < 0`,
+  the missing mass is spread evenly over the domain. With
+  `power.dens = 0.5` and `warped = FALSE`, the estimate is already a density
+  and `xi = 0`. The integral is computed in C, on a dyadic grid of `[0, 1]`
+  where the expansion is a convolution of the coefficients with the scaling
+  function at the dyadic points, so no basis matrix is formed: in the warped
+  `bac` example (`J1 = 11`, Symmlets of size 20), the correction takes
+  0.04 s of a fit of 2.6 s.
+
+## Bug fixes
+
+* `wdensity()` returned `NaN` where the estimate of the power of the density
+  was negative, with a `power.dens` other than 0.5 and 1: a negative number
+  has no real power `1/power.dens`. The power is now taken of the positive
+  part of the estimate, so these points are 0, as they already were with
+  `power.dens = 1`.
+
 # WaveBased 2.9-1
 
 * Merges the check of `eps` in `wall()`, `cv.wall()` and `wdensity()`,

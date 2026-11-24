@@ -21,6 +21,7 @@
 #include "wav_bayesmix.h"
 #include "wav_bayesregime.h"
 #include "wav_bayesthresh.h"
+#include "wav_density.h"
 #include "wav_mixreg.h"
 #include "wav_polyagamma.h"
 #include "wav_transform.h"
@@ -55,6 +56,8 @@
  *          - C_BayesMixReg:  Gibbs sampler of the Bayesian mixture regression (11 args)
  *          - C_BayesRegime:  Gibbs sampler of the regime switching model (7 args)
  *          - C_hpdi:         highest posterior density intervals (2 args)
+ *          - C_WavFineGrid:  scaling-function expansion on a dyadic grid (9 args)
+ *          - C_BonaFideXi:   constant of the bona fide correction (2 args)
  *
  * @note Names must match exactly those used in the R wrapper .Call() calls.
  * @note Argument counts are enforced by R's .Call() mechanism at runtime.
@@ -81,6 +84,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"_WaveBased_C_BayesRegime",  (DL_FUNC) &C_BayesRegime,  7},
   {"_WaveBased_C_hpdi",         (DL_FUNC) &C_hpdi,         2},
   {"_WaveBased_C_rpg1",         (DL_FUNC) &C_rpg1,         1},
+  {"_WaveBased_C_WavFineGrid",  (DL_FUNC) &C_WavFineGrid,  9},
+  {"_WaveBased_C_BonaFideXi",   (DL_FUNC) &C_BonaFideXi,   2},
   {NULL, NULL, 0}
 };
 
